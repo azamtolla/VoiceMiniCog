@@ -6,6 +6,34 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9246E5ED2F63A68D00743FA8 /* ElevenLabsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */; };
+		9246E5EE2F63A68D00743FA8 /* VoiceMiniCogResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */; };
+		9246E5EF2F63A68D00743FA8 /* AssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E12F63A68D00743FA8 /* AssessmentView.swift */; };
+		9246E5F02F63A68D00743FA8 /* MercyColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DF2F63A68D00743FA8 /* MercyColors.swift */; };
+		9246E5F12F63A68D00743FA8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5EA2F63A68D00743FA8 /* ContentView.swift */; };
+		9246E5F22F63A68D00743FA8 /* ClockScoringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E32F63A68D00743FA8 /* ClockScoringView.swift */; };
+		9246E5F32F63A68D00743FA8 /* VoiceMiniCogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5EB2F63A68D00743FA8 /* VoiceMiniCogApp.swift */; };
+		9246E5F42F63A68D00743FA8 /* Phase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D72F63A68D00743FA8 /* Phase.swift */; };
+		9246E5F52F63A68D00743FA8 /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E72F63A68D00743FA8 /* SummaryView.swift */; };
+		9246E5F62F63A68D00743FA8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DA2F63A68D00743FA8 /* APIClient.swift */; };
+		9246E5F72F63A68D00743FA8 /* AssessmentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D42F63A68D00743FA8 /* AssessmentState.swift */; };
+		9246E5F82F63A68D00743FA8 /* ResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E62F63A68D00743FA8 /* ResultsView.swift */; };
+		9246E5F92F63A68D00743FA8 /* ResponseCheckers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */; };
+		9246E5FA2F63A68D00743FA8 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D32F63A68D00743FA8 /* APIModels.swift */; };
+		9246E5FB2F63A68D00743FA8 /* CompositeRisk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */; };
+		9246E5FC2F63A68D00743FA8 /* ClockDrawingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E22F63A68D00743FA8 /* ClockDrawingView.swift */; };
+		9246E5FD2F63A68D00743FA8 /* AD8Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D22F63A68D00743FA8 /* AD8Models.swift */; };
+		9246E5FE2F63A68D00743FA8 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E42F63A68D00743FA8 /* HomeView.swift */; };
+		9246E5FF2F63A68D00743FA8 /* ClockAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D52F63A68D00743FA8 /* ClockAnalysis.swift */; };
+		9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DD2F63A68D00743FA8 /* SpeechService.swift */; };
+		9246E6012F63A68D00743FA8 /* PhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E52F63A68D00743FA8 /* PhaseView.swift */; };
+		9246E60A2F63EB0200743FA8 /* AudioSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6032F63EB0200743FA8 /* AudioSessionManager.swift */; };
+		9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6062F63EB0200743FA8 /* RealtimeManager.swift */; };
+		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
+		9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		9246E5312F6390E900743FA8 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,14 +55,35 @@
 		9246E5232F6390E700743FA8 /* VoiceMiniCog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceMiniCog.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9246E5302F6390E900743FA8 /* VoiceMiniCogTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoiceMiniCogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9246E53A2F6390E900743FA8 /* VoiceMiniCogUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VoiceMiniCogUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9246E5D22F63A68D00743FA8 /* AD8Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AD8Models.swift; sourceTree = "<group>"; };
+		9246E5D32F63A68D00743FA8 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		9246E5D42F63A68D00743FA8 /* AssessmentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentState.swift; sourceTree = "<group>"; };
+		9246E5D52F63A68D00743FA8 /* ClockAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockAnalysis.swift; sourceTree = "<group>"; };
+		9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeRisk.swift; sourceTree = "<group>"; };
+		9246E5D72F63A68D00743FA8 /* Phase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase.swift; sourceTree = "<group>"; };
+		9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMiniCogResult.swift; sourceTree = "<group>"; };
+		9246E5DA2F63A68D00743FA8 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsService.swift; sourceTree = "<group>"; };
+		9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseCheckers.swift; sourceTree = "<group>"; };
+		9246E5DD2F63A68D00743FA8 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
+		9246E5DF2F63A68D00743FA8 /* MercyColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MercyColors.swift; sourceTree = "<group>"; };
+		9246E5E12F63A68D00743FA8 /* AssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentView.swift; sourceTree = "<group>"; };
+		9246E5E22F63A68D00743FA8 /* ClockDrawingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockDrawingView.swift; sourceTree = "<group>"; };
+		9246E5E32F63A68D00743FA8 /* ClockScoringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockScoringView.swift; sourceTree = "<group>"; };
+		9246E5E42F63A68D00743FA8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		9246E5E52F63A68D00743FA8 /* PhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhaseView.swift; sourceTree = "<group>"; };
+		9246E5E62F63A68D00743FA8 /* ResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsView.swift; sourceTree = "<group>"; };
+		9246E5E72F63A68D00743FA8 /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
+		9246E5E92F63A68D00743FA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9246E5EA2F63A68D00743FA8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		9246E5EB2F63A68D00743FA8 /* VoiceMiniCogApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMiniCogApp.swift; sourceTree = "<group>"; };
+		9246E6032F63EB0200743FA8 /* AudioSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSessionManager.swift; sourceTree = "<group>"; };
+		9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CDTOnDeviceScorer.swift; sourceTree = "<group>"; };
+		9246E6062F63EB0200743FA8 /* RealtimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeManager.swift; sourceTree = "<group>"; };
+		9246E6092F63EB0200743FA8 /* TokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		9246E5252F6390E700743FA8 /* VoiceMiniCog */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VoiceMiniCog;
-			sourceTree = "<group>";
-		};
 		9246E5332F6390E900743FA8 /* VoiceMiniCogTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = VoiceMiniCogTests;
@@ -75,7 +124,7 @@
 		9246E51A2F6390E700743FA8 = {
 			isa = PBXGroup;
 			children = (
-				9246E5252F6390E700743FA8 /* VoiceMiniCog */,
+				9246E5EC2F63A68D00743FA8 /* VoiceMiniCog */,
 				9246E5332F6390E900743FA8 /* VoiceMiniCogTests */,
 				9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */,
 				9246E5242F6390E700743FA8 /* Products */,
@@ -92,6 +141,71 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		9246E5D92F63A68D00743FA8 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9246E5D22F63A68D00743FA8 /* AD8Models.swift */,
+				9246E5D32F63A68D00743FA8 /* APIModels.swift */,
+				9246E5D42F63A68D00743FA8 /* AssessmentState.swift */,
+				9246E5D52F63A68D00743FA8 /* ClockAnalysis.swift */,
+				9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */,
+				9246E5D72F63A68D00743FA8 /* Phase.swift */,
+				9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		9246E5DE2F63A68D00743FA8 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				9246E5DA2F63A68D00743FA8 /* APIClient.swift */,
+				9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */,
+				9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */,
+				9246E5DD2F63A68D00743FA8 /* SpeechService.swift */,
+				9246E6032F63EB0200743FA8 /* AudioSessionManager.swift */,
+				9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */,
+				9246E6062F63EB0200743FA8 /* RealtimeManager.swift */,
+				9246E6092F63EB0200743FA8 /* TokenService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		9246E5E02F63A68D00743FA8 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				9246E5DF2F63A68D00743FA8 /* MercyColors.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		9246E5E82F63A68D00743FA8 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				9246E5E12F63A68D00743FA8 /* AssessmentView.swift */,
+				9246E5E22F63A68D00743FA8 /* ClockDrawingView.swift */,
+				9246E5E32F63A68D00743FA8 /* ClockScoringView.swift */,
+				9246E5E42F63A68D00743FA8 /* HomeView.swift */,
+				9246E5E52F63A68D00743FA8 /* PhaseView.swift */,
+				9246E5E62F63A68D00743FA8 /* ResultsView.swift */,
+				9246E5E72F63A68D00743FA8 /* SummaryView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		9246E5EC2F63A68D00743FA8 /* VoiceMiniCog */ = {
+			isa = PBXGroup;
+			children = (
+				9246E5D92F63A68D00743FA8 /* Models */,
+				9246E5DE2F63A68D00743FA8 /* Services */,
+				9246E5E02F63A68D00743FA8 /* Theme */,
+				9246E5E82F63A68D00743FA8 /* Views */,
+				9246E5E92F63A68D00743FA8 /* Assets.xcassets */,
+				9246E5EA2F63A68D00743FA8 /* ContentView.swift */,
+				9246E5EB2F63A68D00743FA8 /* VoiceMiniCogApp.swift */,
+			);
+			path = VoiceMiniCog;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -101,14 +215,10 @@
 			buildPhases = (
 				9246E51F2F6390E700743FA8 /* Sources */,
 				9246E5202F6390E700743FA8 /* Frameworks */,
-				9246E5212F6390E700743FA8 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				9246E5252F6390E700743FA8 /* VoiceMiniCog */,
 			);
 			name = VoiceMiniCog;
 			packageProductDependencies = (
@@ -208,13 +318,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		9246E5212F6390E700743FA8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		9246E52E2F6390E900743FA8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -236,6 +339,31 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9246E5ED2F63A68D00743FA8 /* ElevenLabsService.swift in Sources */,
+				9246E5EE2F63A68D00743FA8 /* VoiceMiniCogResult.swift in Sources */,
+				9246E5EF2F63A68D00743FA8 /* AssessmentView.swift in Sources */,
+				9246E5F02F63A68D00743FA8 /* MercyColors.swift in Sources */,
+				9246E60A2F63EB0200743FA8 /* AudioSessionManager.swift in Sources */,
+				9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */,
+				9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */,
+				9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */,
+				9246E5F12F63A68D00743FA8 /* ContentView.swift in Sources */,
+				9246E5F22F63A68D00743FA8 /* ClockScoringView.swift in Sources */,
+				9246E5F32F63A68D00743FA8 /* VoiceMiniCogApp.swift in Sources */,
+				9246E5F42F63A68D00743FA8 /* Phase.swift in Sources */,
+				9246E5F52F63A68D00743FA8 /* SummaryView.swift in Sources */,
+				9246E5F62F63A68D00743FA8 /* APIClient.swift in Sources */,
+				9246E5F72F63A68D00743FA8 /* AssessmentState.swift in Sources */,
+				9246E5F82F63A68D00743FA8 /* ResultsView.swift in Sources */,
+				9246E5F92F63A68D00743FA8 /* ResponseCheckers.swift in Sources */,
+				9246E5FA2F63A68D00743FA8 /* APIModels.swift in Sources */,
+				9246E5FB2F63A68D00743FA8 /* CompositeRisk.swift in Sources */,
+				9246E5FC2F63A68D00743FA8 /* ClockDrawingView.swift in Sources */,
+				9246E5FD2F63A68D00743FA8 /* AD8Models.swift in Sources */,
+				9246E5FE2F63A68D00743FA8 /* HomeView.swift in Sources */,
+				9246E5FF2F63A68D00743FA8 /* ClockAnalysis.swift in Sources */,
+				9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */,
+				9246E6012F63A68D00743FA8 /* PhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,10 +518,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5B932KH47W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VoiceMiniCog needs microphone access to listen to your responses";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "VoiceMiniCog uses speech recognition to transcribe your responses";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -404,7 +535,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -414,13 +545,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 2;
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
 			name = Debug;
@@ -432,10 +564,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5B932KH47W;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VoiceMiniCog needs microphone access to listen to your responses";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "VoiceMiniCog uses speech recognition to transcribe your responses";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -446,7 +581,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -456,13 +591,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = 2;
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
 			name = Release;

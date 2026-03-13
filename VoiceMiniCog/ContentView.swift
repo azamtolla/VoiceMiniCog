@@ -2,20 +2,22 @@
 //  ContentView.swift
 //  VoiceMiniCog
 //
-//  Created by Azam Tolla on 3/12/26.
-//
 
 import SwiftUI
 
 struct ContentView: View {
+    @State private var isAssessmentActive = false
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            if isAssessmentActive {
+                AssessmentView(isActive: $isAssessmentActive)
+            } else {
+                HomeView(onStart: {
+                    isAssessmentActive = true
+                })
+            }
         }
-        .padding()
     }
 }
 

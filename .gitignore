@@ -1,0 +1,3 @@
+*.bin
+*.weights.h5
+CDTScorer.mlpackage/
