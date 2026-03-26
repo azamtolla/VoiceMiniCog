@@ -153,6 +153,26 @@ class APIClient {
 
         return try decoder.decode(CDTScoringResponse.self, from: data)
     }
+
+    // MARK: - Tavus Conversation API (via backend proxy)
+
+    static let createConversationPath = "/api/tavus/conversation"
+
+    func createTavusConversation(replicaId: String, personaId: String) async throws -> TavusConversationSession {
+        let url = URL(string: "\(APIClient.baseURL)\(APIClient.createConversationPath)")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30
+        let body = TavusConversationCreateRequest(replica_id: replicaId, persona_id: personaId)
+        request.httpBody = try encoder.encode(body)
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.serverError(statusCode: httpResponse.statusCode)
+        }
+        return try decoder.decode(TavusConversationSession.self, from: data)
+    }
 }
 
 // MARK: - API Errors

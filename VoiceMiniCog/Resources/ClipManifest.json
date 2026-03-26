@@ -1,0 +1,12 @@
+{
+  "clips": [
+    { "id": "word_registration_intro", "file": "clip_word_reg_intro.pcm", "transcript": "I'm going to say three words. Please listen carefully and repeat them back to me." },
+    { "id": "word_list_A", "file": "clip_word_list_A.pcm", "transcript": "Apple. Table. Penny." },
+    { "id": "word_list_B", "file": "clip_word_list_B.pcm", "transcript": "Leader. Season. Butter." },
+    { "id": "clock_instruction", "file": "clip_clock_instruction.pcm", "transcript": "Now I'd like you to draw a clock. Put in all the numbers and set the hands to show ten minutes after eleven." },
+    { "id": "recall_prompt", "file": "clip_recall_prompt.pcm", "transcript": "Earlier I said three words. What were they?" },
+    { "id": "cue_apple", "file": "clip_cue_apple.pcm", "transcript": "Here's a hint — it's a type of fruit." },
+    { "id": "cue_table", "file": "clip_cue_table.pcm", "transcript": "Here's a hint — it's a piece of furniture." },
+    { "id": "cue_penny", "file": "clip_cue_penny.pcm", "transcript": "Here's a hint — it's a type of coin." }
+  ]
+}

@@ -10,7 +10,6 @@ import SwiftUI
 @main
 struct VoiceMiniCogApp: App {
     var body: some Scene {
-        
         WindowGroup {
             ContentView()
         }
