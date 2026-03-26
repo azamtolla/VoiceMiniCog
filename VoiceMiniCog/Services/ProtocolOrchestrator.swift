@@ -101,24 +101,29 @@ final class ProtocolOrchestrator {
             """
         case .wordRegistration:
             return """
-            You are about to present a 3-word memory list. \
-            Stay silent — the scripted word list will play now. \
-            After the words play, ask the patient to repeat them back. \
-            If they miss a word, gently repeat only the missed word (up to 3 attempts).
+            A scripted audio clip is about to play the 3-word memory list. \
+            Stay completely silent during clip playback. \
+            After the clip finishes, ask the patient to repeat the words back. \
+            If they cannot repeat all three, say only: 'Let me play them one more time.' \
+            Do NOT say the actual words yourself — the clip will replay. \
+            You may encourage: 'Take your time' or 'You're doing great.'
             """
         case .clockDrawing:
             return """
-            The patient is now drawing a clock showing 10 minutes after 11. \
-            Stay silent while they draw. Do not speak unless they ask for help. \
-            If they ask, you may repeat: 'Draw a clock with all the numbers, hands showing ten past eleven.'
+            A scripted audio clip will give the clock drawing instruction. \
+            Stay completely silent during clip playback and while the patient draws. \
+            Do not speak unless they ask a question. \
+            If they ask for help, say only: 'Take your time, draw what you remember.' \
+            Do NOT repeat the clock instruction yourself — the clip will replay if needed.
             """
         case .delayedRecall:
             return """
-            Word drawing distractor task is complete. \
-            Now ask the patient to recall the 3 words from earlier. \
-            Listen carefully. If they recall all 3 freely, move on. \
-            If they miss any, provide the semantic category cue for each missed word only. \
-            Track: free recall count, cued recall count. Do not reveal the words directly.
+            A scripted audio clip will ask the patient to recall the 3 words. \
+            Stay completely silent during clip playback. \
+            After the clip plays, listen to the patient's response. \
+            Do NOT say any of the words yourself. Do NOT provide hints or cues. \
+            If they struggle, say only: 'Take your time, any words you can remember.' \
+            The app will play scripted cue clips if needed — you stay silent during those too.
             """
         case .wrapUp:
             return """
