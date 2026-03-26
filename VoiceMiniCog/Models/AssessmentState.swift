@@ -6,17 +6,62 @@
 //
 
 import Foundation
+import Observation
 import SwiftUI
 
-// Word lists matching React app
-let WORD_LISTS: [[String]] = [
-    ["banana", "sunrise", "chair"],
-    ["leader", "season", "table"],
-    ["village", "kitchen", "baby"],
-    ["dollar", "ship", "garden"],
-    ["river", "nation", "finger"],
-    ["captain", "garden", "picture"],
+// Validated Mini-Cog word lists (from mini-cog.com)
+// Each session uses one list, selected randomly, never repeating the last used.
+let MINICOG_WORD_SETS: [[String]] = [
+    ["banana", "sunrise", "chair"],     // Set 1
+    ["leader", "season", "table"],      // Set 2
+    ["village", "kitchen", "baby"],     // Set 3
+    ["dollar", "ship", "garden"],       // Set 4
+    ["river", "nation", "finger"],      // Set 5
+    ["captain", "garden", "picture"],   // Set 6
 ]
+
+// Legacy alias
+let WORD_LISTS = MINICOG_WORD_SETS
+
+// MARK: - Repeat Tracking
+
+/// Tracks how many times each scripted clip has been replayed in this session.
+/// Used for clinical documentation and enforcing per-phase limits.
+struct RepeatTracker {
+    var wordIntro: Int = 0
+    var clockInstructions: Int = 0
+    var recallPrompt: Int = 0
+
+    static let maxRepeats = 3
+
+    mutating func increment(for phase: String) {
+        switch phase {
+        case "word_intro": wordIntro += 1
+        case "clock_instructions": clockInstructions += 1
+        case "recall_prompt": recallPrompt += 1
+        default: break
+        }
+    }
+
+    func count(for phase: String) -> Int {
+        switch phase {
+        case "word_intro": return wordIntro
+        case "clock_instructions": return clockInstructions
+        case "recall_prompt": return recallPrompt
+        default: return 0
+        }
+    }
+
+    func canRepeat(phase: String) -> Bool {
+        count(for: phase) < Self.maxRepeats
+    }
+
+    mutating func reset() {
+        wordIntro = 0
+        clockInstructions = 0
+        recallPrompt = 0
+    }
+}
 
 // Listen timeouts per stage (ms) — generous for elderly patients
 let LISTEN_TIMEOUTS: [String: Int] = [
@@ -37,11 +82,11 @@ struct PhaseMeta {
 }
 
 let PHASE_META: [PhaseMeta] = [
+    PhaseMeta(key: "qdrs", label: "Memory Questionnaire", iconName: "checklist", color: Color(hex: "#ea580c")),
     PhaseMeta(key: "greeting", label: "Introduction", iconName: "waveform", color: Color(hex: "#1a5276")),
     PhaseMeta(key: "registration", label: "Word Registration", iconName: "brain", color: Color(hex: "#7c3aed")),
     PhaseMeta(key: "clock", label: "Clock Drawing", iconName: "pencil.and.outline", color: Color(hex: "#0891b2")),
     PhaseMeta(key: "recall", label: "Word Recall", iconName: "brain.head.profile", color: Color(hex: "#c026d3")),
-    PhaseMeta(key: "ad8", label: "AD8 Questions", iconName: "list.clipboard", color: Color(hex: "#ea580c")),
     PhaseMeta(key: "results", label: "Results", iconName: "checkmark.circle", color: Color(hex: "#16a34a")),
 ]
 
@@ -86,7 +131,7 @@ enum ScreenInterpretation: String {
 @Observable
 class AssessmentState {
     // Current phase and state
-    var currentPhase: Phase = .intro
+    var currentPhase: Phase = .intake
     var assistantState: AssistantState = .idle
     var transcript: String = ""
     var interimTranscript: String = ""
@@ -96,8 +141,12 @@ class AssessmentState {
     // Word registration
     var words: [String] = []
     var wordListIndex: Int = 0
+    var selectedWordSetIndex: Int = 0
     var registrationAttempt: Int = 1
     var registrationResults: [Int] = []
+
+    // Repeat tracking (for scripted clips)
+    var repeatTracker = RepeatTracker()
 
     // Scores
     var wordRegistrationScore: Int = 0
@@ -114,11 +163,39 @@ class AssessmentState {
     var clockRationale: String = ""
     var isAIScoringClock: Bool = false
 
-    // AD8
-    var ad8State: AD8State = AD8State()
+    // QDRS
+    var qdrsState: QDRSState = QDRSState()
+
+    // Qmci
+    var qmciState: QmciState = QmciState()
+
+    // PHQ-2
+    var phq2State: PHQ2State = PHQ2State()
+
+    // Patient demographics
+    var patientAge: Int = 0
+    var patientEducationYears: Int = 12
+
+    // Medication flags
+    var medicationFlags: MedicationFlags = MedicationFlags()
+
+    // Anti-amyloid triage
+    var amyloidTriage: AmyloidTriageResult? = nil
+
+    // Workup orders
+    var workupOrders: [ReversibleCauseOrder] = []
 
     // Composite risk
     var compositeRisk: CompositeRiskOutput? = nil
+
+    // ICD-10 suggestion
+    var suggestedICD10: String {
+        switch qmciState.classification {
+        case .normal: return "R41.81 — Age-related cognitive decline"
+        case .mciProbable: return "G31.84 — Mild cognitive impairment"
+        case .dementiaRange: return "F03.90 — Unspecified dementia"
+        }
+    }
 
     // Prompts from backend or generated
     var currentPrompt: String = ""
@@ -156,6 +233,14 @@ class AssessmentState {
         return totalScore < 3
     }
 
+    var isQDRSPositive: Bool {
+        qdrsState.isPositiveScreen
+    }
+
+    var isCombinedScreenPositive: Bool {
+        isQDRSPositive || isPositiveScreen
+    }
+
     var miniCogClassification: String {
         if recallScore == 0 {
             return "screen_positive"
@@ -172,21 +257,21 @@ class AssessmentState {
     }
 
     func selectWordList() {
-        // Get next word list, avoiding last used (matching React logic)
         let key = "minicog_last_word_list_index"
         let lastIndex = UserDefaults.standard.integer(forKey: key)
         var nextIndex: Int
         repeat {
-            nextIndex = Int.random(in: 0..<WORD_LISTS.count)
-        } while nextIndex == lastIndex && WORD_LISTS.count > 1
+            nextIndex = Int.random(in: 0..<MINICOG_WORD_SETS.count)
+        } while nextIndex == lastIndex && MINICOG_WORD_SETS.count > 1
 
         UserDefaults.standard.set(nextIndex, forKey: key)
         wordListIndex = nextIndex
-        words = WORD_LISTS[nextIndex]
+        selectedWordSetIndex = nextIndex
+        words = MINICOG_WORD_SETS[nextIndex]
     }
 
     func reset() {
-        currentPhase = .intro
+        currentPhase = .intake
         assistantState = .idle
         transcript = ""
         interimTranscript = ""
@@ -205,8 +290,16 @@ class AssessmentState {
         clockTimeSec = 0
         clockRationale = ""
         isAIScoringClock = false
-        ad8State = AD8State()
+        qdrsState = QDRSState()
+        qmciState.reset()
+        phq2State = PHQ2State()
+        patientAge = 0
+        patientEducationYears = 12
+        medicationFlags = MedicationFlags()
+        amyloidTriage = nil
+        workupOrders = []
         compositeRisk = nil
+        repeatTracker.reset()
         currentPrompt = ""
         errorMessage = nil
         messages = []
@@ -244,39 +337,24 @@ class AssessmentState {
     // MARK: - Prompts matching React app
 
     func getPromptForPhase(_ phase: Phase) -> String {
-        switch phase {
-        case .intro:
-            return "Hello! I'm going to walk you through a short memory exercise. It only takes a few minutes. I'll say three words, and I'd like you to remember them. We'll come back to those words a little later. Ready?"
-
-        case .wordRegistration:
-            return "I'm going to say three words. Please listen carefully and remember them."
-
-        case .clockDrawing:
-            return "Now, please draw a clock face with all the numbers. Set the hands to show ten past eleven."
-
-        case .recall:
-            return "Now, what were those three words I asked you to remember earlier?"
-
-        case .summary:
-            return "Thank you for completing the assessment."
-        }
+        return phase.prompt
     }
 
     func getWordIntroPrompt() -> String {
-        return "I'm going to say three words that I'd like you to remember. I'll ask you to recall them later. The words are: \(words[0])... \(words[1])... \(words[2])."
+        let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
+        return "I'm going to say \(wordList.count) words that I'd like you to remember. I'll ask you to recall them later. The words are: \(wordList.joined(separator: "... "))."
     }
 
     func getRepeatPrompt() -> String {
-        return "Can you repeat those three words for me?"
+        return "Can you repeat those words for me?"
     }
 
     func getRetryPrompt(attempt: Int, lastScore: Int) -> String {
+        let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
         if lastScore == 0 {
-            return "Let me say those words one more time. Listen carefully: \(words.joined(separator: "... ")). Now, can you tell me those three words?"
-        } else if lastScore == 1 {
-            return "Good, you got one! Let's try again. The words are: \(words.joined(separator: "... ")). What are those three words?"
+            return "Let me say those words one more time. Listen carefully: \(wordList.joined(separator: "... ")). Now, can you tell me those words?"
         } else {
-            return "Good, you got \(lastScore)! One more time: \(words.joined(separator: "... ")). Can you repeat all three?"
+            return "Good, you got \(lastScore)! One more time: \(wordList.joined(separator: "... ")). Can you repeat them all?"
         }
     }
 
@@ -300,12 +378,18 @@ class AssessmentState {
         return "Now I'd like you to draw a clock. Draw a circle, put in all the numbers, and set the hands to show ten minutes past eleven."
     }
 
-    func getAD8IntroPrompt() -> String {
-        return "Next I'm going to ask about some everyday abilities. I'm interested in whether you've noticed any changes over the past few years related to thinking or memory — not physical problems like vision or arthritis. For each one, just tell me: yes, there's been a change, no, things are about the same, or you're not sure. Take your time."
+    func getQDRSIntroPrompt() -> String {
+        "Before we start the memory test, I'd like to ask you \(QDRS_QUESTIONS.count) short questions about your everyday memory and activities. There are no right or wrong answers."
     }
 
-    func getAD8OfferPrompt() -> String {
-        return "We're almost done. Would you also like to answer a few brief questions about everyday memory? It's completely optional."
+    func getQDRSQuestionPrompt(index: Int) -> String {
+        guard index < QDRS_QUESTIONS.count else { return "" }
+        let q = QDRS_QUESTIONS[index]
+        return "Question \(index + 1) of \(QDRS_QUESTIONS.count): \(q.voicePrompt) Would you say no change, sometimes, or yes, it has changed?"
+    }
+
+    func getQDRSCompletionPrompt() -> String {
+        "Thank you for answering those questions. Now let's move on to the memory exercise."
     }
 
     func getFinalThankYouPrompt() -> String {
@@ -315,25 +399,12 @@ class AssessmentState {
     // MARK: - Phase name mapping for stepper
 
     func getPhaseName() -> String {
-        switch currentPhase {
-        case .intro:
-            return "greeting"
-        case .wordRegistration:
-            return "registration"
-        case .clockDrawing:
-            return "clock"
-        case .recall:
-            return "recall"
-        case .summary:
-            return "results"
-        }
+        return currentPhase.rawValue
     }
 
     // MARK: - Compute composite risk
 
     func computeCompositeRiskIfNeeded() {
-        guard let ad8Score = ad8State.score else { return }
-
         let mcInput = MiniCogInput(
             totalScore: clinicianTotalScore,
             recallScore: recallScore,
@@ -342,13 +413,16 @@ class AssessmentState {
                 clockAnalysis != nil && clockAnalysis!.aiClass < 2
         )
 
-        let ad8Input = AD8Input(
-            totalScore: ad8Score,
-            respondentType: ad8State.respondentType,
-            flaggedDomains: ad8State.flaggedDomains,
-            uncertainCount: ad8State.answers.filter { $0 == .na }.count
+        let qInput = QDRSInput(
+            totalScore: qdrsState.totalScore,
+            isPositiveScreen: qdrsState.isPositiveScreen,
+            respondentType: qdrsState.respondentType,
+            flaggedDomains: qdrsState.flaggedDomains
         )
 
-        compositeRisk = computeCompositeRisk(miniCog: mcInput, ad8: ad8Input)
+        compositeRisk = computeCompositeRiskMiniCogQDRS(
+            miniCog: mcInput,
+            qdrs: qInput
+        )
     }
 }

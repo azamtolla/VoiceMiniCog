@@ -28,94 +28,147 @@ struct MiniCogInput {
     let aiClockExecutiveFlag: Bool
 }
 
-struct AD8Input {
-    let totalScore: Int
-    let respondentType: AD8RespondentType
-    let flaggedDomains: [String]
-    let uncertainCount: Int
-}
+// AD8 removed — use computeCompositeRiskQmciQDRS instead
 
-func computeCompositeRisk(miniCog: MiniCogInput, ad8: AD8Input) -> CompositeRiskOutput {
+func computeCompositeRiskMiniCogQDRS(
+    miniCog: MiniCogInput,
+    qdrs: QDRSInput
+) -> CompositeRiskOutput {
     let mcPositive = miniCog.totalScore < 3
-    let ad8Positive = ad8.totalScore >= 2
-
-    // Concordance check (used in logic below)
-    let _ = (mcPositive && ad8Positive) || (!mcPositive && !ad8Positive)
+    let qPositive = qdrs.isPositiveScreen
 
     var tier: RiskTier
     var label: String
-    var summaryLine: String
+    var summary: String
     var narrative: String
-    var suggestedActions: [String] = []
+    var actions: [String] = []
 
-    if mcPositive && ad8Positive {
-        // Both positive - High risk
+    switch (mcPositive, qPositive) {
+    case (true, true):
         tier = .high
         label = "High Risk"
-        summaryLine = "Both Mini-Cog and AD8 screen positive"
-        narrative = "Concordant positive findings on both screening instruments indicate elevated likelihood of cognitive impairment. Further diagnostic evaluation is strongly recommended."
-        suggestedActions = [
-            "Consider formal cognitive assessment (MoCA, SLUMS)",
-            "Order reversible dementia workup (TSH, B12, CBC, CMP)",
+        summary = "Both Mini-Cog and QDRS screen positive"
+        narrative = "Concordant positive findings on objective and patient-reported measures suggest elevated likelihood of cognitive impairment."
+        actions = [
+            "Formal cognitive assessment (MoCA, SLUMS)",
+            "Reversible dementia workup (TSH, B12, CBC, CMP)",
             "Consider structural neuroimaging",
             "Refer to neurology or memory clinic"
         ]
-    } else if !mcPositive && !ad8Positive {
-        // Both negative - Low risk
+
+    case (false, false):
         tier = .low
         label = "Low Risk"
-        summaryLine = "Both Mini-Cog and AD8 screen negative"
-        narrative = "Concordant negative findings suggest low likelihood of significant cognitive impairment at this time. Routine monitoring recommended."
-        suggestedActions = [
+        summary = "Both Mini-Cog and QDRS screen negative"
+        narrative = "Concordant negative findings suggest low likelihood of significant cognitive impairment at this time."
+        actions = [
             "Continue routine cognitive monitoring",
             "Repeat screening in 12 months if risk factors present"
         ]
-    } else {
-        // Discordant results - Intermediate risk
+
+    case (true, false):
         tier = .intermediate
         label = "Intermediate Risk"
-
-        if mcPositive && !ad8Positive {
-            summaryLine = "Mini-Cog positive but AD8 negative (discordant)"
-            narrative = "Discordant findings with objective screening positive but subjective report negative. This may reflect early impairment with limited awareness, or performance factors affecting the Mini-Cog."
-        } else {
-            summaryLine = "AD8 positive but Mini-Cog negative (discordant)"
-            narrative = "Discordant findings with subjective concerns but objective screening negative. This may reflect subjective cognitive decline, anxiety, depression, or very early changes not yet captured by brief screening."
-        }
-
-        suggestedActions = [
-            "Consider formal cognitive assessment for clarification",
-            "Evaluate for depression, anxiety, sleep disorders",
-            "Review medications that may affect cognition",
-            "Repeat screening in 6 months"
+        summary = "Mini-Cog positive, QDRS negative (discordant)"
+        narrative = "Objective screening positive without patient-reported functional concerns. May reflect limited insight or early impairment. Further evaluation recommended."
+        actions = [
+            "Consider formal cognitive assessment",
+            "Seek informant history",
+            "Review medications and comorbidities"
         ]
 
-        // Adjust for self-report AD8 with borderline score
-        if ad8.respondentType == .selfReport && ad8.totalScore >= 2 && ad8.totalScore <= 3 {
-            narrative += " Note: Self-report AD8 scores of 2-3 have lower specificity; consider informant corroboration."
-        }
+    case (false, true):
+        tier = .intermediate
+        label = "Intermediate Risk"
+        summary = "QDRS positive, Mini-Cog negative (discordant)"
+        narrative = "Patient reports functional/memory concerns without objective impairment. May reflect subjective cognitive decline, anxiety, or depression."
+        actions = [
+            "Screen for depression, anxiety, sleep disorder",
+            "Repeat screening in 6–12 months",
+            "Consider formal cognitive testing if concerns persist"
+        ]
     }
 
-    // Add executive flag note if applicable
     if miniCog.aiClockExecutiveFlag {
-        narrative += " AI clock analysis suggests possible executive dysfunction despite normal Mini-Cog score."
+        narrative += " AI clock analysis suggests possible executive dysfunction despite Mini-Cog score."
         if tier == .low {
             tier = .intermediate
             label = "Low-Intermediate Risk"
-            suggestedActions.append("Monitor executive function given AI clock findings")
+            actions.append("Monitor executive function given AI clock findings")
         }
-    }
-
-    // Add domain-specific observations
-    if !ad8.flaggedDomains.isEmpty && ad8.flaggedDomains.count >= 3 {
-        narrative += " Multiple functional domains affected: \(ad8.flaggedDomains.joined(separator: ", "))."
     }
 
     return CompositeRiskOutput(
         tier: tier,
         label: label,
-        summaryLine: summaryLine,
+        summaryLine: summary,
         narrative: narrative,
-        suggestedActions: suggestedActions
+        suggestedActions: actions
     )
+}
+
+// MARK: - Qmci + QDRS Composite Risk
+
+func computeCompositeRiskQmciQDRS(
+    qmciState: QmciState,
+    qdrsState: QDRSState,
+    phq2Score: Int,
+    clockAnalysis: ClockAnalysisResponse?
+) -> CompositeRiskOutput {
+    let qPositive = qmciState.classification.isPositive
+    let qdrsPositive = qdrsState.isPositiveScreen
+
+    var tier: RiskTier
+    var label: String
+    var summary: String
+    var narrative: String
+    var actions: [String] = []
+
+    switch (qPositive, qdrsPositive) {
+    case (true, true):
+        tier = .high
+        label = "High Risk — Concordant Positive"
+        summary = "Qmci \(qmciState.totalScore)/100 and QDRS \(String(format: "%.1f", qdrsState.totalScore)) both positive"
+        narrative = "Concordant positive findings on objective testing and patient-reported measures. Consistent with MCI or early dementia."
+        actions = [
+            "Order reversible cause workup (TSH, B12, CBC, CMP)",
+            "Order brain MRI",
+            "Consider plasma p-tau217 for amyloid pathology",
+            "Refer to neurology or memory clinic",
+        ]
+    case (false, false):
+        tier = .low
+        label = "Low Risk — Concordant Negative"
+        summary = "Qmci \(qmciState.totalScore)/100 and QDRS \(String(format: "%.1f", qdrsState.totalScore)) both negative"
+        narrative = "Concordant negative findings suggest low likelihood of significant cognitive impairment."
+        actions = ["Continue routine monitoring", "Repeat screening at next AWV"]
+    case (true, false):
+        tier = .intermediate
+        label = "Intermediate — Qmci+/QDRS-"
+        summary = "Qmci positive but patient reports no functional decline"
+        narrative = "Objective impairment without reported functional difficulty. May indicate early MCI with limited self-awareness."
+        actions = ["Consider neuropsychological testing", "Obtain informant history", "Order reversible cause workup"]
+    case (false, true):
+        tier = .intermediate
+        label = "Intermediate — Qmci-/QDRS+"
+        summary = "Qmci negative but patient reports functional concerns"
+        narrative = "Subjective concerns without objective impairment. May reflect depression, anxiety, or very early changes."
+        actions = ["Screen for depression (PHQ-9)", "Evaluate anxiety/sleep", "Review medications"]
+    }
+
+    if phq2Score >= 3 {
+        narrative += " PHQ-2 positive (\(phq2Score)/6) — depression may contribute."
+        if !actions.contains(where: { $0.contains("depression") }) {
+            actions.insert("Evaluate and treat depression before attributing to neurodegeneration", at: 0)
+        }
+    }
+
+    if let clock = clockAnalysis, clock.aiClass < 2, tier == .low {
+        tier = .intermediate
+        label = "Low-Intermediate Risk"
+        actions.append("Monitor executive function given AI clock findings")
+    }
+
+    return CompositeRiskOutput(tier: tier, label: label, summaryLine: summary,
+                                narrative: narrative, suggestedActions: actions)
 }

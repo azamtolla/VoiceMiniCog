@@ -32,6 +32,24 @@
 		9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6062F63EB0200743FA8 /* RealtimeManager.swift */; };
 		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
 		9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */; };
+		DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD2930E955EA8A06119C9 /* QmciModels.swift */; };
+		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
+		72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */; };
+		C066570A0DEE2C1DCB7A3FD1 /* AntiAmyloidTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */; };
+		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
+		99B9883975AA22BB9733DDFE /* AudioLipSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */; };
+		267C32D5F7B8194A9340AFDA /* PersonaPlexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */; };
+		3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4D21A02D05C27DACDD9090 /* QDRSView.swift */; };
+		BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */; };
+		AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */; };
+		380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */; };
+		13F141A72CED1EBA15FD16B5 /* LogicalMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */; };
+		BB121FCE155B73B8F7967BEB /* QmciAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */; };
+		10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D565942281E547B8CA33AEAF /* PCPReportView.swift */; };
+		6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7980C074148F7BF401F6D35F /* SpeechListenerView.swift */; };
+		086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */; };
+		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
+		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -81,6 +99,24 @@
 		9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CDTOnDeviceScorer.swift; sourceTree = "<group>"; };
 		9246E6062F63EB0200743FA8 /* RealtimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeManager.swift; sourceTree = "<group>"; };
 		9246E6092F63EB0200743FA8 /* TokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenService.swift; sourceTree = "<group>"; };
+		751BD2930E955EA8A06119C9 /* QmciModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciModels.swift; sourceTree = "<group>"; };
+		9237E6DE984F471E08D0792C /* QDRSModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QDRSModels.swift; sourceTree = "<group>"; };
+		8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHQ2Models.swift; sourceTree = "<group>"; };
+		96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiAmyloidTriage.swift; sourceTree = "<group>"; };
+		9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReversibleCauseWorkup.swift; sourceTree = "<group>"; };
+		BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLipSync.swift; sourceTree = "<group>"; };
+		B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPlexService.swift; sourceTree = "<group>"; };
+		BC4D21A02D05C27DACDD9090 /* QDRSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QDRSView.swift; sourceTree = "<group>"; };
+		03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHQ2View.swift; sourceTree = "<group>"; };
+		74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationView.swift; sourceTree = "<group>"; };
+		DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerbalFluencyView.swift; sourceTree = "<group>"; };
+		F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalMemoryView.swift; sourceTree = "<group>"; };
+		3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciAssessmentView.swift; sourceTree = "<group>"; };
+		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
+		7980C074148F7BF401F6D35F /* SpeechListenerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechListenerView.swift; sourceTree = "<group>"; };
+		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
+		0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		B26A970DB16F141ACD2E048D /* MCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCComponents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -151,6 +187,11 @@
 				9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */,
 				9246E5D72F63A68D00743FA8 /* Phase.swift */,
 				9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */,
+				751BD2930E955EA8A06119C9 /* QmciModels.swift */,
+				9237E6DE984F471E08D0792C /* QDRSModels.swift */,
+				8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */,
+				96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */,
+				9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -166,6 +207,8 @@
 				9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */,
 				9246E6062F63EB0200743FA8 /* RealtimeManager.swift */,
 				9246E6092F63EB0200743FA8 /* TokenService.swift */,
+				BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */,
+				B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -174,6 +217,8 @@
 			isa = PBXGroup;
 			children = (
 				9246E5DF2F63A68D00743FA8 /* MercyColors.swift */,
+				0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */,
+				B26A970DB16F141ACD2E048D /* MCComponents.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -188,6 +233,15 @@
 				9246E5E52F63A68D00743FA8 /* PhaseView.swift */,
 				9246E5E62F63A68D00743FA8 /* ResultsView.swift */,
 				9246E5E72F63A68D00743FA8 /* SummaryView.swift */,
+				BC4D21A02D05C27DACDD9090 /* QDRSView.swift */,
+				03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */,
+				74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */,
+				DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */,
+				F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */,
+				3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */,
+				D565942281E547B8CA33AEAF /* PCPReportView.swift */,
+				7980C074148F7BF401F6D35F /* SpeechListenerView.swift */,
+				38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -340,8 +394,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				9246E5ED2F63A68D00743FA8 /* ElevenLabsService.swift in Sources */,
-				9246E5EE2F63A68D00743FA8 /* VoiceMiniCogResult.swift in Sources */,
-				9246E5EF2F63A68D00743FA8 /* AssessmentView.swift in Sources */,
 				9246E5F02F63A68D00743FA8 /* MercyColors.swift in Sources */,
 				9246E60A2F63EB0200743FA8 /* AudioSessionManager.swift in Sources */,
 				9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */,
@@ -351,19 +403,33 @@
 				9246E5F22F63A68D00743FA8 /* ClockScoringView.swift in Sources */,
 				9246E5F32F63A68D00743FA8 /* VoiceMiniCogApp.swift in Sources */,
 				9246E5F42F63A68D00743FA8 /* Phase.swift in Sources */,
-				9246E5F52F63A68D00743FA8 /* SummaryView.swift in Sources */,
 				9246E5F62F63A68D00743FA8 /* APIClient.swift in Sources */,
 				9246E5F72F63A68D00743FA8 /* AssessmentState.swift in Sources */,
-				9246E5F82F63A68D00743FA8 /* ResultsView.swift in Sources */,
 				9246E5F92F63A68D00743FA8 /* ResponseCheckers.swift in Sources */,
 				9246E5FA2F63A68D00743FA8 /* APIModels.swift in Sources */,
 				9246E5FB2F63A68D00743FA8 /* CompositeRisk.swift in Sources */,
 				9246E5FC2F63A68D00743FA8 /* ClockDrawingView.swift in Sources */,
-				9246E5FD2F63A68D00743FA8 /* AD8Models.swift in Sources */,
 				9246E5FE2F63A68D00743FA8 /* HomeView.swift in Sources */,
 				9246E5FF2F63A68D00743FA8 /* ClockAnalysis.swift in Sources */,
 				9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */,
-				9246E6012F63A68D00743FA8 /* PhaseView.swift in Sources */,
+				DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */,
+				126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */,
+				72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */,
+				C066570A0DEE2C1DCB7A3FD1 /* AntiAmyloidTriage.swift in Sources */,
+				3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */,
+				99B9883975AA22BB9733DDFE /* AudioLipSync.swift in Sources */,
+				267C32D5F7B8194A9340AFDA /* PersonaPlexService.swift in Sources */,
+				3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */,
+				BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */,
+				AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */,
+				380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */,
+				13F141A72CED1EBA15FD16B5 /* LogicalMemoryView.swift in Sources */,
+				BB121FCE155B73B8F7967BEB /* QmciAssessmentView.swift in Sources */,
+				10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */,
+				6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */,
+				086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */,
+				B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */,
+				C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

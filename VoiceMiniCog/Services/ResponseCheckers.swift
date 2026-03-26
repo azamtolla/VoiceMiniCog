@@ -91,3 +91,85 @@ func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, rec
 
     return (count: found.count, recalled: found)
 }
+
+// MARK: - Qmci Scoring Extensions
+
+/// Verbal fluency: extract unique animal names from transcript
+func scoreVerbalFluency(transcript: String) -> [String] {
+    let commonAnimals: Set<String> = [
+        "dog", "cat", "horse", "cow", "pig", "sheep", "goat", "chicken",
+        "duck", "bird", "fish", "rabbit", "mouse", "rat", "hamster",
+        "elephant", "lion", "tiger", "bear", "monkey", "giraffe", "zebra",
+        "deer", "wolf", "fox", "snake", "frog", "turtle", "whale",
+        "dolphin", "shark", "eagle", "hawk", "owl", "parrot", "penguin",
+        "butterfly", "bee", "ant", "spider", "crab", "lobster", "octopus",
+        "camel", "donkey", "moose", "buffalo", "rhino", "hippo", "gorilla",
+        "cheetah", "leopard", "panther", "jaguar", "alligator", "crocodile",
+        "squirrel", "chipmunk", "raccoon", "skunk", "porcupine", "beaver",
+        "otter", "seal", "walrus", "bat", "rooster", "turkey", "goose",
+        "swan", "flamingo", "pelican", "stork", "heron", "robin", "crow",
+        "dove", "pigeon", "sparrow", "cardinal", "bluejay", "woodpecker",
+        "goldfish", "salmon", "tuna", "trout", "catfish", "bass",
+        "pony", "stallion", "mare", "colt", "lamb", "ram", "bull",
+        "calf", "kitten", "puppy", "chick", "cub", "koala", "kangaroo",
+        "panda", "sloth", "armadillo", "hedgehog", "ferret", "gecko",
+        "iguana", "chameleon", "salamander", "newt", "toad", "worm",
+        "snail", "slug", "clam", "oyster", "starfish", "jellyfish",
+        "scorpion", "centipede", "mosquito", "fly", "beetle", "moth",
+        "dragonfly", "grasshopper", "cricket", "ladybug", "firefly",
+    ]
+
+    let words = transcript.lowercased()
+        .components(separatedBy: CharacterSet.alphanumerics.inverted)
+        .filter { !$0.isEmpty }
+
+    var found: [String] = []
+    for word in words {
+        if commonAnimals.contains(word) && !found.contains(word) {
+            found.append(word)
+        }
+    }
+    return found
+}
+
+/// Logical memory: match recalled details against story scoring units
+func scoreLogicalMemory(transcript: String, scoringUnits: [String]) -> [String] {
+    let lower = transcript.lowercased()
+    var matched: [String] = []
+    for unit in scoringUnits {
+        if lower.contains(unit.lowercased()) && !matched.contains(unit) {
+            matched.append(unit)
+        }
+    }
+    return matched
+}
+
+/// Orientation: check answer against current date/time
+func scoreOrientationAnswer(type: OrientationAnswerType, transcript: String) -> Bool {
+    let t = transcript.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+    let calendar = Calendar.current
+    let now = Date()
+
+    switch type {
+    case .year:
+        let year = String(calendar.component(.year, from: now))
+        return t.contains(year)
+    case .month:
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        let month = formatter.string(from: now).lowercased()
+        let shortMonth = String(month.prefix(3))
+        return t.contains(month) || t.contains(shortMonth)
+    case .dayOfWeek:
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        let day = formatter.string(from: now).lowercased()
+        return t.contains(day)
+    case .date:
+        let date = String(calendar.component(.day, from: now))
+        return t.contains(date)
+    case .country:
+        let terms = ["united states", "america", "usa", "us", "u.s."]
+        return terms.contains(where: { t.contains($0) })
+    }
+}
