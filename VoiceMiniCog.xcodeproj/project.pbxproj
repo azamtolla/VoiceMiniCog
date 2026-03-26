@@ -50,6 +50,14 @@
 		086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */; };
 		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
 		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
+		211EBE0C05DAFAB525006AF3 /* PersonaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29247956694B55B6DC153193 /* PersonaBridge.swift */; };
+		980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */; };
+		50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */; };
+		2600D7F94345E4911E2CA1BB /* ProtocolOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */; };
+		CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A672F34C224AB23B665B74 /* TavusModels.swift */; };
+		53932F3F0E07F33067B9944B /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */; };
+		A62B072BFF3D3F628FADA20D /* MiniCogLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */; };
+		05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -117,6 +125,14 @@
 		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
 		0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		B26A970DB16F141ACD2E048D /* MCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCComponents.swift; sourceTree = "<group>"; };
+		29247956694B55B6DC153193 /* PersonaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaBridge.swift; sourceTree = "<group>"; };
+		5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioArbitrator.swift; sourceTree = "<group>"; };
+		9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptClipPlayer.swift; sourceTree = "<group>"; };
+		0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolOrchestrator.swift; sourceTree = "<group>"; };
+		73A672F34C224AB23B665B74 /* TavusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavusModels.swift; sourceTree = "<group>"; };
+		1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogLiveView.swift; sourceTree = "<group>"; };
+		F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarStreamServiceStub.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -187,6 +203,7 @@
 				9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */,
 				9246E5D72F63A68D00743FA8 /* Phase.swift */,
 				9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */,
+				73A672F34C224AB23B665B74 /* TavusModels.swift */,
 				751BD2930E955EA8A06119C9 /* QmciModels.swift */,
 				9237E6DE984F471E08D0792C /* QDRSModels.swift */,
 				8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */,
@@ -207,6 +224,11 @@
 				9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */,
 				9246E6062F63EB0200743FA8 /* RealtimeManager.swift */,
 				9246E6092F63EB0200743FA8 /* TokenService.swift */,
+				F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */,
+				29247956694B55B6DC153193 /* PersonaBridge.swift */,
+				5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */,
+				9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */,
+				0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */,
 				BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */,
 				B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */,
 			);
@@ -233,6 +255,8 @@
 				9246E5E52F63A68D00743FA8 /* PhaseView.swift */,
 				9246E5E62F63A68D00743FA8 /* ResultsView.swift */,
 				9246E5E72F63A68D00743FA8 /* SummaryView.swift */,
+				1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */,
+				8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */,
 				BC4D21A02D05C27DACDD9090 /* QDRSView.swift */,
 				03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */,
 				74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */,
@@ -412,6 +436,14 @@
 				9246E5FE2F63A68D00743FA8 /* HomeView.swift in Sources */,
 				9246E5FF2F63A68D00743FA8 /* ClockAnalysis.swift in Sources */,
 				9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */,
+				05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */,
+				211EBE0C05DAFAB525006AF3 /* PersonaBridge.swift in Sources */,
+				980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */,
+				50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */,
+				2600D7F94345E4911E2CA1BB /* ProtocolOrchestrator.swift in Sources */,
+				CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */,
+				53932F3F0E07F33067B9944B /* AvatarView.swift in Sources */,
+				A62B072BFF3D3F628FADA20D /* MiniCogLiveView.swift in Sources */,
 				DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */,
 				126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */,
 				72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */,

@@ -99,8 +99,8 @@ struct MiniCogLiveView: View {
         }
         .onAppear {
             if assessmentState.currentPrompt.isEmpty {
-                assessmentState.currentPhase = .intro
-                assessmentState.currentPrompt = assessmentState.getPromptForPhase(.intro)
+                assessmentState.currentPhase = .qmciOrientation
+                assessmentState.currentPrompt = assessmentState.getPromptForPhase(.qmciOrientation)
             }
             avatarStream.connect()
             avatarStream.startMicStreaming()
@@ -188,7 +188,7 @@ struct MiniCogLiveView: View {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             if Task.isCancelled { return }
             await MainActor.run {
-                assessmentState.currentPhase = .wordRegistration
+                assessmentState.currentPhase = .qmciRegistration
                 assessmentState.currentPrompt = assessmentState.getWordIntroPrompt()
             }
 

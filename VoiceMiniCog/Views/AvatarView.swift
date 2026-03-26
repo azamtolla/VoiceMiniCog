@@ -31,7 +31,7 @@ struct AvatarView: UIViewRepresentable {
     final class Coordinator {
         private weak var scnView: SCNView?
         private var displayLink: CADisplayLink?
-        private(set) var latestBlendshapes: [String: Float] = [:]
+        var latestBlendshapes: [String: Float] = [:]
         private var morpher: SCNMorpher?
         private var targetIndexByName: [String: Int] = [:]
         private var warnedMissingTargets: Set<String> = []

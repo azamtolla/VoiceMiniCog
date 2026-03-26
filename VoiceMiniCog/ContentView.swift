@@ -19,6 +19,7 @@ enum AppScreen {
 }
 
 struct ContentView: View {
+    @AppStorage("minicog.useAvatarLiveView") var useAvatarLiveView = false
     @State private var currentScreen: AppScreen = .home
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
@@ -81,9 +82,15 @@ struct ContentView: View {
                 )
 
             case .avatarAssessment:
-                // Avatar path — requires Tavus files (added on avatar-tavus branch)
-                Text("Avatar mode not available on this branch")
-                    .onAppear { currentScreen = .qmciAssessment }
+                MiniCogLiveView(
+                    isActive: Binding(
+                        get: { currentScreen == .avatarAssessment },
+                        set: { if !$0 { currentScreen = .home } }
+                    ),
+                    onRequestFallback: {
+                        currentScreen = .qmciAssessment
+                    }
+                )
 
             case .report:
                 PCPReportView(
