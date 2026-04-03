@@ -18,10 +18,17 @@
 		380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
 		3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4D21A02D05C27DACDD9090 /* QDRSView.swift */; };
+		43E8415B91255D41CB083B3A /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */; };
+		529B42ECB53B8E5665F466EF /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
 		53932F3F0E07F33067B9944B /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */; };
+		68444A9984B3B363AFBE708F /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
+		688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
 		6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7980C074148F7BF401F6D35F /* SpeechListenerView.swift */; };
 		72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */; };
+		74B346CEB8F9A8B6ACA6DEB0 /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
+		88034F92B49D28E55AE9A40D /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
+		90B4464396663EFA7F19795D /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
 		9246E5ED2F63A68D00743FA8 /* ElevenLabsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */; };
 		9246E5F02F63A68D00743FA8 /* MercyColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DF2F63A68D00743FA8 /* MercyColors.swift */; };
 		9246E5F12F63A68D00743FA8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5EA2F63A68D00743FA8 /* ContentView.swift */; };
@@ -42,15 +49,20 @@
 		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
 		9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */; };
 		980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */; };
+		9845407B8B0DE0440D44EFF4 /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
 		99B9883975AA22BB9733DDFE /* AudioLipSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */; };
+		9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
+		9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		A62B072BFF3D3F628FADA20D /* MiniCogLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */; };
 		AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */; };
 		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
 		BB121FCE155B73B8F7967BEB /* QmciAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */; };
 		BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */; };
+		BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
 		C066570A0DEE2C1DCB7A3FD1 /* AntiAmyloidTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */; };
 		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
 		CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A672F34C224AB23B665B74 /* TavusModels.swift */; };
+		D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD2930E955EA8A06119C9 /* QmciModels.swift */; };
 /* End PBXBuildFile section */
 
@@ -80,6 +92,7 @@
 		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
 		3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciAssessmentView.swift; sourceTree = "<group>"; };
 		5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioArbitrator.swift; sourceTree = "<group>"; };
+		69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentTheme.swift; path = VoiceMiniCog/Theme/AssessmentTheme.swift; sourceTree = SOURCE_ROOT; };
 		73A672F34C224AB23B665B74 /* TavusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavusModels.swift; sourceTree = "<group>"; };
 		74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationView.swift; sourceTree = "<group>"; };
 		751BD2930E955EA8A06119C9 /* QmciModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciModels.swift; sourceTree = "<group>"; };
@@ -115,9 +128,11 @@
 		9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CDTOnDeviceScorer.swift; sourceTree = "<group>"; };
 		9246E6062F63EB0200743FA8 /* RealtimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeManager.swift; sourceTree = "<group>"; };
 		9246E6092F63EB0200743FA8 /* TokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenService.swift; sourceTree = "<group>"; };
+		96594F1C9872605DC0D3E0B5 /* TavusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusService.swift; path = VoiceMiniCog/Services/TavusService.swift; sourceTree = SOURCE_ROOT; };
 		96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiAmyloidTriage.swift; sourceTree = "<group>"; };
 		9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReversibleCauseWorkup.swift; sourceTree = "<group>"; };
 		9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptClipPlayer.swift; sourceTree = "<group>"; };
+		A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusCVIView.swift; path = VoiceMiniCog/Views/TavusCVIView.swift; sourceTree = SOURCE_ROOT; };
 		B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPlexService.swift; sourceTree = "<group>"; };
 		B26A970DB16F141ACD2E048D /* MCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCComponents.swift; sourceTree = "<group>"; };
 		BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLipSync.swift; sourceTree = "<group>"; };
@@ -126,19 +141,12 @@
 		DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerbalFluencyView.swift; sourceTree = "<group>"; };
 		F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalMemoryView.swift; sourceTree = "<group>"; };
 		F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarStreamServiceStub.swift; sourceTree = "<group>"; };
+		FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusAssessmentView.swift; path = VoiceMiniCog/Views/TavusAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		9246E5332F6390E900743FA8 /* VoiceMiniCogTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VoiceMiniCogTests;
-			sourceTree = "<group>";
-		};
-		9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VoiceMiniCogUITests;
-			sourceTree = "<group>";
-		};
+		9246E5332F6390E900743FA8 /* VoiceMiniCogTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = VoiceMiniCogTests; sourceTree = "<group>"; };
+		9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = VoiceMiniCogUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -173,6 +181,10 @@
 				9246E5332F6390E900743FA8 /* VoiceMiniCogTests */,
 				9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */,
 				9246E5242F6390E700743FA8 /* Products */,
+				96594F1C9872605DC0D3E0B5 /* TavusService.swift */,
+				A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */,
+				FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */,
+				69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -454,6 +466,10 @@
 				086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */,
 				B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */,
 				C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */,
+				D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */,
+				9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */,
+				90B4464396663EFA7F19795D /* TavusAssessmentView.swift in Sources */,
+				688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -461,6 +477,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */,
+				74B346CEB8F9A8B6ACA6DEB0 /* TavusCVIView.swift in Sources */,
+				88034F92B49D28E55AE9A40D /* TavusAssessmentView.swift in Sources */,
+				68444A9984B3B363AFBE708F /* AssessmentTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -468,6 +488,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				43E8415B91255D41CB083B3A /* TavusService.swift in Sources */,
+				529B42ECB53B8E5665F466EF /* TavusCVIView.swift in Sources */,
+				9845407B8B0DE0440D44EFF4 /* TavusAssessmentView.swift in Sources */,
+				BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -628,6 +652,10 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCog;
@@ -674,6 +702,10 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCog;
@@ -701,6 +733,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCogTests;
@@ -726,6 +762,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCogTests;
@@ -750,6 +790,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCogUITests;
@@ -774,6 +818,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/VoiceMiniCog/Services",
+					"$(SRCROOT)/VoiceMiniCog/Views",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mercycog.VoiceMiniCogUITests;
