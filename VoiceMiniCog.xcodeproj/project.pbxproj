@@ -8,10 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		02E0487592CC543560C532CC /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
+		036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */; };
 		086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */; };
 		091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
 		09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
+		CC11223344556677889900BB /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
 		0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D565942281E547B8CA33AEAF /* PCPReportView.swift */; };
 		11CD4EA9ABE27C8E98820E70 /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
@@ -21,9 +26,12 @@
 		211EBE0C05DAFAB525006AF3 /* PersonaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29247956694B55B6DC153193 /* PersonaBridge.swift */; };
 		2600D7F94345E4911E2CA1BB /* ProtocolOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */; };
 		267C32D5F7B8194A9340AFDA /* PersonaPlexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */; };
+		35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
+		37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
 		3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4D21A02D05C27DACDD9090 /* QDRSView.swift */; };
+		41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
 		43E8415B91255D41CB083B3A /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		473C49F083411C733E173CC1 /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
 		50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */; };
@@ -78,6 +86,7 @@
 		BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */; };
 		BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
 		BE6B440D9E546C8C29FF39B6 /* WelcomePhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */; };
+		BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		C066570A0DEE2C1DCB7A3FD1 /* AntiAmyloidTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */; };
 		C3AD40C38C918C7FA86C1E5F /* ProgressTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */; };
 		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
@@ -118,6 +127,7 @@
 		24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QAPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/QAPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		29247956694B55B6DC153193 /* PersonaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaBridge.swift; sourceTree = "<group>"; };
 		2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClockDrawingPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/ClockDrawingPhaseView.swift; sourceTree = SOURCE_ROOT; };
+		CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/VerbalFluencyPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
 		3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciAssessmentView.swift; sourceTree = "<group>"; };
 		45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRegistrationPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRegistrationPhaseView.swift; sourceTree = SOURCE_ROOT; };
@@ -173,11 +183,13 @@
 		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
 		DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerbalFluencyView.swift; sourceTree = "<group>"; };
 		E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WelcomePhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WelcomePhaseView.swift; sourceTree = SOURCE_ROOT; };
+		EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StoryRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/StoryRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarLayoutManager.swift; path = VoiceMiniCog/Models/AvatarLayoutManager.swift; sourceTree = SOURCE_ROOT; };
 		F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalMemoryView.swift; sourceTree = "<group>"; };
 		F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarStreamServiceStub.swift; sourceTree = "<group>"; };
 		FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusAssessmentView.swift; path = VoiceMiniCog/Views/TavusAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 		FD67457A85ACD917974962D3 /* PauseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PauseButtonView.swift; path = VoiceMiniCog/Views/AvatarAssessment/PauseButtonView.swift; sourceTree = SOURCE_ROOT; };
+		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -230,6 +242,8 @@
 				45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */,
 				24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */,
 				2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */,
+				EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */,
+				FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -524,6 +538,8 @@
 				89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */,
 				A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */,
 				7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */,
+				036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */,
+				41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -544,6 +560,8 @@
 				A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */,
 				0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */,
 				F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */,
+				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
+				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -564,6 +582,8 @@
 				A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */,
 				CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */,
 				09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */,
+				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
+				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
