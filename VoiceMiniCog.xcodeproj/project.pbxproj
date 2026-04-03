@@ -242,6 +242,7 @@
 				45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */,
 				24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */,
 				2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */,
+				CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */,
 				EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */,
 				FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */,
 			);
@@ -538,6 +539,7 @@
 				89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */,
 				A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */,
 				7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */,
+				CC11223344556677889900BB /* VerbalFluencyPhaseView.swift in Sources */,
 				036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */,
 				41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */,
 			);
@@ -560,6 +562,7 @@
 				A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */,
 				0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */,
 				F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */,
+				CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */,
 				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
 				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
 			);
@@ -582,6 +585,7 @@
 				A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */,
 				CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */,
 				09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */,
+				CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */,
 				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
 				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
 			);
