@@ -11,6 +11,7 @@
 		05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */; };
 		086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */; };
 		091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
+		0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D565942281E547B8CA33AEAF /* PCPReportView.swift */; };
 		11CD4EA9ABE27C8E98820E70 /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
 		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
@@ -67,6 +68,7 @@
 		9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */; };
 		A62B072BFF3D3F628FADA20D /* MiniCogLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */; };
+		A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */; };
 		AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */; };
 		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
@@ -78,6 +80,7 @@
 		C3AD40C38C918C7FA86C1E5F /* ProgressTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */; };
 		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
 		CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A672F34C224AB23B665B74 /* TavusModels.swift */; };
+		CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		D31B4133BC8CCFB0E8262E52 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
@@ -109,6 +112,7 @@
 		0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolOrchestrator.swift; sourceTree = "<group>"; };
 		1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QAPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/QAPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		29247956694B55B6DC153193 /* PersonaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaBridge.swift; sourceTree = "<group>"; };
 		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
 		3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciAssessmentView.swift; sourceTree = "<group>"; };
@@ -220,6 +224,7 @@
 				FD67457A85ACD917974962D3 /* PauseButtonView.swift */,
 				E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */,
 				45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */,
+				24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -512,6 +517,7 @@
 				638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */,
 				61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */,
 				89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */,
+				A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -530,6 +536,7 @@
 				F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */,
 				BE6B440D9E546C8C29FF39B6 /* WelcomePhaseView.swift in Sources */,
 				A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */,
+				0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -548,6 +555,7 @@
 				1C5346948A10D0A36CCC3ADD /* PauseButtonView.swift in Sources */,
 				7CBE4AB2B40A94F6F704E500 /* WelcomePhaseView.swift in Sources */,
 				A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */,
+				CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
