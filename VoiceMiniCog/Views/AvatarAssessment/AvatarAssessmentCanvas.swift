@@ -101,23 +101,23 @@ struct AvatarAssessmentCanvas: View {
     private var phaseContent: some View {
         switch layoutManager.currentPhase {
         case .welcome:
-            Text("Welcome Phase") // placeholder
+            WelcomePhaseView(layoutManager: layoutManager, onStandard: onFallback)
         case .qdrs:
-            Text("QDRS Phase") // placeholder
+            QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .qdrs)
         case .phq2:
-            Text("PHQ-2 Phase") // placeholder
+            QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .phq2)
         case .orientation:
-            Text("Orientation Phase") // placeholder
+            QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .orientation)
         case .wordRegistration:
-            Text("Word Registration Phase") // placeholder
+            WordRegistrationPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .clockDrawing:
-            Text("Clock Drawing Phase") // placeholder
+            ClockDrawingPhaseView(layoutManager: layoutManager, assessmentState: assessmentState)
         case .verbalFluency:
-            Text("Verbal Fluency Phase") // placeholder
+            VerbalFluencyPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .storyRecall:
-            Text("Story Recall Phase") // placeholder
+            StoryRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .wordRecall:
-            Text("Word Recall Phase") // placeholder
+            WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState, onComplete: onComplete)
         }
     }
 

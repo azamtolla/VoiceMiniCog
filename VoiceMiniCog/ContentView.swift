@@ -14,7 +14,7 @@ enum AppScreen {
     case phq2            // PHQ-2 depression gate
     case qmciIntro       // Brief intro before Qmci
     case qmciAssessment  // 6 Qmci subtests (on-device)
-    case avatarAssessment // Avatar-guided assessment (PersonaPlex)
+    case avatarAssessment // Avatar-guided assessment (Tavus CVI)
     case report          // PCP summary
 }
 
@@ -82,13 +82,20 @@ struct ContentView: View {
                 )
 
             case .avatarAssessment:
-                MiniCogLiveView(
-                    isActive: Binding(
-                        get: { currentScreen == .avatarAssessment },
-                        set: { if !$0 { currentScreen = .home } }
-                    ),
-                    onRequestFallback: {
+                AvatarAssessmentCanvas(
+                    assessmentState: assessmentState,
+                    conversationURL: TavusService.shared.activeConversation?.conversation_url,
+                    onComplete: {
+                        assessmentState.currentPhase = .scoring
+                        computeAllScores()
+                        assessmentState.currentPhase = .report
+                        currentScreen = .report
+                    },
+                    onFallback: {
                         currentScreen = .qmciAssessment
+                    },
+                    onCancel: {
+                        currentScreen = .home
                     }
                 )
 
@@ -154,19 +161,33 @@ struct ContentView: View {
             }
     }
 
-    @State private var avatarURLText: String = UserDefaults.standard.string(forKey: "avatar_gateway_url") ?? "wss://3fy931d4vpried-8080.proxy.runpod.net/avatar"
+    @State private var tavusAPIKey: String = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+    @State private var tavusPersonaId: String = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
+    @State private var tavusReplicaId: String = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
 
     private var settingsSheet: some View {
         NavigationStack {
             Form {
-                Section("Avatar Gateway") {
-                    TextField("wss://pod.proxy.runpod.net/avatar", text: $avatarURLText)
+                Section("Tavus Avatar") {
+                    SecureField("API Key", text: $tavusAPIKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.system(size: 14, design: .monospaced))
 
-                    Button("Save & Apply") {
-                        UserDefaults.standard.set(avatarURLText, forKey: "avatar_gateway_url")
+                    TextField("Persona ID", text: $tavusPersonaId)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 14, design: .monospaced))
+
+                    TextField("Replica ID", text: $tavusReplicaId)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.system(size: 14, design: .monospaced))
+
+                    Button("Save Tavus Settings") {
+                        UserDefaults.standard.set(tavusAPIKey, forKey: "tavus_api_key")
+                        UserDefaults.standard.set(tavusPersonaId, forKey: "tavus_persona_id")
+                        UserDefaults.standard.set(tavusReplicaId, forKey: "tavus_replica_id")
                         showSettings = false
                     }
                     .foregroundColor(MCDesign.Colors.primary700)
@@ -174,8 +195,8 @@ struct ContentView: View {
 
                 Section("About") {
                     LabeledContent("App", value: "MercyCognitive")
-                    LabeledContent("Version", value: "2.0")
-                    LabeledContent("Assessment", value: "Qmci + QDRS")
+                    LabeledContent("Version", value: "3.0")
+                    LabeledContent("Assessment", value: "Qmci + QDRS + Tavus CVI")
                 }
             }
             .navigationTitle("Settings")
