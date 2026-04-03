@@ -121,60 +121,31 @@ struct AvatarAssessmentCanvas: View {
         }
     }
 
-    // MARK: - Progress Track Placeholder
+    // MARK: - Progress Track
 
     private var progressTrackPlaceholder: some View {
-        Text("Progress")
-            .font(.caption)
+        ProgressTrackView(layoutManager: layoutManager)
     }
 
     // MARK: - Pause Button
 
     private var pauseButton: some View {
-        PauseButtonView(accentColor: layoutManager.accentColor) {
+        PauseButtonView {
             showPauseSheet = true
         }
-        .frame(width: AssessmentTheme.Sizing.pauseButtonWidth,
-               height: AssessmentTheme.Sizing.pauseButtonHeight)
     }
 
     // MARK: - Avatar Zone
 
     @ViewBuilder
     private func avatarZone(width: CGFloat, height: CGFloat) -> some View {
-        // Avatar zone placeholder — will be replaced by AvatarZoneView in Task 5
-        ZStack {
-            Color.black
-            Text("Avatar Zone")
-                .foregroundColor(.white)
-        }
+        AvatarZoneView(
+            layoutManager: layoutManager,
+            conversationURL: conversationURL,
+            width: width,
+            height: height
+        )
         .frame(width: width, height: height)
-    }
-}
-
-// MARK: - PauseButtonView Placeholder
-
-/// Minimal pause button — will be replaced by PauseButtonView in a later task.
-private struct PauseButtonView: View {
-    let accentColor: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "pause.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Pause")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-            .foregroundColor(accentColor)
-            .frame(maxWidth: .infinity)
-            .frame(height: AssessmentTheme.Sizing.pauseButtonHeight)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(accentColor.opacity(0.4), lineWidth: 1.5)
-            )
-        }
     }
 }
 
