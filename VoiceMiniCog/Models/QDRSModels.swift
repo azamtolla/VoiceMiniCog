@@ -61,7 +61,7 @@ let QDRS_QUESTIONS: [QDRSQuestion] = [
 ]
 
 @Observable
-class QDRSState {
+class QDRSState: Codable {
     var answers: [QDRSAnswer?] = Array(repeating: nil, count: QDRS_QUESTIONS.count)
     var currentIndex: Int = 0
     var declined: Bool = false
@@ -100,6 +100,32 @@ class QDRSState {
         default: return MCDesign.Colors.error
         }
     }
+
+    // MARK: - Codable (manual for @Observable)
+
+    enum CodingKeys: String, CodingKey {
+        case answers, currentIndex, declined, isComplete, respondentType
+    }
+
+    required init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        answers = try c.decode([QDRSAnswer?].self, forKey: .answers)
+        currentIndex = try c.decode(Int.self, forKey: .currentIndex)
+        declined = try c.decode(Bool.self, forKey: .declined)
+        isComplete = try c.decode(Bool.self, forKey: .isComplete)
+        respondentType = try c.decode(QDRSRespondentType.self, forKey: .respondentType)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(answers, forKey: .answers)
+        try c.encode(currentIndex, forKey: .currentIndex)
+        try c.encode(declined, forKey: .declined)
+        try c.encode(isComplete, forKey: .isComplete)
+        try c.encode(respondentType, forKey: .respondentType)
+    }
+
+    init() {}
 
     func answer(_ answer: QDRSAnswer) {
         guard currentIndex < QDRS_QUESTIONS.count else { return }

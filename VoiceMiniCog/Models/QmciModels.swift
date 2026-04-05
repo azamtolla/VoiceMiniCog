@@ -12,7 +12,7 @@ import Observation
 
 // MARK: - Qmci Subtest Definitions
 
-enum QmciSubtest: String, CaseIterable {
+enum QmciSubtest: String, CaseIterable, Codable {
     case orientation
     case registration
     case clockDrawing
@@ -149,7 +149,7 @@ let LOGICAL_MEMORY_STORIES: [LogicalMemoryStory] = [
 // MARK: - Qmci State
 
 @Observable
-class QmciState {
+class QmciState: Codable {
     var currentSubtest: QmciSubtest = .orientation
     var orientationAnswers: [Bool?] = Array(repeating: nil, count: 5)
     var registrationWords: [String] = []
@@ -191,6 +191,61 @@ class QmciState {
         LOGICAL_MEMORY_STORIES[logicalMemoryStoryIndex % LOGICAL_MEMORY_STORIES.count]
     }
 
+    // MARK: - Codable (manual for @Observable)
+
+    enum CodingKeys: String, CodingKey {
+        case currentSubtest, orientationAnswers, registrationWords, registrationWordListIndex
+        case registrationRecalledWords, registrationAttempts
+        case verbalFluencyWords, verbalFluencyDurationSec, verbalFluencyTranscript
+        case logicalMemoryStoryIndex, logicalMemoryRecalledUnits, logicalMemoryTranscript
+        case delayedRecallWords, delayedRecallTranscript
+        case completedSubtests, isComplete, clockDrawingScore
+    }
+
+    required init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        currentSubtest = try c.decode(QmciSubtest.self, forKey: .currentSubtest)
+        orientationAnswers = try c.decode([Bool?].self, forKey: .orientationAnswers)
+        registrationWords = try c.decode([String].self, forKey: .registrationWords)
+        registrationWordListIndex = try c.decode(Int.self, forKey: .registrationWordListIndex)
+        registrationRecalledWords = try c.decode([String].self, forKey: .registrationRecalledWords)
+        registrationAttempts = try c.decode(Int.self, forKey: .registrationAttempts)
+        verbalFluencyWords = try c.decode([String].self, forKey: .verbalFluencyWords)
+        verbalFluencyDurationSec = try c.decode(Int.self, forKey: .verbalFluencyDurationSec)
+        verbalFluencyTranscript = try c.decode(String.self, forKey: .verbalFluencyTranscript)
+        logicalMemoryStoryIndex = try c.decode(Int.self, forKey: .logicalMemoryStoryIndex)
+        logicalMemoryRecalledUnits = try c.decode([String].self, forKey: .logicalMemoryRecalledUnits)
+        logicalMemoryTranscript = try c.decode(String.self, forKey: .logicalMemoryTranscript)
+        delayedRecallWords = try c.decode([String].self, forKey: .delayedRecallWords)
+        delayedRecallTranscript = try c.decode(String.self, forKey: .delayedRecallTranscript)
+        completedSubtests = try c.decode(Set<QmciSubtest>.self, forKey: .completedSubtests)
+        isComplete = try c.decode(Bool.self, forKey: .isComplete)
+        clockDrawingScore = try c.decode(Int.self, forKey: .clockDrawingScore)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(currentSubtest, forKey: .currentSubtest)
+        try c.encode(orientationAnswers, forKey: .orientationAnswers)
+        try c.encode(registrationWords, forKey: .registrationWords)
+        try c.encode(registrationWordListIndex, forKey: .registrationWordListIndex)
+        try c.encode(registrationRecalledWords, forKey: .registrationRecalledWords)
+        try c.encode(registrationAttempts, forKey: .registrationAttempts)
+        try c.encode(verbalFluencyWords, forKey: .verbalFluencyWords)
+        try c.encode(verbalFluencyDurationSec, forKey: .verbalFluencyDurationSec)
+        try c.encode(verbalFluencyTranscript, forKey: .verbalFluencyTranscript)
+        try c.encode(logicalMemoryStoryIndex, forKey: .logicalMemoryStoryIndex)
+        try c.encode(logicalMemoryRecalledUnits, forKey: .logicalMemoryRecalledUnits)
+        try c.encode(logicalMemoryTranscript, forKey: .logicalMemoryTranscript)
+        try c.encode(delayedRecallWords, forKey: .delayedRecallWords)
+        try c.encode(delayedRecallTranscript, forKey: .delayedRecallTranscript)
+        try c.encode(completedSubtests, forKey: .completedSubtests)
+        try c.encode(isComplete, forKey: .isComplete)
+        try c.encode(clockDrawingScore, forKey: .clockDrawingScore)
+    }
+
+    init() {}
+
     func selectWordList() {
         let key = "qmci_last_word_list_index"
         let lastIndex = UserDefaults.standard.integer(forKey: key)
@@ -218,7 +273,7 @@ class QmciState {
     }
 }
 
-enum QmciClassification: String {
+enum QmciClassification: String, Codable {
     case normal = "Normal Cognition"
     case mciProbable = "MCI Probable"
     case dementiaRange = "Dementia Range"

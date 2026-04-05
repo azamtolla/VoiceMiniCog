@@ -12,7 +12,7 @@ let PHQ2_QUESTIONS: [String] = [
     "Over the past 2 weeks, how often have you been bothered by feeling down, depressed, or hopeless?"
 ]
 
-enum PHQ2Answer: Int, CaseIterable {
+enum PHQ2Answer: Int, CaseIterable, Codable {
     case notAtAll = 0
     case severalDays = 1
     case moreThanHalf = 2
@@ -28,7 +28,7 @@ enum PHQ2Answer: Int, CaseIterable {
     }
 }
 
-struct PHQ2State {
+struct PHQ2State: Codable {
     var answers: [PHQ2Answer?] = [nil, nil]
     var totalScore: Int { answers.compactMap { $0?.rawValue }.reduce(0, +) }
     var isPositive: Bool { totalScore >= 3 }

@@ -27,7 +27,7 @@ let WORD_LISTS = MINICOG_WORD_SETS
 
 /// Tracks how many times each scripted clip has been replayed in this session.
 /// Used for clinical documentation and enforcing per-phase limits.
-struct RepeatTracker {
+struct RepeatTracker: Codable {
     var wordIntro: Int = 0
     var clockInstructions: Int = 0
     var recallPrompt: Int = 0
@@ -122,14 +122,14 @@ enum MessageRole: String {
 }
 
 // Screen interpretation
-enum ScreenInterpretation: String {
+enum ScreenInterpretation: String, Codable {
     case negative
     case positive
     case notInterpretable = "not_interpretable"
 }
 
 @Observable
-class AssessmentState {
+class AssessmentState: Codable {
     // Current phase and state
     var currentPhase: Phase = .intake
     var assistantState: AssistantState = .idle
@@ -179,13 +179,13 @@ class AssessmentState {
     // Medication flags
     var medicationFlags: MedicationFlags = MedicationFlags()
 
-    // Anti-amyloid triage
+    // Anti-amyloid triage (computed at scoring — not persisted)
     var amyloidTriage: AmyloidTriageResult? = nil
 
-    // Workup orders
+    // Workup orders (computed at scoring — not persisted)
     var workupOrders: [ReversibleCauseOrder] = []
 
-    // Composite risk
+    // Composite risk (computed at scoring — not persisted)
     var compositeRisk: CompositeRiskOutput? = nil
 
     // ICD-10 suggestion
@@ -200,10 +200,10 @@ class AssessmentState {
     // Prompts from backend or generated
     var currentPrompt: String = ""
 
-    // Error handling
+    // Error handling (transient — not persisted)
     var errorMessage: String? = nil
 
-    // Conversation log
+    // Conversation log (transient — not persisted)
     var messages: [ChatMessage] = []
 
     // AI observations
@@ -217,9 +217,121 @@ class AssessmentState {
     var selectedLabs: [String] = []
     var otherAction: String = ""
 
-    // iOS specific
+    // iOS specific (transient — not persisted)
     var waitingForTapToSpeak: Bool = false
     var canAutoListen: Bool = false
+
+    // MARK: - Codable (manual for @Observable)
+    //
+    // Skipped properties (transient / non-serializable):
+    //   assistantState, isListening, isSpeaking — transient UI state
+    //   clockImage — UIImage (clockImageBase64 is persisted instead)
+    //   interimTranscript — transient partial speech
+    //   messages — transcript history
+    //   errorMessage — transient
+    //   waitingForTapToSpeak, canAutoListen — transient UI
+    //   amyloidTriage, workupOrders, compositeRisk — recomputed at scoring
+
+    enum CodingKeys: String, CodingKey {
+        case currentPhase, transcript
+        case words, wordListIndex, selectedWordSetIndex
+        case registrationAttempt, registrationResults, repeatTracker
+        case wordRegistrationScore, clockScore, clockScoreSource
+        case recallScore, recalledWords
+        case clockImageBase64, clockAnalysis, clockTimeSec
+        case clockRationale, isAIScoringClock
+        case qdrsState, qmciState, phq2State
+        case patientAge, patientEducationYears, medicationFlags
+        case currentPrompt, aiObservations
+        case clinicianClockScore, screenInterpretation
+        case providerActions, positiveScreenActions, selectedLabs, otherAction
+    }
+
+    required init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        currentPhase = try c.decode(Phase.self, forKey: .currentPhase)
+        transcript = try c.decode(String.self, forKey: .transcript)
+        words = try c.decode([String].self, forKey: .words)
+        wordListIndex = try c.decode(Int.self, forKey: .wordListIndex)
+        selectedWordSetIndex = try c.decode(Int.self, forKey: .selectedWordSetIndex)
+        registrationAttempt = try c.decode(Int.self, forKey: .registrationAttempt)
+        registrationResults = try c.decode([Int].self, forKey: .registrationResults)
+        repeatTracker = try c.decode(RepeatTracker.self, forKey: .repeatTracker)
+        wordRegistrationScore = try c.decode(Int.self, forKey: .wordRegistrationScore)
+        clockScore = try c.decodeIfPresent(Int.self, forKey: .clockScore)
+        clockScoreSource = try c.decode(ClockScoreSource.self, forKey: .clockScoreSource)
+        recallScore = try c.decode(Int.self, forKey: .recallScore)
+        recalledWords = try c.decode([String].self, forKey: .recalledWords)
+        clockImageBase64 = try c.decodeIfPresent(String.self, forKey: .clockImageBase64)
+        clockAnalysis = try c.decodeIfPresent(ClockAnalysisResponse.self, forKey: .clockAnalysis)
+        clockTimeSec = try c.decode(Int.self, forKey: .clockTimeSec)
+        clockRationale = try c.decode(String.self, forKey: .clockRationale)
+        isAIScoringClock = try c.decode(Bool.self, forKey: .isAIScoringClock)
+        qdrsState = try c.decode(QDRSState.self, forKey: .qdrsState)
+        qmciState = try c.decode(QmciState.self, forKey: .qmciState)
+        phq2State = try c.decode(PHQ2State.self, forKey: .phq2State)
+        patientAge = try c.decode(Int.self, forKey: .patientAge)
+        patientEducationYears = try c.decode(Int.self, forKey: .patientEducationYears)
+        medicationFlags = try c.decode(MedicationFlags.self, forKey: .medicationFlags)
+        currentPrompt = try c.decode(String.self, forKey: .currentPrompt)
+        aiObservations = try c.decode([String].self, forKey: .aiObservations)
+        clinicianClockScore = try c.decodeIfPresent(Int.self, forKey: .clinicianClockScore)
+        screenInterpretation = try c.decodeIfPresent(ScreenInterpretation.self, forKey: .screenInterpretation)
+        providerActions = try c.decode([String].self, forKey: .providerActions)
+        positiveScreenActions = try c.decode([String].self, forKey: .positiveScreenActions)
+        selectedLabs = try c.decode([String].self, forKey: .selectedLabs)
+        otherAction = try c.decode(String.self, forKey: .otherAction)
+
+        // Transient state defaults
+        assistantState = .idle
+        isListening = false
+        isSpeaking = false
+        interimTranscript = ""
+        clockImage = nil
+        errorMessage = nil
+        messages = []
+        waitingForTapToSpeak = false
+        canAutoListen = false
+        amyloidTriage = nil
+        workupOrders = []
+        compositeRisk = nil
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(currentPhase, forKey: .currentPhase)
+        try c.encode(transcript, forKey: .transcript)
+        try c.encode(words, forKey: .words)
+        try c.encode(wordListIndex, forKey: .wordListIndex)
+        try c.encode(selectedWordSetIndex, forKey: .selectedWordSetIndex)
+        try c.encode(registrationAttempt, forKey: .registrationAttempt)
+        try c.encode(registrationResults, forKey: .registrationResults)
+        try c.encode(repeatTracker, forKey: .repeatTracker)
+        try c.encode(wordRegistrationScore, forKey: .wordRegistrationScore)
+        try c.encode(clockScore, forKey: .clockScore)
+        try c.encode(clockScoreSource, forKey: .clockScoreSource)
+        try c.encode(recallScore, forKey: .recallScore)
+        try c.encode(recalledWords, forKey: .recalledWords)
+        try c.encode(clockImageBase64, forKey: .clockImageBase64)
+        try c.encode(clockAnalysis, forKey: .clockAnalysis)
+        try c.encode(clockTimeSec, forKey: .clockTimeSec)
+        try c.encode(clockRationale, forKey: .clockRationale)
+        try c.encode(isAIScoringClock, forKey: .isAIScoringClock)
+        try c.encode(qdrsState, forKey: .qdrsState)
+        try c.encode(qmciState, forKey: .qmciState)
+        try c.encode(phq2State, forKey: .phq2State)
+        try c.encode(patientAge, forKey: .patientAge)
+        try c.encode(patientEducationYears, forKey: .patientEducationYears)
+        try c.encode(medicationFlags, forKey: .medicationFlags)
+        try c.encode(currentPrompt, forKey: .currentPrompt)
+        try c.encode(aiObservations, forKey: .aiObservations)
+        try c.encode(clinicianClockScore, forKey: .clinicianClockScore)
+        try c.encode(screenInterpretation, forKey: .screenInterpretation)
+        try c.encode(providerActions, forKey: .providerActions)
+        try c.encode(positiveScreenActions, forKey: .positiveScreenActions)
+        try c.encode(selectedLabs, forKey: .selectedLabs)
+        try c.encode(otherAction, forKey: .otherAction)
+    }
 
     var totalScore: Int {
         return recallScore + (clockScore ?? 0)
@@ -313,6 +425,7 @@ class AssessmentState {
         waitingForTapToSpeak = false
         canAutoListen = false
         selectWordList()
+        AssessmentPersistence.clear()
     }
 
     func moveToNextPhase() {
@@ -320,6 +433,7 @@ class AssessmentState {
             currentPhase = next
             transcript = ""
             currentPrompt = getPromptForPhase(currentPhase)
+            AssessmentPersistence.save(self)
         }
     }
 

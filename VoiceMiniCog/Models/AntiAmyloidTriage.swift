@@ -33,7 +33,7 @@ struct AmyloidChecklistItem: Identifiable {
 
 enum ChecklistStatus { case met, notMet, needsReview, notAssessed }
 
-struct MedicationFlags {
+struct MedicationFlags: Codable {
     var onAnticoagulant: Bool = false
     var anticoagulantAssessed: Bool = false
     var onAnticholinergic: Bool = false

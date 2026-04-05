@@ -16,10 +16,32 @@ enum AppScreen {
     case qmciAssessment  // 6 Qmci subtests (on-device)
     case avatarAssessment // Avatar-guided assessment (Tavus CVI)
     case report          // PCP summary
+
+    /// Maps a restored Phase + state to the correct AppScreen for navigation.
+    /// During the intake phase, checks sub-state completion to determine exact screen.
+    static func screen(for phase: Phase, state: AssessmentState? = nil) -> AppScreen {
+        switch phase {
+        case .intake:
+            // Intake spans QDRS → PHQ-2 → QmciIntro. Use sub-state to pick up where left off.
+            if let s = state {
+                if s.phq2State.isComplete { return .qmciIntro }
+                if s.qdrsState.isComplete || s.qdrsState.declined { return .phq2 }
+            }
+            return .qdrs
+        case .qmciOrientation, .qmciRegistration, .qmciClockDrawing,
+             .qmciVerbalFluency, .qmciLogicalMemory, .qmciDelayedRecall:
+            return .qmciAssessment
+        case .scoring:
+            return .qmciAssessment
+        case .report:
+            return .report
+        }
+    }
 }
 
 struct ContentView: View {
     @AppStorage("minicog.useAvatarLiveView") var useAvatarLiveView = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var currentScreen: AppScreen = .home
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
@@ -28,12 +50,21 @@ struct ContentView: View {
         NavigationStack {
             switch currentScreen {
             case .home:
-                HomeView(onStart: { respondentType in
-                    assessmentState = AssessmentState()
-                    assessmentState.qdrsState.respondentType = respondentType
-                    assessmentState.qmciState.reset()
-                    currentScreen = .qdrs
-                })
+                HomeView(
+                    onStart: { respondentType in
+                        AssessmentPersistence.clear()
+                        assessmentState = AssessmentState()
+                        assessmentState.qdrsState.respondentType = respondentType
+                        assessmentState.qmciState.reset()
+                        currentScreen = .qdrs
+                    },
+                    onResume: {
+                        if let restored = AssessmentPersistence.restore() {
+                            assessmentState = restored
+                            currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+                        }
+                    }
+                )
 
             case .qdrs:
                 withCancelToolbar(
@@ -41,9 +72,11 @@ struct ContentView: View {
                         qdrsState: assessmentState.qdrsState,
                         onComplete: {
                             currentScreen = .phq2
+                            AssessmentPersistence.save(assessmentState)
                         },
                         onDecline: {
                             currentScreen = .phq2
+                            AssessmentPersistence.save(assessmentState)
                         }
                     )
                 )
@@ -54,6 +87,7 @@ struct ContentView: View {
                         phq2State: $assessmentState.phq2State,
                         onComplete: {
                             currentScreen = .qmciIntro
+                            AssessmentPersistence.save(assessmentState)
                         }
                     )
                 )
@@ -61,8 +95,14 @@ struct ContentView: View {
             case .qmciIntro:
                 withCancelToolbar(
                     QmciModePickerView(
-                        onStandard: { currentScreen = .qmciAssessment },
-                        onAvatar: { currentScreen = .avatarAssessment }
+                        onStandard: {
+                            currentScreen = .qmciAssessment
+                            AssessmentPersistence.save(assessmentState)
+                        },
+                        onAvatar: {
+                            currentScreen = .avatarAssessment
+                            AssessmentPersistence.save(assessmentState)
+                        }
                     )
                 )
 
@@ -75,8 +115,10 @@ struct ContentView: View {
                         computeAllScores()
                         assessmentState.currentPhase = .report
                         currentScreen = .report
+                        AssessmentPersistence.clear()
                     },
                     onCancel: {
+                        AssessmentPersistence.clear()
                         currentScreen = .home
                     }
                 )
@@ -90,11 +132,13 @@ struct ContentView: View {
                         computeAllScores()
                         assessmentState.currentPhase = .report
                         currentScreen = .report
+                        AssessmentPersistence.clear()
                     },
                     onFallback: {
                         currentScreen = .qmciAssessment
                     },
                     onCancel: {
+                        AssessmentPersistence.clear()
                         currentScreen = .home
                     }
                 )
@@ -104,13 +148,20 @@ struct ContentView: View {
                     state: assessmentState,
                     onRestart: {
                         assessmentState.reset()
+                        AssessmentPersistence.clear()
                         currentScreen = .home
                     },
                     onFinalize: {
                         assessmentState.reset()
+                        AssessmentPersistence.clear()
                         currentScreen = .home
                     }
                 )
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background, currentScreen != .home {
+                AssessmentPersistence.save(assessmentState)
             }
         }
     }
