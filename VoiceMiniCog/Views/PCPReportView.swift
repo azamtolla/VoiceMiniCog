@@ -14,6 +14,9 @@ struct PCPReportView: View {
     let onRestart: () -> Void
     let onFinalize: () -> Void
 
+    @State private var showShareSheet = false
+    @State private var pdfData: Data?
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -61,6 +64,11 @@ struct PCPReportView: View {
         }
         .background(MCDesign.Colors.surfaceInset)
         .onAppear { computeResults() }
+        .sheet(isPresented: $showShareSheet) {
+            if let data = pdfData {
+                ShareSheet(activityItems: [PDFDataItem(data: data)])
+            }
+        }
     }
 
     // MARK: - Risk Banner
@@ -449,6 +457,26 @@ struct PCPReportView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 12) {
+            Button(action: {
+                pdfData = PDFReportGenerator.generate(from: state)
+                showShareSheet = true
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share Report")
+                }
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(MCDesign.Colors.primary700)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(MCDesign.Colors.primary700, lineWidth: 2)
+                )
+                .cornerRadius(12)
+            }
+
             Button(action: onFinalize) {
                 HStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
@@ -538,6 +566,55 @@ struct PCPReportView: View {
             phq2Score: state.phq2State.totalScore,
             isFirstEvaluation: true
         )
+    }
+}
+
+// MARK: - ShareSheet (UIKit bridge)
+
+/// Wraps UIActivityViewController for SwiftUI presentation.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// Vends PDF data to UIActivityViewController as a named PDF file,
+/// enabling AirDrop, Print, Save to Files, email attachment, etc.
+private final class PDFDataItem: NSObject, UIActivityItemSource {
+    let data: Data
+
+    init(data: Data) {
+        self.data = data
+        super.init()
+    }
+
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        data
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        itemForActivityType activityType: UIActivity.ActivityType?
+    ) -> Any? {
+        data
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?
+    ) -> String {
+        "com.adobe.pdf"
+    }
+
+    func activityViewController(
+        _ activityViewController: UIActivityViewController,
+        subjectForActivityType activityType: UIActivity.ActivityType?
+    ) -> String {
+        "MercyCognitive Screening Report"
     }
 }
 
