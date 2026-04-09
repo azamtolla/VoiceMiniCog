@@ -32,6 +32,7 @@ struct ContentView: View {
     @State private var flowType: AssessmentFlowType = .quick
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
+    @State private var sessionID = UUID()
 
     var body: some View {
         ZStack {
@@ -57,6 +58,7 @@ struct ContentView: View {
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
+            .id(sessionID) // Forces full recreation on new assessment start
             } // end if not caregiver
 
             // MARK: Caregiver QDRS — created on demand, shares pre-warmed conversation
@@ -133,6 +135,7 @@ struct ContentView: View {
         assessmentState = AssessmentState()
         assessmentState.qmciState.reset()
         flowType = selectedFlow
+        sessionID = UUID()
 
         if selectedFlow == .caregiver {
             // Caregiver → dedicated QDRS view (no cognitive subtest shell)
