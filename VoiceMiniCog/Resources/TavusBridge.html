@@ -40,7 +40,8 @@ video {
 let callObject = null;
 let conversationId = null;
 let isJoined = false;
-let pendingEchos = [];  // Queue for echo requests that arrive before room join
+let isMuted = true;      // Start muted — unmute on first sendEcho from app
+let pendingEchos = [];   // Queue for echo requests that arrive before room join
 
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
@@ -100,11 +101,17 @@ async function joinRoom(roomUrl) {
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
 
-    // 3. Set global context: avatar must not advance phases on its own
-    sendContextUpdate('You are a clinical assessment avatar embedded in a medical app. CRITICAL RULES: 1) You do NOT control the assessment flow — the app controls it via echo commands. 2) When the patient says they want to start, begin, skip, or move on, tell them to use the button on the screen. 3) Only speak text sent to you via echo commands. 4) Keep any spontaneous responses very brief (under 10 words). 5) Never ask your own assessment questions.');
+    // 3. Mute mic and remote audio immediately — avatar must stay silent
+    //    until the app sends the first sendEcho() command (user started assessment).
+    //    This prevents the avatar's persona greeting from playing on the Home screen.
+    callObject.setLocalAudio(false);
+    log('Mic muted on join (waiting for assessment start)');
+
+    // 4. Set global context as backup
+    sendContextUpdate('You are a clinical assessment avatar. Do NOT speak until you receive an echo command from the app. Stay completely silent. The assessment has not started yet.');
     log('Set global clinical context');
 
-    // 4. Mark as joined and flush any pending echo requests
+    // 5. Mark as joined and flush any pending echo requests
     isJoined = true;
     if (pendingEchos.length > 0) {
       log('Flushing ' + pendingEchos.length + ' pending echo(s)');
@@ -240,6 +247,14 @@ function sendEcho(text) {
     pendingEchos.push(text);
     return false;
   }
+
+  // First echo = assessment has started. Unmute mic so avatar can hear patient.
+  if (isMuted) {
+    isMuted = false;
+    callObject.setLocalAudio(true);
+    log('Mic unmuted — assessment started');
+  }
+
   log('Echo sending: ' + text.substring(0, 60) + '...');
   return sendInteraction('conversation.echo', {
     modality: 'text',
