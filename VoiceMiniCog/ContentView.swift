@@ -35,7 +35,9 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
+            // MARK: Cognitive Assessment Canvas — in hierarchy when not in caregiver mode
+            // Only one TavusCVIView can hold the Daily WebRTC connection at a time.
+            if currentScreen != .caregiverAssessment {
             AvatarAssessmentCanvas(
                 flowType: flowType,
                 assessmentState: assessmentState,
@@ -55,24 +57,25 @@ struct ContentView: View {
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
+            } // end if not caregiver
 
-            // MARK: Caregiver QDRS — always in hierarchy so WebView stays connected
-            CaregiverAssessmentView(
-                assessmentState: assessmentState,
-                tavusService: TavusService.shared,
-                onComplete: {
-                    AssessmentPersistence.clear()
-                    TavusService.shared.cancelPreWarm()
-                    currentScreen = .home
-                },
-                onCancel: {
-                    AssessmentPersistence.clear()
-                    TavusService.shared.cancelPreWarm()
-                    currentScreen = .home
-                }
-            )
-            .opacity(currentScreen == .caregiverAssessment ? 1 : 0)
-            .allowsHitTesting(currentScreen == .caregiverAssessment)
+            // MARK: Caregiver QDRS — created on demand, shares pre-warmed conversation
+            if currentScreen == .caregiverAssessment {
+                CaregiverAssessmentView(
+                    assessmentState: assessmentState,
+                    tavusService: TavusService.shared,
+                    onComplete: {
+                        AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
+                        currentScreen = .home
+                    },
+                    onCancel: {
+                        AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
+                        currentScreen = .home
+                    }
+                )
+            }
 
             // MARK: Home
             if currentScreen == .home {
