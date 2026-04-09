@@ -2,15 +2,25 @@
 //  CaregiverAssessmentView.swift
 //  VoiceMiniCog
 //
-//  Dedicated caregiver/informant QDRS questionnaire.
-//  Completely separate from AvatarAssessmentCanvas — shares only the
-//  avatar video component (right panel). Left panel shows a clean,
-//  simple questionnaire: "Question X of 10", full question text, and
-//  three large answer buttons. No cognitive subtest UI, no progress
-//  bar, no word chips, no timers.
+//  Dedicated caregiver/informant QDRS questionnaire with three states:
+//  .welcome → .questions(0...9) → .complete
+//
+//  Shares only the avatar video component (right panel) with the cognitive
+//  assessment. Left panel is a clean, simple questionnaire — no cognitive
+//  subtest UI, no progress bar, no word chips, no timers.
 //
 
 import SwiftUI
+
+// MARK: - Caregiver Flow State
+
+private enum CaregiverFlowState: Equatable {
+    case welcome
+    case questions(index: Int)
+    case complete
+}
+
+// MARK: - CaregiverAssessmentView
 
 struct CaregiverAssessmentView: View {
 
@@ -19,14 +29,16 @@ struct CaregiverAssessmentView: View {
     let onComplete: () -> Void
     let onCancel: () -> Void
 
-    @State private var currentIndex = 0
+    @State private var flowState: CaregiverFlowState = .welcome
     @State private var selectedAnswer: QDRSAnswer? = nil
-    @State private var animateQuestion = false
-    @State private var showCompletion = false
+    @State private var animateContent = false
+    @State private var isPressed: [QDRSAnswer: Bool] = [:]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let questions = QDRS_QUESTIONS
     private let avatarWidthRatio: CGFloat = 0.45
+
+    // MARK: - Body
 
     var body: some View {
         GeometryReader { geo in
@@ -47,25 +59,12 @@ struct CaregiverAssessmentView: View {
                 .ignoresSafeArea()
 
                 HStack(spacing: 0) {
-                    // MARK: Left — Question Panel
-                    if showCompletion {
-                        completionPanel
-                            .frame(width: contentWidth)
-                    } else {
-                        questionPanel
-                            .frame(width: contentWidth)
-                    }
+                    // MARK: Left Panel
+                    leftPanel
+                        .frame(width: contentWidth)
 
-                    // MARK: Right — Avatar Zone
-                    AvatarZoneView(
-                        layoutManager: AvatarLayoutManager(),
-                        conversationURL: tavusService.activeConversation?.conversation_url,
-                        isConnecting: tavusService.isCreatingConversation,
-                        errorMessage: tavusService.lastError,
-                        width: avatarWidth,
-                        height: geo.size.height
-                    )
-                    .frame(width: avatarWidth, height: geo.size.height)
+                    // MARK: Right Panel — Avatar (audio-only, no camera feed)
+                    avatarPanel(width: avatarWidth, height: geo.size.height)
                 }
             }
         }
@@ -73,60 +72,91 @@ struct CaregiverAssessmentView: View {
         .statusBarHidden()
     }
 
-    // MARK: - Question Panel
+    // MARK: - Left Panel Router
 
-    private var questionPanel: some View {
+    @ViewBuilder
+    private var leftPanel: some View {
+        switch flowState {
+        case .welcome:
+            welcomePanel
+                .transition(reduceMotion ? .opacity : .asymmetric(
+                    insertion: .opacity,
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+        case .questions(let index):
+            questionPanel(index: index)
+                .id(index)
+                .transition(reduceMotion ? .opacity : .asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+        case .complete:
+            completionPanel
+                .transition(reduceMotion ? .opacity : .asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.97)),
+                    removal: .opacity
+                ))
+        }
+    }
+
+    // MARK: - Welcome Panel
+
+    private var welcomePanel: some View {
         VStack(spacing: 0) {
-            // Top padding for safe area
-            Spacer().frame(height: 60)
-
-            // Question counter
-            Text("Question \(currentIndex + 1) of \(questions.count)")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundColor(AssessmentTheme.Content.textSecondary)
-                .padding(.bottom, 8)
-
-            // Simple progress dots
-            HStack(spacing: 6) {
-                ForEach(0..<questions.count, id: \.self) { i in
-                    Circle()
-                        .fill(i < currentIndex ? AssessmentTheme.Phase.qdrs :
-                              i == currentIndex ? AssessmentTheme.Phase.qdrs.opacity(0.5) :
-                              Color.gray.opacity(0.2))
-                        .frame(width: 8, height: 8)
-                }
-            }
-            .padding(.bottom, 32)
-
             Spacer()
 
-            // Question text
-            Text(questions[currentIndex].text)
-                .font(.system(size: 22, weight: .semibold))
+            // Logo / icon
+            MCIconCircle(
+                icon: "person.2.fill",
+                color: AssessmentTheme.Phase.qdrs,
+                size: 80
+            )
+            .padding(.bottom, 20)
+
+            Text("Family Member &\nCaregiver Questionnaire")
+                .font(.system(size: 26, weight: .bold))
                 .foregroundColor(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.horizontal, 32)
-                .opacity(animateQuestion ? 1 : 0)
-                .offset(y: animateQuestion ? 0 : 12)
+                .padding(.bottom, 12)
 
-            Spacer().frame(height: 40)
+            Text("This brief questionnaire asks about changes you may\nhave noticed in your family member or patient's everyday\nmemory and activities.")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(AssessmentTheme.Content.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
 
-            // Answer buttons
-            VStack(spacing: 14) {
-                ForEach(QDRSAnswer.allCases, id: \.self) { answer in
-                    answerButton(answer)
+            // Duration + guidance
+            HStack(spacing: 16) {
+                Label("10 questions", systemImage: "list.bullet")
+                Label("About 3–5 minutes", systemImage: "clock")
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundColor(AssessmentTheme.Content.textSecondary)
+            .padding(.bottom, 8)
+
+            Text("There are no right or wrong answers.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(AssessmentTheme.Phase.qdrs)
+                .padding(.bottom, 32)
+
+            // Begin button
+            MCPrimaryButton("Begin Questionnaire", icon: "play.fill", color: AssessmentTheme.Phase.qdrs) {
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    flowState = .questions(index: 0)
+                }
+                // Avatar speaks the first question
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    avatarSpeak(questions[0].voicePrompt)
                 }
             }
             .padding(.horizontal, 32)
-            .opacity(animateQuestion ? 1 : 0)
 
             Spacer()
 
-            // Cancel button
-            Button {
-                onCancel()
-            } label: {
+            // Cancel
+            Button { onCancel() } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "xmark.circle")
                         .font(.system(size: 15))
@@ -139,42 +169,104 @@ struct CaregiverAssessmentView: View {
         }
         .padding(.horizontal, 16)
         .onAppear {
-            animateIn()
-            // Avatar speaks the first QDRS question when the panel appears
-            avatarSpeak(questions[currentIndex].voicePrompt)
+            avatarSpeak("Thank you for being here today. I have ten brief questions about any changes you may have noticed in the patient's everyday memory and activities. There are no right or wrong answers. Tap Begin when you're ready.")
         }
+    }
+
+    // MARK: - Question Panel
+
+    private func questionPanel(index: Int) -> some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: 60)
+
+            // Question counter
+            Text("Question \(index + 1) of \(questions.count)")
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundColor(AssessmentTheme.Content.textSecondary)
+                .padding(.bottom, 8)
+
+            // Progress dots
+            HStack(spacing: 6) {
+                ForEach(0..<questions.count, id: \.self) { i in
+                    Circle()
+                        .fill(dotColor(for: i, current: index))
+                        .frame(width: 8, height: 8)
+                        .animation(.easeInOut(duration: 0.2), value: index)
+                }
+            }
+            .padding(.bottom: 24)
+
+            Spacer()
+
+            // Question text — vertically centered
+            Text(questions[index].text)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(AssessmentTheme.Content.textPrimary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 32)
+
+            Spacer().frame(height: 40)
+
+            // Answer buttons
+            VStack(spacing: 14) {
+                ForEach(QDRSAnswer.allCases, id: \.self) { answer in
+                    answerButton(answer, questionIndex: index)
+                }
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+
+            // Cancel
+            Button { onCancel() } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 15))
+                    Text("Cancel")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                .foregroundColor(MCDesign.Colors.textTertiary)
+            }
+            .padding(.bottom, 24)
+        }
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Answer Button
 
-    private func answerButton(_ answer: QDRSAnswer) -> some View {
-        Button {
+    private func answerButton(_ answer: QDRSAnswer, questionIndex: Int) -> some View {
+        let pressed = isPressed[answer] ?? false
+        let selected = selectedAnswer == answer
+
+        return Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            selectAnswer(answer)
+            selectAnswer(answer, questionIndex: questionIndex)
         } label: {
             Text(answer.displayLabel)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(selectedAnswer == answer ? .white : AssessmentTheme.Content.textPrimary)
+                .foregroundColor(selected ? .white : AssessmentTheme.Content.textPrimary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 60)
-                .background(
-                    selectedAnswer == answer
-                        ? AssessmentTheme.Phase.qdrs
-                        : AssessmentTheme.Content.surface
-                )
+                .background(selected ? AssessmentTheme.Phase.qdrs : AssessmentTheme.Content.surface)
                 .cornerRadius(MCDesign.Radius.medium)
                 .overlay(
                     RoundedRectangle(cornerRadius: MCDesign.Radius.medium)
                         .stroke(
-                            selectedAnswer == answer
-                                ? AssessmentTheme.Phase.qdrs
-                                : Color.gray.opacity(0.2),
+                            selected ? AssessmentTheme.Phase.qdrs : Color.gray.opacity(0.2),
                             lineWidth: 1.5
                         )
                 )
-                .mcShadow(MCDesign.Shadow.card)
+                .mcShadow(pressed ? MCDesign.Shadow.pressed : MCDesign.Shadow.card)
+                .scaleEffect(pressed ? 0.97 : 1.0)
         }
         .buttonStyle(.plain)
+        .disabled(selectedAnswer != nil)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in withAnimation(.spring(response: 0.15, dampingFraction: 0.85)) { isPressed[answer] = true } }
+                .onEnded { _ in withAnimation(.spring(response: 0.15, dampingFraction: 0.85)) { isPressed[answer] = false } }
+        )
     }
 
     // MARK: - Completion Panel
@@ -192,61 +284,108 @@ struct CaregiverAssessmentView: View {
                     .foregroundColor(AssessmentTheme.Phase.results)
             }
 
-            Text("Questionnaire Complete")
-                .font(.system(size: 24, weight: .bold))
+            Text("Thank You")
+                .font(.system(size: 26, weight: .bold))
                 .foregroundColor(AssessmentTheme.Content.textPrimary)
 
-            Text("Thank you for completing the\ncaregiver questionnaire.")
+            Text("Your responses have been recorded.\nThe clinician will review your answers.")
                 .font(.system(size: 17))
                 .foregroundColor(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
 
             Spacer()
 
-            MCPrimaryButton("Return Home", icon: "house.fill", color: AssessmentTheme.Phase.results) {
+            MCPrimaryButton("Done", icon: "checkmark", color: AssessmentTheme.Phase.results) {
                 onComplete()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 32)
 
             Spacer().frame(height: 24)
         }
+        .onAppear {
+            avatarSpeak("Thank you for answering those questions. That information is very helpful. The clinician will review your responses.")
+        }
+    }
+
+    // MARK: - Avatar Panel
+
+    private func avatarPanel(width: CGFloat, height: CGFloat) -> some View {
+        ZStack {
+            // Dark gradient background
+            RadialGradient(
+                colors: [AssessmentTheme.Avatar.gradientCenter, AssessmentTheme.Avatar.gradientEdge],
+                center: .center,
+                startRadius: 0,
+                endRadius: max(width, height) * 0.7
+            )
+
+            // Avatar video or loading state
+            if let url = tavusService.activeConversation?.conversation_url {
+                TavusCVIView(conversationURL: url)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(16)
+            } else if tavusService.isCreatingConversation {
+                // Loading state — subtle pulsing placeholder
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                    Text("Connecting avatar...")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            } else if let error = tavusService.lastError {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 28))
+                        .foregroundColor(.orange)
+                    Text(error)
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+            }
+        }
+        .frame(width: width, height: height)
     }
 
     // MARK: - Logic
 
-    private func selectAnswer(_ answer: QDRSAnswer) {
+    private func selectAnswer(_ answer: QDRSAnswer, questionIndex: Int) {
         selectedAnswer = answer
-        assessmentState.qdrsState.answers[currentIndex] = answer
+        assessmentState.qdrsState.answers[questionIndex] = answer
 
-        // Brief delay then advance
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            if currentIndex < questions.count - 1 {
-                animateQuestion = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    currentIndex += 1
-                    assessmentState.qdrsState.currentIndex = currentIndex
-                    selectedAnswer = nil
-                    animateIn()
-                    // Avatar speaks the next question in sync with left panel
-                    avatarSpeak(questions[currentIndex].voicePrompt)
+            if questionIndex < questions.count - 1 {
+                let nextIndex = questionIndex + 1
+                selectedAnswer = nil
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    flowState = .questions(index: nextIndex)
+                }
+                assessmentState.qdrsState.currentIndex = nextIndex
+                // Avatar speaks next question in sync with left panel transition
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    avatarSpeak(questions[nextIndex].voicePrompt)
                 }
             } else {
-                // Done — mark QDRS complete
                 assessmentState.qdrsState.isComplete = true
+                selectedAnswer = nil
                 withAnimation(.easeInOut(duration: 0.3)) {
-                    showCompletion = true
+                    flowState = .complete
                 }
             }
         }
     }
 
-    private func animateIn() {
-        if reduceMotion {
-            animateQuestion = true
+    private func dotColor(for index: Int, current: Int) -> Color {
+        if index < current {
+            return AssessmentTheme.Phase.qdrs
+        } else if index == current {
+            return AssessmentTheme.Phase.qdrs.opacity(0.5)
         } else {
-            withAnimation(.easeOut(duration: 0.35).delay(0.1)) {
-                animateQuestion = true
-            }
+            return Color.gray.opacity(0.2)
         }
     }
 }
