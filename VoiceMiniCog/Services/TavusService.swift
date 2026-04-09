@@ -71,7 +71,17 @@ final class TavusService {
         // Build request body
         var body: [String: Any] = [
             "replica_id": rid,
-            "persona_id": pid
+            "persona_id": pid,
+            // Clinical conversational flow: filter ambient noise, allow deliberate
+            // interruptions, and give elderly patients time to respond.
+            "layers": [
+                "conversational_flow": [
+                    "voice_isolation": "near",
+                    "replica_interruptibility": "medium",
+                    "turn_taking_patience": "high",
+                    "turn_detection_model": "sparrow-1"
+                ]
+            ]
         ]
         if let name = conversationName {
             body["conversation_name"] = name
