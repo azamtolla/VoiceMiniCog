@@ -66,6 +66,8 @@
 		CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD2930E955EA8A06119C9 /* QmciModels.swift */; };
+		CARD0002000000000002 /* AssessmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARD0001000000000001 /* AssessmentCard.swift */; };
+		COMP0002000000000002 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP0001000000000001 /* CompletionPhaseView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -155,6 +157,8 @@
 		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		FWCZSRG4FGI6FBAMQG43RIQ6 /* AssessmentPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPersistence.swift; sourceTree = "<group>"; };
 		TAVBRIDGE002 /* TavusBridge.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = TavusBridge.html; path = VoiceMiniCog/Resources/TavusBridge.html; sourceTree = SOURCE_ROOT; };
+		CARD0001000000000001 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCard.swift; path = VoiceMiniCog/Views/AssessmentCard.swift; sourceTree = SOURCE_ROOT; };
+		COMP0001000000000001 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -212,6 +216,7 @@
 				97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */,
 				FD67457A85ACD917974962D3 /* PauseButtonView.swift */,
 				E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */,
+				COMP0001000000000001 /* CompletionPhaseView.swift */,
 				45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */,
 				24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */,
 				2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */,
@@ -517,6 +522,8 @@
 				5E294F07BC2C05D9B61F7A1C /* ProgressTrackView.swift in Sources */,
 				638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */,
 				61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */,
+				CARD0002000000000002 /* AssessmentCard.swift in Sources */,
+				COMP0002000000000002 /* CompletionPhaseView.swift in Sources */,
 				89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */,
 				A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */,
 				7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */,

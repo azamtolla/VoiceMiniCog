@@ -178,6 +178,7 @@ enum AssessmentTheme {
         7: AvatarRatio.clockFluency,  // verbalFluency
         8: AvatarRatio.story,         // storyRecall
         9: AvatarRatio.recall,        // wordRecall
+        10: AvatarRatio.welcome,      // completion
     ]
 
     /// Phase accent color by AssessmentPhaseID.rawValue (1-based).

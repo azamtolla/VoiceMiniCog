@@ -21,6 +21,39 @@ enum AvatarBehavior: String {
     case completing
 }
 
+// MARK: - AssessmentFlowType
+
+// ┌─────────────┬──────────────────────────────────────────────────────────┐
+// │ Flow Type   │ Phase Sequence                                          │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .quick      │ welcome → orientation → wordReg → clock → fluency →    │
+// │             │ story → wordRecall                                      │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .caregiver  │ welcome → qdrs → completion                            │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .extended   │ (same as .quick — intentionally separate for future     │
+// │             │ divergence, do NOT collapse into .quick)                │
+// └─────────────┴──────────────────────────────────────────────────────────┘
+
+enum AssessmentFlowType: String, Codable {
+    /// Patient cognitive screen — no informant questions
+    case quick
+    /// Informant/caregiver QDRS — no cognitive subtests
+    case caregiver
+    /// Full battery — currently same as quick, separate route for future divergence
+    case extended
+
+    var phaseSequence: [AssessmentPhaseID] {
+        switch self {
+        case .quick, .extended:
+            return [.welcome, .orientation, .wordRegistration, .clockDrawing,
+                    .verbalFluency, .storyRecall, .wordRecall]
+        case .caregiver:
+            return [.welcome, .qdrs, .completion]
+        }
+    }
+}
+
 // MARK: - AssessmentPhaseID
 
 enum AssessmentPhaseID: Int, CaseIterable {
@@ -33,6 +66,7 @@ enum AssessmentPhaseID: Int, CaseIterable {
     case verbalFluency   = 7
     case storyRecall     = 8
     case wordRecall      = 9
+    case completion      = 10
 
     var displayName: String {
         switch self {
@@ -45,6 +79,7 @@ enum AssessmentPhaseID: Int, CaseIterable {
         case .verbalFluency:    return "Verbal Fluency"
         case .storyRecall:      return "Story Recall"
         case .wordRecall:       return "Word Recall"
+        case .completion:       return "Complete"
         }
     }
 
@@ -66,9 +101,16 @@ class AvatarLayoutManager {
 
     // MARK: Properties
 
+    var flowType: AssessmentFlowType = .quick
     var currentPhase: AssessmentPhaseID = .welcome
     var avatarBehavior: AvatarBehavior = .idle
     var isTransitioning: Bool = false
+
+    /// Ordered phases for the current flow type
+    var phaseSequence: [AssessmentPhaseID] { flowType.phaseSequence }
+
+    /// Index of the current phase within the sequence
+    var currentPhaseIndex: Int { phaseSequence.firstIndex(of: currentPhase) ?? 0 }
 
     // MARK: Computed Properties
 
@@ -102,20 +144,20 @@ class AvatarLayoutManager {
     // MARK: Counts
 
     var completedPhaseCount: Int {
-        currentPhase.rawValue - 1
+        currentPhaseIndex
     }
 
     var totalPhaseCount: Int {
-        AssessmentPhaseID.allCases.count
+        phaseSequence.count
     }
 
     // MARK: - Phase Transition
 
-    /// Advance to the next phase in sequence (no-op if already on last phase)
+    /// Advance to the next phase in the flow sequence (no-op if already on last phase)
     func advanceToNextPhase() {
-        let nextRaw = currentPhase.rawValue + 1
-        guard let nextPhase = AssessmentPhaseID(rawValue: nextRaw) else { return }
-        transitionTo(nextPhase)
+        let nextIndex = currentPhaseIndex + 1
+        guard nextIndex < phaseSequence.count else { return }
+        transitionTo(phaseSequence[nextIndex])
     }
 
     /// Animate transition to the specified phase
@@ -148,6 +190,7 @@ class AvatarLayoutManager {
         case .verbalFluency:    return .waiting
         case .storyRecall:      return .narrating
         case .wordRecall:       return .listening
+        case .completion:       return .completing
         }
     }
 

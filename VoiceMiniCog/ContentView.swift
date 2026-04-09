@@ -2,18 +2,16 @@
 //  ContentView.swift
 //  VoiceMiniCog
 //
-//  Main routing:
-//  Home → QDRS → PHQ-2 → QmciIntro → Qmci Assessment (6 subtests) → Report
+//  Main routing: Home (three cards) → Avatar Assessment / Caregiver / Extended → Report
 //
 
 import SwiftUI
 
 enum AppScreen {
     case home
-    case avatarAssessment // Avatar-guided assessment (Tavus CVI)
-    case report          // PCP summary
+    case avatarAssessment
+    case report
 
-    /// Maps a restored Phase + state to the correct AppScreen for navigation.
     static func screen(for phase: Phase, state: AssessmentState? = nil) -> AppScreen {
         switch phase {
         case .intake, .qmciOrientation, .qmciRegistration, .qmciClockDrawing,
@@ -30,24 +28,30 @@ struct ContentView: View {
     @AppStorage("minicog.useAvatarLiveView") var useAvatarLiveView = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var currentScreen: AppScreen = .home
+    @State private var flowType: AssessmentFlowType = .quick
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
 
     var body: some View {
         ZStack {
             // MARK: Avatar Canvas — ALWAYS in hierarchy so WebView stays connected.
-            // While on Home, this is hidden (opacity 0) but the WKWebView is live:
-            // bridge loaded, room joined, avatar streaming. When Start is pressed
-            // we just flip visibility — instant avatar.
             AvatarAssessmentCanvas(
+                flowType: flowType,
                 assessmentState: assessmentState,
                 tavusService: TavusService.shared,
                 onComplete: {
-                    assessmentState.currentPhase = .scoring
-                    computeAllScores()
-                    assessmentState.currentPhase = .report
-                    currentScreen = .report
-                    AssessmentPersistence.clear()
+                    if flowType == .caregiver {
+                        // Caregiver flow ends at completion — go home, no scoring
+                        AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
+                        currentScreen = .home
+                    } else {
+                        assessmentState.currentPhase = .scoring
+                        computeAllScores()
+                        assessmentState.currentPhase = .report
+                        currentScreen = .report
+                        AssessmentPersistence.clear()
+                    }
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
@@ -58,16 +62,12 @@ struct ContentView: View {
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
 
-            // MARK: Home / Report — created and destroyed normally
+            // MARK: Home
             if currentScreen == .home {
                 NavigationStack {
                     HomeView(
-                        onStart: { respondentType in
-                            AssessmentPersistence.clear()
-                            assessmentState = AssessmentState()
-                            assessmentState.qdrsState.respondentType = respondentType
-                            assessmentState.qmciState.reset()
-                            startAvatarAssessment()
+                        onSelectFlow: { selectedFlow in
+                            startAssessment(flowType: selectedFlow)
                         },
                         onResume: {
                             if let restored = AssessmentPersistence.restore() {
@@ -82,6 +82,7 @@ struct ContentView: View {
                 }
             }
 
+            // MARK: Report
             if currentScreen == .report {
                 NavigationStack {
                     PCPReportView(
@@ -110,11 +111,23 @@ struct ContentView: View {
         }
     }
 
-    private func startAvatarAssessment() {
-        // Just reveal the canvas — the avatar is already streaming behind the Home screen.
-        // If pre-warm failed or hasn't finished, the canvas shows its connecting/error UI.
+    // MARK: - Start Assessment
+
+    private func startAssessment(flowType selectedFlow: AssessmentFlowType) {
+        AssessmentPersistence.clear()
+        assessmentState = AssessmentState()
+        assessmentState.qmciState.reset()
+        flowType = selectedFlow
+
+        // Caregiver flow: auto-set informant respondent type
+        if selectedFlow == .caregiver {
+            assessmentState.qdrsState.respondentType = .informant
+        }
+
+        // Reveal canvas — avatar is already streaming from pre-warm
         currentScreen = .avatarAssessment
-        // Fallback: if pre-warm never ran or failed, start a fresh conversation
+
+        // Fallback: if pre-warm never ran or failed, start fresh conversation
         if TavusService.shared.activeConversation == nil && !TavusService.shared.isCreatingConversation {
             Task {
                 do {
@@ -128,8 +141,9 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Scoring
+
     private func computeAllScores() {
-        // Composite risk
         assessmentState.compositeRisk = computeCompositeRiskQmciQDRS(
             qmciState: assessmentState.qmciState,
             qdrsState: assessmentState.qdrsState,
@@ -137,20 +151,20 @@ struct ContentView: View {
             clockAnalysis: assessmentState.clockAnalysis
         )
 
-        // Anti-amyloid triage
         assessmentState.amyloidTriage = computeAmyloidTriage(
             qmciState: assessmentState.qmciState,
             qdrsState: assessmentState.qdrsState,
             medications: assessmentState.medicationFlags
         )
 
-        // Workup orders
         assessmentState.workupOrders = generateWorkupOrders(
             qmciClassification: assessmentState.qmciState.classification,
             phq2Score: assessmentState.phq2State.totalScore,
             isFirstEvaluation: true
         )
     }
+
+    // MARK: - Settings
 
     private func withCancelToolbar<V: View>(_ view: V) -> some View {
         view

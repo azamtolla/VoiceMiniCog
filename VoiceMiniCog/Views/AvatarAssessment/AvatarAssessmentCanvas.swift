@@ -13,6 +13,7 @@ import SwiftUI
 
 struct AvatarAssessmentCanvas: View {
 
+    let flowType: AssessmentFlowType
     @Bindable var assessmentState: AssessmentState
     var tavusService: TavusService
     let onComplete: () -> Void
@@ -67,6 +68,7 @@ struct AvatarAssessmentCanvas: View {
             reduceMotion ? AssessmentTheme.Anim.reducedMotion : AssessmentTheme.Anim.phaseTransition,
             value: layoutManager.currentPhase
         )
+        .onAppear { layoutManager.flowType = flowType }
         .pauseSheet(
             isPresented: $showPauseSheet,
             accentColor: layoutManager.accentColor,
@@ -133,6 +135,10 @@ struct AvatarAssessmentCanvas: View {
             StoryRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .wordRecall:
             WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState, onComplete: onComplete)
+        case .completion:
+            CompletionPhaseView(onComplete: onComplete)
+        case .phq2:
+            EmptyView() // PHQ-2 removed from all flows
         }
     }
 
@@ -235,6 +241,7 @@ private extension View {
 
 #Preview {
     AvatarAssessmentCanvas(
+        flowType: .quick,
         assessmentState: AssessmentState(),
         tavusService: TavusService.shared,
         onComplete: {},
