@@ -77,6 +77,12 @@ async function joinRoom(roomUrl) {
     log('Joined meeting');
     status.textContent = '';
     notifySwift('joined', {});
+
+    // Clinical turn-taking: reduce sensitivity to ambient noise.
+    // "low" pause = avatar waits longer before responding (patient has time to think).
+    // "low" interrupt = avatar is hard to interrupt by background noise.
+    setSensitivity('low', 'low');
+    log('Set clinical sensitivity: pause=low, interrupt=low');
   });
 
   callObject.on('participant-joined', (evt) => {
