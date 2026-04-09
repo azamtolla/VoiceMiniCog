@@ -41,6 +41,41 @@ final class TavusService {
     var isCreatingConversation = false
     var activeConversation: TavusConversationSession?
     var lastError: String?
+    /// True once preWarm() has been called and the conversation is ready or in-flight.
+    private var preWarmTask: Task<Void, Never>?
+
+    // MARK: - Pre-Warming
+
+    /// Start creating a conversation in the background so it's ready when the
+    /// clinician presses Start. Call this when the Home screen appears.
+    func preWarm() {
+        // Don't pre-warm if we already have a conversation or one is in-flight
+        guard activeConversation == nil, !isCreatingConversation else { return }
+        guard !apiKey.isEmpty else { return }
+
+        preWarmTask = Task {
+            do {
+                _ = try await createConversation(
+                    conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
+                )
+                print("[Tavus] Pre-warm: conversation ready")
+            } catch {
+                // Non-fatal — we'll retry when Start is pressed
+                print("[Tavus] Pre-warm failed (will retry on Start): \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Cancel and clean up a pre-warmed conversation that was never used.
+    func cancelPreWarm() {
+        preWarmTask?.cancel()
+        preWarmTask = nil
+        if let conversation = activeConversation {
+            let cid = conversation.conversation_id
+            activeConversation = nil
+            Task { await endConversation(cid) }
+        }
+    }
 
     // MARK: - Conversation Lifecycle
 

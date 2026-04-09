@@ -43,7 +43,6 @@ struct ContentView: View {
                         assessmentState = AssessmentState()
                         assessmentState.qdrsState.respondentType = respondentType
                         assessmentState.qmciState.reset()
-                        // Start Tavus conversation, then go directly to avatar split-screen
                         startAvatarAssessment()
                     },
                     onResume: {
@@ -53,6 +52,10 @@ struct ContentView: View {
                         }
                     }
                 )
+                .onAppear {
+                    // Pre-warm Tavus conversation so the avatar is ready instantly
+                    TavusService.shared.preWarm()
+                }
 
             case .avatarAssessment:
                 AvatarAssessmentCanvas(
@@ -67,6 +70,7 @@ struct ContentView: View {
                     },
                     onCancel: {
                         AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
                         currentScreen = .home
                     }
                 )
@@ -77,11 +81,13 @@ struct ContentView: View {
                     onRestart: {
                         assessmentState.reset()
                         AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
                         currentScreen = .home
                     },
                     onFinalize: {
                         assessmentState.reset()
                         AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
                         currentScreen = .home
                     }
                 )
@@ -95,16 +101,20 @@ struct ContentView: View {
     }
 
     private func startAvatarAssessment() {
-        guard !TavusService.shared.isCreatingConversation else { return }
         currentScreen = .avatarAssessment
-        Task {
-            do {
-                _ = try await TavusService.shared.createConversation(
-                    conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
-                )
-            } catch {
-                TavusService.shared.lastError = error.localizedDescription
-                print("[Tavus] Failed to create conversation: \(error.localizedDescription)")
+        // If pre-warm already delivered a conversation, we're done — avatar appears instantly.
+        // If pre-warm is still in-flight, the UI shows the connecting spinner until it finishes.
+        // If pre-warm failed or never ran, kick off a fresh attempt now.
+        if TavusService.shared.activeConversation == nil && !TavusService.shared.isCreatingConversation {
+            Task {
+                do {
+                    _ = try await TavusService.shared.createConversation(
+                        conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
+                    )
+                } catch {
+                    TavusService.shared.lastError = error.localizedDescription
+                    print("[Tavus] Failed to create conversation: \(error.localizedDescription)")
+                }
             }
         }
     }
