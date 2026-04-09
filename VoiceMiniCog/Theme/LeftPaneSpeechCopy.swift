@@ -10,6 +10,12 @@ import Foundation
 
 enum LeftPaneSpeechCopy {
 
+    // MARK: - Welcome
+
+    static let welcomeTitle = "Brain Health Assessment"
+
+    static let welcomeSubtitle = "6 cognitive activities, about 5-7 minutes"
+
     // MARK: - Word Registration
 
     static let wordRegistrationTitle = "Listen carefully"
@@ -40,17 +46,33 @@ enum LeftPaneSpeechCopy {
 
     // MARK: - Verbal Fluency
 
+    static let verbalFluencyTitle = "Name as many animals\nas you can"
+
+    static let verbalFluencySubtitle = "You have one minute."
+
     static let verbalFluencyInstruction = "I'd like you to name as many different animals as you can. You can name any animal — dogs, birds, fish, anything. Try to name as many as you can in one minute. Ready? Begin."
 
     static let verbalFluencyMidTimer = "Good, keep going."
 
     // MARK: - Story Recall
 
+    static let storyRecallListeningTitle = "Listen carefully to\nthis short story"
+
+    static let storyRecallListeningSubtitle = "The avatar is reading a story.\nPay close attention."
+
+    static let storyRecallRecallingTitle = "Now tell me everything\nyou remember"
+
+    static let storyRecallRecallingSubtitle = "Take your time. Say everything\nyou can recall."
+
     static let storyRecallIntro = "I'm going to read you a short story. Listen carefully and try to remember as much of it as you can. When I'm finished, I'll ask you to tell me everything you can recall — even small details. Ready?"
 
     static let storyRecallPrompt = "Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can."
 
     static let storyRecallFollowup = "Anything else you can remember?"
+
+    // MARK: - Word Recall
+
+    static let wordRecallTitle = "What were the 5 words?"
 
     // MARK: - Word Recall
 

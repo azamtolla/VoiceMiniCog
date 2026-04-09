@@ -23,6 +23,7 @@ struct VerbalFluencyPhaseView: View {
     @State private var timer: Timer?
     @State private var wordsEntered: [String] = []
     @State private var currentWord = ""
+    @State private var contentVisible = false
 
     // MARK: Body
 
@@ -53,17 +54,24 @@ struct VerbalFluencyPhaseView: View {
                 .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 14)
+                .assessmentIconHeaderAccent(layoutManager.accentColor)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            Text("Name as many animals\nas you can")
+            Text(LeftPaneSpeechCopy.verbalFluencyTitle)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
-            Text("You have one minute.")
+            Text(LeftPaneSpeechCopy.verbalFluencySubtitle)
                 .font(AssessmentTheme.Fonts.helper)
                 .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 .padding(.bottom, 32)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
             Button {
                 let gen = UIImpactFeedbackGenerator(style: .medium)
@@ -77,9 +85,16 @@ struct VerbalFluencyPhaseView: View {
                     .background(layoutManager.accentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AssessmentPrimaryButtonStyle())
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
 
             Spacer()
+        }
+        .onAppear {
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
         }
     }
 
@@ -187,13 +202,13 @@ struct VerbalFluencyPhaseView: View {
     private func startTimer() {
         isRunning = true
         // Avatar speaks the fluency instruction when timer starts
-        avatarSpeak("I'd like you to name as many different animals as you can. You can name any animal — dogs, birds, fish, anything. Try to name as many as you can in one minute. Ready? Begin.")
+        avatarSpeak(LeftPaneSpeechCopy.verbalFluencyInstruction)
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
                 // Mid-timer encouragement at 30 seconds
                 if timeRemaining == 30 {
-                    avatarSpeak("Good, keep going.")
+                    avatarSpeak(LeftPaneSpeechCopy.verbalFluencyMidTimer)
                 }
             } else {
                 stopTimer()

@@ -19,6 +19,7 @@ struct WordRecallPhaseView: View {
     let onComplete: () -> Void
 
     @State private var recallResults: [Bool?]
+    @State private var contentVisible = false
 
     // MARK: Init
 
@@ -59,21 +60,18 @@ struct WordRecallPhaseView: View {
                 .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 14)
+                .assessmentIconHeaderAccent(layoutManager.accentColor)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             // MARK: Title
-            Text("What were the 5 words?")
+            Text(LeftPaneSpeechCopy.wordRecallTitle)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 20)
-                .onAppear {
-                    layoutManager.setAvatarSpeaking()
-                    avatarSpeak("What were those five words I asked you to remember earlier?")
-                    // Switch to listening after avatar finishes speaking (~3s)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-                        layoutManager.setAvatarListening()
-                    }
-                }
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
             // MARK: Word Card
             VStack(spacing: 0) {
@@ -94,6 +92,8 @@ struct WordRecallPhaseView: View {
                 y: 2
             )
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
             // MARK: Score Display
             if allMarked {
@@ -129,12 +129,26 @@ struct WordRecallPhaseView: View {
                             y: 4
                         )
                 }
+                .buttonStyle(AssessmentPrimaryButtonStyle())
                 .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
                 .transition(.scale.combined(with: .opacity))
             }
 
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
+        }
+        .onAppear {
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
+            layoutManager.setAvatarSpeaking()
+            avatarSpeak(LeftPaneSpeechCopy.wordRecallPrompt)
+            // Switch to listening after avatar finishes speaking (~3s)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                layoutManager.setAvatarListening()
+            }
         }
     }
 

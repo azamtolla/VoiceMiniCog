@@ -18,6 +18,7 @@ struct StoryRecallPhaseView: View {
     @Bindable var qmciState: QmciState
 
     @State private var phase: StoryPhase = .listening
+    @State private var contentVisible = false
 
     enum StoryPhase { case listening, recalling }
 
@@ -30,31 +31,37 @@ struct StoryRecallPhaseView: View {
 
             // MARK: Icon
             Image(systemName: phase == .listening ? "book.fill" : "mic.fill")
-
                 .resizable()
                 .scaledToFit()
                 .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 14)
+                .assessmentIconHeaderAccent(layoutManager.accentColor)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
                 .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
             // MARK: Title
             Text(phase == .listening
-                 ? "Listen carefully to\nthis short story"
-                 : "Now tell me everything\nyou remember")
+                 ? LeftPaneSpeechCopy.storyRecallListeningTitle
+                 : LeftPaneSpeechCopy.storyRecallRecallingTitle)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
                 .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
             // MARK: Subtitle
             Text(phase == .listening
-                 ? "The avatar is reading a story.\nPay close attention."
-                 : "Take your time. Say everything\nyou can recall.")
+                 ? LeftPaneSpeechCopy.storyRecallListeningSubtitle
+                 : LeftPaneSpeechCopy.storyRecallRecallingSubtitle)
                 .font(AssessmentTheme.Fonts.helper)
                 .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
                 .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
             Spacer()
@@ -64,8 +71,13 @@ struct StoryRecallPhaseView: View {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
                 if phase == .listening {
+                    contentVisible = false
                     withAnimation(AssessmentTheme.Anim.contentFade) { phase = .recalling }
                     layoutManager.setAvatarListening()
+                    // Re-animate content enter for the recalling phase
+                    withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                        contentVisible = true
+                    }
                 } else {
                     layoutManager.advanceToNextPhase()
                 }
@@ -80,17 +92,22 @@ struct StoryRecallPhaseView: View {
                     .background(layoutManager.accentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .buttonStyle(AssessmentPrimaryButtonStyle())
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
             .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
         .onAppear {
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
             // Avatar speaks the story intro + reads the story text
             let story = qmciState.currentStory
-            let intro = "I'm going to read you a short story. Listen carefully and try to remember as much of it as you can. When I'm finished, I'll ask you to tell me everything you can recall — even small details. Ready?"
-            avatarSpeak(intro)
+            avatarSpeak(LeftPaneSpeechCopy.storyRecallIntro)
             // After a brief pause for the intro, read the story
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
                 if phase == .listening {
@@ -101,7 +118,7 @@ struct StoryRecallPhaseView: View {
         .onChange(of: phase) { _, newPhase in
             if newPhase == .recalling {
                 layoutManager.avatarBehavior = .speaking
-                avatarSpeak("Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can.")
+                avatarSpeak(LeftPaneSpeechCopy.storyRecallPrompt)
                 // Switch to listening after the prompt (~4s)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                     layoutManager.setAvatarListening()

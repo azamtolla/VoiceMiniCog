@@ -31,6 +31,7 @@ struct ClockDrawingPhaseView: View {
     @State private var currentLine: [CGPoint] = []
     @State private var timeRemaining = 180 // 3 minutes
     @State private var timer: Timer?
+    @State private var contentVisible = false
 
     // MARK: Body
 
@@ -38,11 +39,13 @@ struct ClockDrawingPhaseView: View {
         VStack(spacing: 12) {
 
             // 1. Instruction text
-            Text("Draw a clock. Include all 12 numbers.\nSet the hands to 11:10.")
+            Text(LeftPaneSpeechCopy.clockDrawingOnScreen)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             // 2. Drawing canvas — fills all available space
             GeometryReader { geo in
@@ -90,6 +93,8 @@ struct ClockDrawingPhaseView: View {
                 .frame(width: size, height: size)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
             // 3. Bottom bar: timer only (Done Drawing moved to right-side status panel)
             HStack {
@@ -103,8 +108,11 @@ struct ClockDrawingPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
             avatarSetContext("You are on the Clock Drawing phase. The patient is drawing a clock. Stay quiet and wait. Do NOT give hints, do NOT comment on their drawing, do NOT advance to the next phase. Only speak when sent echo commands. If the patient asks for help, say 'Just do your best.'")
-            avatarSpeak("Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock.")
+            avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
         }
         .onDisappear {

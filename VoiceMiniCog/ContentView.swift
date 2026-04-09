@@ -89,7 +89,12 @@ struct ContentView: View {
                         onResume: {
                             if let restored = AssessmentPersistence.restore() {
                                 assessmentState = restored
-                                currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+                                flowType = AssessmentPersistence.restoreFlowType()
+                                if flowType == .caregiver {
+                                    currentScreen = .caregiverAssessment
+                                } else {
+                                    currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+                                }
                             }
                         }
                     )
@@ -123,7 +128,7 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.3), value: currentScreen)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background, currentScreen != .home {
-                AssessmentPersistence.save(assessmentState)
+                AssessmentPersistence.save(assessmentState, flowType: flowType)
             }
         }
     }

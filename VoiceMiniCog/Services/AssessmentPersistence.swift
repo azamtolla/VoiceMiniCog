@@ -13,16 +13,19 @@ import Foundation
 final class AssessmentPersistence {
 
     private static let storageKey = "mercycognitive.assessment.inProgress"
+    private static let flowTypeKey = "mercycognitive.assessment.flowType"
 
     // MARK: - Save
 
-    /// Encodes the current assessment state to JSON and stores it in UserDefaults.
-    static func save(_ state: AssessmentState) {
+    /// Encodes the current assessment state and flow type to UserDefaults.
+    static func save(_ state: AssessmentState, flowType: AssessmentFlowType? = nil) {
         do {
             let data = try JSONEncoder().encode(state)
             UserDefaults.standard.set(data, forKey: storageKey)
+            if let flowType {
+                UserDefaults.standard.set(flowType.rawValue, forKey: flowTypeKey)
+            }
         } catch {
-            // Non-fatal — log and continue. The assessment keeps running in memory.
             print("[AssessmentPersistence] save failed: \(error.localizedDescription)")
         }
     }
@@ -39,11 +42,19 @@ final class AssessmentPersistence {
             let state = try JSONDecoder().decode(AssessmentState.self, from: data)
             return state
         } catch {
-            // Corrupted — clear stale data and start fresh
             print("[AssessmentPersistence] restore failed (clearing): \(error.localizedDescription)")
             clear()
             return nil
         }
+    }
+
+    /// Returns the flow type of the persisted assessment, or .quick as default.
+    static func restoreFlowType() -> AssessmentFlowType {
+        guard let raw = UserDefaults.standard.string(forKey: flowTypeKey),
+              let flowType = AssessmentFlowType(rawValue: raw) else {
+            return .quick
+        }
+        return flowType
     }
 
     // MARK: - Clear
@@ -51,6 +62,7 @@ final class AssessmentPersistence {
     /// Removes any persisted assessment data.
     static func clear() {
         UserDefaults.standard.removeObject(forKey: storageKey)
+        UserDefaults.standard.removeObject(forKey: flowTypeKey)
     }
 
     // MARK: - Query

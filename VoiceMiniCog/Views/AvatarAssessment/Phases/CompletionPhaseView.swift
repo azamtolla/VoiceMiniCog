@@ -12,7 +12,7 @@ struct CompletionPhaseView: View {
 
     let onComplete: () -> Void
 
-    @State private var appeared = false
+    @State private var contentVisible = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -27,19 +27,21 @@ struct CompletionPhaseView: View {
                     .font(.system(size: 40))
                     .foregroundColor(AssessmentTheme.Phase.results)
             }
-            .scaleEffect(appeared ? 1 : 0.8)
-            .opacity(appeared ? 1 : 0)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             Text("Questionnaire Complete")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(AssessmentTheme.Content.textPrimary)
-                .opacity(appeared ? 1 : 0)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
             Text("Thank you for completing the\ncaregiver questionnaire.")
                 .font(.system(size: 17, weight: .regular))
                 .foregroundColor(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
-                .opacity(appeared ? 1 : 0)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
             Spacer()
 
@@ -48,14 +50,16 @@ struct CompletionPhaseView: View {
                 onComplete()
             }
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
 
             Spacer().frame(height: 16)
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.5).delay(0.2)) {
-                appeared = true
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
             }
-            avatarSpeak("That's everything — thank you so much for your time and effort today. Your clinician will review the results and follow up with you.")
+            avatarSpeak(LeftPaneSpeechCopy.closingThankYou)
         }
     }
 }
