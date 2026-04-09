@@ -67,7 +67,12 @@ struct WordRecallPhaseView: View {
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 20)
                 .onAppear {
+                    layoutManager.setAvatarSpeaking()
                     avatarSpeak("What were those five words I asked you to remember earlier?")
+                    // Switch to listening after avatar finishes speaking (~3s)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                        layoutManager.setAvatarListening()
+                    }
                 }
 
             // MARK: Word Card

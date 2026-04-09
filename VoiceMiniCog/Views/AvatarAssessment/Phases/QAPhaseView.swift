@@ -70,17 +70,15 @@ struct QAPhaseView: View {
             withAnimation(.easeOut(duration: 0.3).delay(0.15)) {
                 animateIn = true
             }
-            // Tell avatar its role: ask questions, don't advance on its own
             avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). Questions and answers are controlled by the on-screen buttons. You speak ONLY the question text provided via echo commands. If the patient asks to skip, move on, or change the topic, gently redirect them to answer the current question on screen. Do NOT ask your own questions or advance the assessment.")
-            avatarSpeak(currentVoicePrompt)
+            speakThenListen(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in
             animateIn = false
             withAnimation(.easeOut(duration: 0.3).delay(0.1)) {
                 animateIn = true
             }
-            // Avatar speaks each new question as it appears on screen
-            avatarSpeak(currentVoicePrompt)
+            speakThenListen(currentVoicePrompt)
         }
     }
 
@@ -140,6 +138,20 @@ struct QAPhaseView: View {
         .disabled(selectedAnswer != nil)
     }
 
+    // MARK: - Speak Then Listen
+
+    /// Avatar speaks the question, then switches to listening after a delay
+    /// proportional to the question length (roughly 80ms per word).
+    private func speakThenListen(_ text: String) {
+        layoutManager.setAvatarSpeaking()
+        avatarSpeak(text)
+        let wordCount = text.split(separator: " ").count
+        let speakDuration = max(2.0, Double(wordCount) * 0.08 + 1.5)
+        DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
+            layoutManager.setAvatarListening()
+        }
+    }
+
     // MARK: - Orientation Footer
 
     private var orientationFooter: some View {
@@ -150,9 +162,6 @@ struct QAPhaseView: View {
                     .frame(width: 10, height: 10)
             }
             Spacer()
-            Text("\(assessmentState.qmciState.orientationScore)/10")
-                .font(AssessmentTheme.Fonts.timerSmall)
-                .foregroundStyle(AssessmentTheme.Content.textSecondary)
         }
     }
 

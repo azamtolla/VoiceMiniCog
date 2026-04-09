@@ -100,7 +100,12 @@ struct StoryRecallPhaseView: View {
         }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .recalling {
+                layoutManager.avatarBehavior = .speaking
                 avatarSpeak("Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can.")
+                // Switch to listening after the prompt (~4s)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    layoutManager.setAvatarListening()
+                }
             }
         }
     }

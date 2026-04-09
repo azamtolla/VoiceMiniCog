@@ -182,14 +182,14 @@ class AvatarLayoutManager {
     func defaultBehavior(for phase: AssessmentPhaseID) -> AvatarBehavior {
         switch phase {
         case .welcome:          return .speaking
-        case .qdrs:             return .listening
-        case .phq2:             return .listening
-        case .orientation:      return .listening
+        case .qdrs:             return .speaking  // speaks question first, then listens
+        case .phq2:             return .speaking
+        case .orientation:      return .speaking  // speaks question first, then listens
         case .wordRegistration: return .speaking
         case .clockDrawing:     return .waiting
         case .verbalFluency:    return .waiting
         case .storyRecall:      return .narrating
-        case .wordRecall:       return .listening
+        case .wordRecall:       return .speaking  // speaks recall prompt first, then listens
         case .completion:       return .completing
         }
     }
