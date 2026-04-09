@@ -194,7 +194,7 @@ struct CaregiverAssessmentView: View {
                         .animation(.easeInOut(duration: 0.2), value: index)
                 }
             }
-            .padding(.bottom: 24)
+            .padding(.bottom, 24)
 
             Spacer()
 
