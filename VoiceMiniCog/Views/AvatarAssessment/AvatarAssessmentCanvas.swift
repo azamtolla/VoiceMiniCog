@@ -21,6 +21,7 @@ struct AvatarAssessmentCanvas: View {
     @State private var layoutManager = AvatarLayoutManager()
     @State private var showPauseSheet = false
     @State private var avatarDismissed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: Body
 
@@ -62,7 +63,10 @@ struct AvatarAssessmentCanvas: View {
         }
         .ignoresSafeArea()
         .statusBarHidden()
-        .animation(AssessmentTheme.Anim.phaseTransition, value: layoutManager.currentPhase)
+        .animation(
+            reduceMotion ? AssessmentTheme.Anim.reducedMotion : AssessmentTheme.Anim.phaseTransition,
+            value: layoutManager.currentPhase
+        )
         .pauseSheet(
             isPresented: $showPauseSheet,
             accentColor: layoutManager.accentColor,
@@ -79,12 +83,23 @@ struct AvatarAssessmentCanvas: View {
             progressTrackPlaceholder
                 .padding(.top, 60)
 
-            // Phase-specific content
+            // Phase-specific content — crossfade + subtle upward drift
             Group {
                 phaseContent
-                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                    .transition(reduceMotion
+                        ? .opacity
+                        : .asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: 12)),
+                            removal: .opacity
+                        )
+                    )
                     .id(layoutManager.currentPhase)
-                    .animation(AssessmentTheme.Anim.phaseTransition, value: layoutManager.currentPhase)
+                    .animation(
+                        reduceMotion
+                            ? AssessmentTheme.Anim.reducedMotion
+                            : AssessmentTheme.Anim.contentSwap,
+                        value: layoutManager.currentPhase
+                    )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

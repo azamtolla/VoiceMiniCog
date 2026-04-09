@@ -87,9 +87,11 @@ enum MCDesign {
     }
 
     enum Radius {
-        static let small: CGFloat = 8
-        static let medium: CGFloat = 12
+        static let small: CGFloat = 12
+        static let medium: CGFloat = 16
         static let large: CGFloat = 16
+        /// Modals and large surfaces
+        static let xlarge: CGFloat = 28
         static let pill: CGFloat = 9999
     }
 
@@ -100,10 +102,11 @@ enum MCDesign {
     }
 
     enum Shadow {
-        static let card     = ShadowStyle(color: .black.opacity(0.06), radius: 6, y: 3)
-        static let button   = ShadowStyle(color: .black.opacity(0.08), radius: 6, y: 3)
-        static let elevated = ShadowStyle(color: .black.opacity(0.12), radius: 12, y: 4)
-        static let header   = ShadowStyle(color: .black.opacity(0.03), radius: 2, y: 1)
+        /// HA-inspired card shadow — subtle depth on light surfaces
+        static let card     = ShadowStyle(color: .black.opacity(0.12), radius: 8, y: 2)
+        static let button   = ShadowStyle(color: .black.opacity(0.10), radius: 6, y: 2)
+        static let elevated = ShadowStyle(color: .black.opacity(0.16), radius: 12, y: 4)
+        static let header   = ShadowStyle(color: .black.opacity(0.04), radius: 2, y: 1)
         static let pressed  = ShadowStyle(color: .black.opacity(0.04), radius: 2, y: 1)
     }
 

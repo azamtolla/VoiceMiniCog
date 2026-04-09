@@ -30,10 +30,11 @@ enum AssessmentTheme {
     // MARK: Avatar Zone (dark right panel)
 
     enum Avatar {
-        /// Radial gradient center color: #1A1A2E
-        static let gradientCenter = Color(hex: "#1A1A2E")
-        /// Radial gradient edge color: #080808
-        static let gradientEdge   = Color(hex: "#080808")
+        /// HA-inspired dark chrome — formalized from Home Assistant palette
+        /// Radial gradient center color: #1C1C1C (HA card surface)
+        static let gradientCenter = Color(hex: "#1C1C1C")
+        /// Radial gradient edge color: #111111 (HA page background)
+        static let gradientEdge   = Color(hex: "#111111")
 
         /// Radial gradient filling the avatar panel.
         static let backgroundGradient = RadialGradient(
@@ -197,12 +198,15 @@ enum AssessmentTheme {
     typealias Anim = Animation
 
     enum Animation {
-        /// Phase transition — spring, 0.55 s, 0.15 bounce
+        /// Phase layout transition — spring tuned for elderly patients (slower, no bounce)
         static let phaseTransition = SwiftUI.Animation.spring(
-            response: 0.55,
-            dampingFraction: 1.0 - 0.15,
+            response: 0.65,
+            dampingFraction: 0.88,
             blendDuration: 0
         )
+
+        /// Phase content swap — crossfade + upward drift, purposeful not playful
+        static let contentSwap = SwiftUI.Animation.easeInOut(duration: 0.35)
 
         /// Content fade in/out — 0.25 s ease-in-out
         static let contentFade = SwiftUI.Animation.easeInOut(duration: 0.25)
@@ -213,6 +217,9 @@ enum AssessmentTheme {
             dampingFraction: 0.85,
             blendDuration: 0
         )
+
+        /// Button success confirmation — scale pulse 1.0 → 1.03 → 1.0
+        static let successPulse = SwiftUI.Animation.easeInOut(duration: 0.3)
 
         /// Word chip appear — spring, 0.35 s
         static let chipAppear = SwiftUI.Animation.spring(
@@ -225,5 +232,8 @@ enum AssessmentTheme {
         static let ringPulseDuration: Double = 1.8
         static let ringPulse = SwiftUI.Animation.easeInOut(duration: ringPulseDuration)
             .repeatForever(autoreverses: true)
+
+        /// Reduced-motion fallback — opacity only, no spatial movement
+        static let reducedMotion = SwiftUI.Animation.easeInOut(duration: 0.2)
     }
 }
