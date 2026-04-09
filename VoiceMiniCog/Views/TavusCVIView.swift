@@ -249,6 +249,19 @@ struct TavusCVIView: UIViewRepresentable {
     }
 }
 
+// MARK: - Avatar Speech Helper
+
+/// Post a notification to make the Tavus avatar speak the given text via sendEcho().
+/// Call this from any phase view when content appears on the left panel.
+func avatarSpeak(_ text: String) {
+    guard !text.isEmpty else { return }
+    NotificationCenter.default.post(
+        name: .tavusEchoRequest,
+        object: nil,
+        userInfo: ["text": text]
+    )
+}
+
 // MARK: - Avatar Events
 
 enum TavusAvatarEvent {

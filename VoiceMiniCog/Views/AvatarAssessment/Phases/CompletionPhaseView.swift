@@ -55,6 +55,7 @@ struct CompletionPhaseView: View {
             withAnimation(.easeOut(duration: 0.5).delay(0.2)) {
                 appeared = true
             }
+            avatarSpeak("That's everything — thank you so much for your time and effort today. Your clinician will review the results and follow up with you.")
         }
     }
 }

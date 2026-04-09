@@ -66,6 +66,9 @@ struct WordRecallPhaseView: View {
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 20)
+                .onAppear {
+                    avatarSpeak("What were those five words I asked you to remember earlier?")
+                }
 
             // MARK: Word Card
             VStack(spacing: 0) {

@@ -186,9 +186,15 @@ struct VerbalFluencyPhaseView: View {
 
     private func startTimer() {
         isRunning = true
+        // Avatar speaks the fluency instruction when timer starts
+        avatarSpeak("I'd like you to name as many different animals as you can. You can name any animal — dogs, birds, fish, anything. Try to name as many as you can in one minute. Ready? Begin.")
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
+                // Mid-timer encouragement at 30 seconds
+                if timeRemaining == 30 {
+                    avatarSpeak("Good, keep going.")
+                }
             } else {
                 stopTimer()
                 qmciState.verbalFluencyWords = wordsEntered

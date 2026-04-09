@@ -30,6 +30,7 @@ struct StoryRecallPhaseView: View {
 
             // MARK: Icon
             Image(systemName: phase == .listening ? "book.fill" : "mic.fill")
+
                 .resizable()
                 .scaledToFit()
                 .frame(width: 44, height: 44)
@@ -84,6 +85,23 @@ struct StoryRecallPhaseView: View {
 
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
+        }
+        .onAppear {
+            // Avatar speaks the story intro + reads the story text
+            let story = qmciState.currentStory
+            let intro = "I'm going to read you a short story. Listen carefully and try to remember as much of it as you can. When I'm finished, I'll ask you to tell me everything you can recall — even small details. Ready?"
+            avatarSpeak(intro)
+            // After a brief pause for the intro, read the story
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                if phase == .listening {
+                    avatarSpeak(story.voiceText)
+                }
+            }
+        }
+        .onChange(of: phase) { _, newPhase in
+            if newPhase == .recalling {
+                avatarSpeak("Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can.")
+            }
         }
     }
 }

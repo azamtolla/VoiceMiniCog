@@ -95,6 +95,9 @@ struct WelcomePhaseView: View {
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
+        .onAppear {
+            avatarSpeak("Welcome to the Brain Health Assessment. When you're ready, we'll begin with a few short activities.")
+        }
     }
 }
 

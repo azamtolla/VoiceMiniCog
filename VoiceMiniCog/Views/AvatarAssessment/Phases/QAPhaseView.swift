@@ -70,12 +70,16 @@ struct QAPhaseView: View {
             withAnimation(.easeOut(duration: 0.3).delay(0.15)) {
                 animateIn = true
             }
+            // Avatar speaks the first question when phase appears
+            avatarSpeak(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in
             animateIn = false
             withAnimation(.easeOut(duration: 0.3).delay(0.1)) {
                 animateIn = true
             }
+            // Avatar speaks each new question as it appears on screen
+            avatarSpeak(currentVoicePrompt)
         }
     }
 
@@ -170,6 +174,20 @@ struct QAPhaseView: View {
             return PHQ2_QUESTIONS[safe: currentIndex] ?? ""
         case .orientation:
             return ORIENTATION_ITEMS[safe: currentIndex]?.question ?? ""
+        default:
+            return ""
+        }
+    }
+
+    /// Voice prompt for the avatar — matches the on-screen question text
+    private var currentVoicePrompt: String {
+        switch phaseID {
+        case .qdrs:
+            return QDRS_QUESTIONS[safe: currentIndex]?.voicePrompt ?? ""
+        case .phq2:
+            return PHQ2_QUESTIONS[safe: currentIndex] ?? ""
+        case .orientation:
+            return ORIENTATION_ITEMS[safe: currentIndex]?.voicePrompt ?? ""
         default:
             return ""
         }

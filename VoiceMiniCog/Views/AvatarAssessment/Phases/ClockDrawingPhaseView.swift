@@ -121,6 +121,7 @@ struct ClockDrawingPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
+            avatarSpeak("Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock.")
             startTimer()
         }
         .onDisappear {

@@ -99,10 +99,21 @@ struct WordRegistrationPhaseView: View {
     private func startWordReveal() {
         guard !isRevealing else { return }
         isRevealing = true
+
+        // Avatar speaks the intro prompt
+        let introWords = words.joined(separator: "... ")
+        avatarSpeak("I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later. The words are: \(introWords).")
+
         for i in 0..<words.count {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 1.5) {
                 withAnimation(AssessmentTheme.Anim.chipAppear) { revealedCount = i + 1 }
             }
+        }
+
+        // After all words revealed, avatar asks for repetition
+        let totalRevealTime = Double(words.count) * 1.5 + 1.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalRevealTime) {
+            avatarSpeak("Can you repeat those words for me?")
         }
     }
 }

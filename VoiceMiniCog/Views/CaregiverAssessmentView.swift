@@ -138,7 +138,11 @@ struct CaregiverAssessmentView: View {
             .padding(.bottom, 24)
         }
         .padding(.horizontal, 16)
-        .onAppear { animateIn() }
+        .onAppear {
+            animateIn()
+            // Avatar speaks the first QDRS question when the panel appears
+            avatarSpeak(questions[currentIndex].voicePrompt)
+        }
     }
 
     // MARK: - Answer Button
@@ -223,6 +227,8 @@ struct CaregiverAssessmentView: View {
                     assessmentState.qdrsState.currentIndex = currentIndex
                     selectedAnswer = nil
                     animateIn()
+                    // Avatar speaks the next question in sync with left panel
+                    avatarSpeak(questions[currentIndex].voicePrompt)
                 }
             } else {
                 // Done — mark QDRS complete
