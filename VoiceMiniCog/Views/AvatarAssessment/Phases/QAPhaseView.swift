@@ -2,10 +2,12 @@
 //  QAPhaseView.swift
 //  VoiceMiniCog
 //
-//  Reusable Q&A template for QDRS (10 questions), PHQ-2 (2 questions),
-//  and Orientation (5 questions).
+//  Reusable Q&A template for QDRS, PHQ-2, and Orientation.
 //
-//  Orientation: avatar asks, patient speaks, transcript shown, auto-scored.
+//  Orientation: avatar asks the question aloud, patient answers verbally
+//  to the avatar. Clinician taps a checkmark or X to score.
+//  The patient's answer is handled entirely by the avatar (Tavus WebRTC).
+//
 //  QDRS/PHQ-2: avatar asks, clinician taps answer buttons.
 //
 
@@ -24,17 +26,7 @@ struct QAPhaseView: View {
     @State private var currentIndex = 0
     @State private var selectedAnswer: Int? = nil
     @State private var animateIn = false
-
-    // Orientation speech recognition
-    @State private var speechService = SpeechService()
-    @State private var orientationState: OrientationListeningState = .waiting
-    @State private var scoredResult: Bool? = nil
-
-    private enum OrientationListeningState {
-        case waiting      // Avatar is speaking the question
-        case listening    // Patient is responding
-        case scored       // Answer auto-scored, showing result
-    }
+    @State private var avatarDoneSpeaking = false
 
     // MARK: Body
 
@@ -59,9 +51,9 @@ struct QAPhaseView: View {
                     .opacity(animateIn ? 1 : 0)
                     .offset(y: animateIn ? 0 : 10)
 
-                // Orientation: show transcript + auto-score (no buttons)
                 if phaseID == .orientation {
-                    orientationResponseArea
+                    // Orientation: listening indicator + clinician scoring
+                    orientationScoringArea
                         .opacity(animateIn ? 1 : 0)
                 } else {
                     // QDRS / PHQ-2: answer buttons
@@ -88,78 +80,99 @@ struct QAPhaseView: View {
             withAnimation(.easeOut(duration: 0.3).delay(0.15)) {
                 animateIn = true
             }
-            avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). You speak ONLY the question text provided via echo commands. Do NOT ask your own questions or advance the assessment. If the patient asks to skip or move on, gently redirect them to answer the current question.")
-            if phaseID == .orientation {
-                speakThenListenOrientation(currentVoicePrompt)
-            } else {
-                speakThenListen(currentVoicePrompt)
-            }
+            avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). You speak ONLY the question text provided via echo commands. After speaking the question, wait silently for the patient to answer. Do NOT repeat the question, do NOT give hints, do NOT advance. Keep any responses very brief.")
+            speakQuestion(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in
             animateIn = false
+            avatarDoneSpeaking = false
+            selectedAnswer = nil
             withAnimation(.easeOut(duration: 0.3).delay(0.1)) {
                 animateIn = true
             }
-            if phaseID == .orientation {
-                speakThenListenOrientation(currentVoicePrompt)
-            } else {
-                speakThenListen(currentVoicePrompt)
-            }
-        }
-        .onDisappear {
-            speechService.stopListening()
+            speakQuestion(currentVoicePrompt)
         }
     }
 
-    // MARK: - Orientation Response Area
+    // MARK: - Orientation Scoring Area
 
     @ViewBuilder
-    private var orientationResponseArea: some View {
-        VStack(spacing: 16) {
-            if orientationState == .waiting {
-                // Avatar is speaking — show nothing yet
-                EmptyView()
-            } else if orientationState == .listening {
-                // Listening indicator + live transcript
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(Color(hex: "#34C759"))
-                        .frame(width: 10, height: 10)
-                        .opacity(speechService.isListening ? 1 : 0.3)
-                    Text(speechService.transcript.isEmpty ? "Listening..." : speechService.transcript)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(speechService.transcript.isEmpty
-                            ? AssessmentTheme.Content.textSecondary
-                            : AssessmentTheme.Content.textPrimary)
-                        .multilineTextAlignment(.center)
+    private var orientationScoringArea: some View {
+        if !avatarDoneSpeaking {
+            // Avatar is speaking — show nothing
+            EmptyView()
+        } else {
+            // Avatar finished speaking — show listening state + scoring buttons
+            VStack(spacing: 16) {
+                // Listening indicator
+                HStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AssessmentTheme.Phase.welcome)
+                        .symbolEffect(.variableColor.iterative, isActive: true)
+                    Text("Patient is answering...")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.gray.opacity(0.06))
-                .cornerRadius(12)
-            } else if orientationState == .scored {
-                // Show patient response + correct/incorrect badge
-                VStack(spacing: 10) {
-                    // Patient's answer
-                    Text("\"\(speechService.transcript)\"")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .italic()
 
-                    // Score badge
-                    HStack(spacing: 6) {
-                        Image(systemName: scoredResult == true ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .font(.system(size: 18))
-                        Text(scoredResult == true ? "Correct" : "Incorrect")
-                            .font(.system(size: 16, weight: .semibold))
+                // Clinician scoring: simple check/X buttons
+                HStack(spacing: 20) {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        scoreOrientation(correct: true)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 22))
+                            Text("Correct")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color(hex: "#34C759"))
+                        .cornerRadius(14)
                     }
-                    .foregroundStyle(scoredResult == true ? Color(hex: "#34C759") : Color(hex: "#FF3B30"))
+                    .buttonStyle(.plain)
+                    .disabled(selectedAnswer != nil)
+
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        scoreOrientation(correct: false)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 22))
+                            Text("Incorrect")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color(hex: "#FF3B30"))
+                        .cornerRadius(14)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(selectedAnswer != nil)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background((scoredResult == true ? Color(hex: "#34C759") : Color(hex: "#FF3B30")).opacity(0.08))
-                .cornerRadius(12)
+            }
+        }
+    }
+
+    // MARK: - Score Orientation Answer
+
+    private func scoreOrientation(correct: Bool) {
+        selectedAnswer = correct ? 0 : 1
+        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
+            assessmentState.qmciState.orientationAnswers[currentIndex] = correct
+        }
+        layoutManager.acknowledgeAnswer()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            if currentIndex < totalQuestions - 1 {
+                currentIndex += 1
+            } else {
+                layoutManager.advanceToNextPhase()
             }
         }
     }
@@ -219,102 +232,19 @@ struct QAPhaseView: View {
         .disabled(selectedAnswer != nil)
     }
 
-    // MARK: - Speak Then Listen (QDRS / PHQ-2)
+    // MARK: - Speak Question
 
-    private func speakThenListen(_ text: String) {
+    /// Avatar speaks the question, then switches to listening.
+    /// For orientation: also shows the scoring UI after speaking.
+    private func speakQuestion(_ text: String) {
+        avatarDoneSpeaking = false
         layoutManager.setAvatarSpeaking()
         avatarSpeak(text)
         let wordCount = text.split(separator: " ").count
         let speakDuration = max(2.0, Double(wordCount) * 0.08 + 1.5)
         DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
             layoutManager.setAvatarListening()
-        }
-    }
-
-    // MARK: - Speak Then Listen (Orientation — with speech recognition)
-
-    private func speakThenListenOrientation(_ text: String) {
-        orientationState = .waiting
-        scoredResult = nil
-        speechService.stopListening()
-        speechService.transcript = ""
-
-        layoutManager.setAvatarSpeaking()
-        avatarSpeak(text)
-
-        let wordCount = text.split(separator: " ").count
-        let speakDuration = max(2.0, Double(wordCount) * 0.08 + 1.5)
-
-        // After avatar finishes speaking → start listening
-        DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
-            layoutManager.setAvatarListening()
-            orientationState = .listening
-            startOrientationListening()
-        }
-    }
-
-    private func startOrientationListening() {
-        Task {
-            if !speechService.isAuthorized {
-                _ = await speechService.requestAuthorization()
-            }
-            try? await speechService.startListening()
-
-            // Monitor transcript — when patient stops speaking (transcript stabilizes),
-            // auto-score after a 2.5s pause
-            monitorTranscript()
-        }
-    }
-
-    private func monitorTranscript() {
-        // Check every 0.5s if transcript has stabilized (patient stopped talking)
-        var lastTranscript = ""
-        var stableCount = 0
-
-        func check() {
-            guard orientationState == .listening else { return }
-
-            if !speechService.transcript.isEmpty && speechService.transcript == lastTranscript {
-                stableCount += 1
-                if stableCount >= 5 { // 2.5s of stable transcript
-                    scoreOrientationResponse()
-                    return
-                }
-            } else {
-                stableCount = 0
-            }
-            lastTranscript = speechService.transcript
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { check() }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { check() }
-    }
-
-    private func scoreOrientationResponse() {
-        guard orientationState == .listening else { return }
-
-        speechService.stopListening()
-
-        let item = ORIENTATION_ITEMS[currentIndex]
-        let isCorrect = scoreOrientationAnswer(type: item.correctAnswerType, transcript: speechService.transcript)
-
-        // Record the score
-        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
-            assessmentState.qmciState.orientationAnswers[currentIndex] = isCorrect
-        }
-
-        withAnimation(.easeInOut(duration: 0.3)) {
-            scoredResult = isCorrect
-            orientationState = .scored
-        }
-        layoutManager.acknowledgeAnswer()
-
-        // Auto-advance after showing result
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            if currentIndex < totalQuestions - 1 {
-                currentIndex += 1
-            } else {
-                layoutManager.advanceToNextPhase()
-            }
+            avatarDoneSpeaking = true
         }
     }
 
@@ -375,7 +305,7 @@ struct QAPhaseView: View {
         case .phq2:
             return ["Not at all", "Several days", "More than half the days", "Nearly every day"]
         case .orientation:
-            return [] // Orientation uses speech recognition, not buttons
+            return []
         default:
             return []
         }
