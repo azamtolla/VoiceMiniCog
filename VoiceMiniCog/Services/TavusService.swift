@@ -101,10 +101,15 @@ final class TavusService {
             }
         }
 
-        // Build request body
+        // Build request body — disable recording and greenscreen to reduce
+        // server-side pipeline latency and GPU overhead
         var body: [String: Any] = [
             "replica_id": rid,
-            "persona_id": pid
+            "persona_id": pid,
+            "properties": [
+                "enable_recording": false,
+                "apply_greenscreen": false
+            ]
         ]
         if let name = conversationName {
             body["conversation_name"] = name

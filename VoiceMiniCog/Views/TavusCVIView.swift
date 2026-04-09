@@ -36,6 +36,7 @@ struct TavusCVIView: UIViewRepresentable {
         // Allow inline media playback (required for WebRTC video)
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.allowsAirPlayForMediaPlayback = true
 
         // Register Swift message handler for JS → Swift bridge
         let contentController = config.userContentController

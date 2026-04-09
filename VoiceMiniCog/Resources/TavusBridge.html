@@ -69,8 +69,22 @@ async function joinRoom(roomUrl) {
     userName: 'Patient',
     videoSource: true,
     audioSource: true,
-    dailyConfig: {
-      experimentalChromeVideoMuteLightOff: true
+    inputSettings: {
+      video: {
+        settings: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 },
+          facingMode: 'user'
+        }
+      },
+      audio: {
+        settings: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      }
     }
   });
 
@@ -89,12 +103,40 @@ async function joinRoom(roomUrl) {
     try {
       await callObject.updateInputSettings({
         audio: {
-          processor: { type: 'noise-cancellation' }
+          processor: { type: 'noise-cancellation' },
+          settings: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
         }
       });
-      log('Noise cancellation enabled');
+      log('Audio input optimized: noise cancellation + echo + AGC');
     } catch(e) {
-      log('Noise cancellation not available: ' + e.message);
+      log('Audio input optimization failed: ' + e.message);
+    }
+
+    // 1b. Request highest receive quality from the avatar's video stream
+    try {
+      await callObject.updateReceiveSettings({
+        '*': { video: { layer: 2 } }
+      });
+      log('Receive quality set to highest layer');
+    } catch(e) {
+      log('Receive settings failed: ' + e.message);
+    }
+
+    // 1c. Optimize send settings (patient camera → Tavus)
+    try {
+      await callObject.updateSendSettings({
+        video: {
+          preset: 'quality-optimized',
+          allowAdaptiveLayers: true
+        }
+      });
+      log('Send quality set to quality-optimized with adaptive layers');
+    } catch(e) {
+      log('Send settings failed: ' + e.message);
     }
 
     // 2. Reduce turn-taking sensitivity as a second layer
