@@ -246,6 +246,50 @@ struct PCPReportView: View {
                             .frame(width: 44, alignment: .trailing)
                     }
                 }
+
+                // Orientation question-by-question detail
+                orientationDetailSection(state: q)
+            }
+        }
+    }
+
+    // MARK: - Orientation Detail
+
+    private func orientationDetailSection(state q: QmciState) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+                .padding(.vertical, 4)
+
+            Text("ORIENTATION RESPONSES")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(MCDesign.Colors.textTertiary)
+                .tracking(0.8)
+
+            ForEach(0..<ORIENTATION_ITEMS.count, id: \.self) { i in
+                let item = ORIENTATION_ITEMS[i]
+                let answered = i < q.orientationAnswers.count ? q.orientationAnswers[i] : nil
+
+                HStack(spacing: 8) {
+                    Image(systemName: answered == true ? "checkmark.circle.fill" :
+                          answered == false ? "xmark.circle.fill" : "circle")
+                        .font(.system(size: 14))
+                        .foregroundColor(answered == true ? MCDesign.Colors.success :
+                                        answered == false ? MCDesign.Colors.error :
+                                        MCDesign.Colors.textTertiary)
+
+                    Text(item.question)
+                        .font(.system(size: 13))
+                        .foregroundColor(MCDesign.Colors.textPrimary)
+
+                    Spacer()
+
+                    Text(answered == true ? "Correct" :
+                         answered == false ? "Incorrect" : "—")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(answered == true ? MCDesign.Colors.success :
+                                        answered == false ? MCDesign.Colors.error :
+                                        MCDesign.Colors.textTertiary)
+                }
             }
         }
     }

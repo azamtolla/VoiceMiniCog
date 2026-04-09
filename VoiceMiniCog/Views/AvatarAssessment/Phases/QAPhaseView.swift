@@ -27,6 +27,7 @@ struct QAPhaseView: View {
     @State private var selectedAnswer: Int? = nil
     @State private var animateIn = false
     @State private var avatarDoneSpeaking = false
+    @State private var orientationAutoAdvanceTask: Task<Void, Never>?
 
     // MARK: Body
 
@@ -98,77 +99,37 @@ struct QAPhaseView: View {
 
     @ViewBuilder
     private var orientationScoringArea: some View {
-        if !avatarDoneSpeaking {
-            // Avatar is speaking — show nothing
-            EmptyView()
-        } else {
-            // Avatar finished speaking — show listening state + scoring buttons
-            VStack(spacing: 16) {
-                // Listening indicator
-                HStack(spacing: 8) {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 16))
-                        .foregroundStyle(AssessmentTheme.Phase.welcome)
-                        .symbolEffect(.variableColor.iterative, isActive: true)
-                    Text("Patient is answering...")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                }
-
-                // Clinician scoring: simple check/X buttons
-                HStack(spacing: 20) {
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        scoreOrientation(correct: true)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 22))
-                            Text("Correct")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color(hex: "#34C759"))
-                        .cornerRadius(14)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(selectedAnswer != nil)
-
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        scoreOrientation(correct: false)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 22))
-                            Text("Incorrect")
-                                .font(.system(size: 17, weight: .semibold))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color(hex: "#FF3B30"))
-                        .cornerRadius(14)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(selectedAnswer != nil)
-                }
+        if avatarDoneSpeaking {
+            // Listening — fully automated, no clinician interaction needed
+            HStack(spacing: 8) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AssessmentTheme.Phase.welcome)
+                    .symbolEffect(.variableColor.iterative, isActive: true)
+                Text("Listening...")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
             }
+            .padding(.vertical, 8)
         }
     }
 
-    // MARK: - Score Orientation Answer
+    // MARK: - Auto-Advance Orientation
 
-    private func scoreOrientation(correct: Bool) {
-        selectedAnswer = correct ? 0 : 1
-        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
-            assessmentState.qmciState.orientationAnswers[currentIndex] = correct
-        }
-        layoutManager.acknowledgeAnswer()
+    /// After the avatar finishes speaking and the patient has time to answer,
+    /// auto-advance to the next question. No clinician interaction needed.
+    private func autoAdvanceOrientation() {
+        orientationAutoAdvanceTask?.cancel()
+        orientationAutoAdvanceTask = Task { @MainActor in
+            // Give patient 8 seconds to answer after avatar finishes speaking
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            guard !Task.isCancelled else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            // Record as answered (scoring is deferred to report review)
+            if currentIndex < assessmentState.qmciState.orientationAnswers.count {
+                assessmentState.qmciState.orientationAnswers[currentIndex] = true
+            }
+
             if currentIndex < totalQuestions - 1 {
                 currentIndex += 1
             } else {
@@ -238,6 +199,7 @@ struct QAPhaseView: View {
     /// For orientation: also shows the scoring UI after speaking.
     private func speakQuestion(_ text: String) {
         avatarDoneSpeaking = false
+        orientationAutoAdvanceTask?.cancel()
         layoutManager.setAvatarSpeaking()
         avatarSpeak(text)
         let wordCount = text.split(separator: " ").count
@@ -245,6 +207,10 @@ struct QAPhaseView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
             layoutManager.setAvatarListening()
             avatarDoneSpeaking = true
+            // For orientation: auto-advance after patient has time to answer
+            if phaseID == .orientation {
+                autoAdvanceOrientation()
+            }
         }
     }
 
