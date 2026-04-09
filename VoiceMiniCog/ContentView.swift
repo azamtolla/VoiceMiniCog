@@ -56,23 +56,23 @@ struct ContentView: View {
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
 
-            // MARK: Caregiver QDRS — completely separate UI, no cognitive subtest shell
-            if currentScreen == .caregiverAssessment {
-                CaregiverAssessmentView(
-                    assessmentState: assessmentState,
-                    tavusService: TavusService.shared,
-                    onComplete: {
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    },
-                    onCancel: {
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    }
-                )
-            }
+            // MARK: Caregiver QDRS — always in hierarchy so WebView stays connected
+            CaregiverAssessmentView(
+                assessmentState: assessmentState,
+                tavusService: TavusService.shared,
+                onComplete: {
+                    AssessmentPersistence.clear()
+                    TavusService.shared.cancelPreWarm()
+                    currentScreen = .home
+                },
+                onCancel: {
+                    AssessmentPersistence.clear()
+                    TavusService.shared.cancelPreWarm()
+                    currentScreen = .home
+                }
+            )
+            .opacity(currentScreen == .caregiverAssessment ? 1 : 0)
+            .allowsHitTesting(currentScreen == .caregiverAssessment)
 
             // MARK: Home
             if currentScreen == .home {
