@@ -100,7 +100,11 @@ async function joinRoom(roomUrl) {
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
 
-    // 3. Mark as joined and flush any pending echo requests
+    // 3. Set global context: avatar must not advance phases on its own
+    sendContextUpdate('You are a clinical assessment avatar embedded in a medical app. CRITICAL RULES: 1) You do NOT control the assessment flow — the app controls it via echo commands. 2) When the patient says they want to start, begin, skip, or move on, tell them to use the button on the screen. 3) Only speak text sent to you via echo commands. 4) Keep any spontaneous responses very brief (under 10 words). 5) Never ask your own assessment questions.');
+    log('Set global clinical context');
+
+    // 4. Mark as joined and flush any pending echo requests
     isJoined = true;
     if (pendingEchos.length > 0) {
       log('Flushing ' + pendingEchos.length + ' pending echo(s)');

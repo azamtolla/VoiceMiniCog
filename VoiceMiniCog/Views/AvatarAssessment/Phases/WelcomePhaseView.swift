@@ -96,7 +96,9 @@ struct WelcomePhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
-            avatarSpeak("Welcome to the Brain Health Assessment. When you're ready, we'll begin with a few short activities.")
+            // Set avatar context: it must NOT advance phases on its own
+            avatarSetContext("You are a clinical assessment avatar on the Welcome screen. The patient sees a 'Begin Assessment' button on the left panel. You have already greeted them. IMPORTANT: You do NOT control the assessment flow. If the patient says 'let's begin', 'start', 'I'm ready', or anything about starting — tell them to press the Begin Assessment button on the screen. Do NOT start asking questions or move to the next phase. Only speak when the app tells you to via echo commands. Keep responses brief and warm.")
+            avatarSpeak("Welcome to the Brain Health Assessment. When you're ready, press the Begin Assessment button on the screen to start.")
         }
     }
 }

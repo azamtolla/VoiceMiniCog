@@ -121,6 +121,7 @@ struct ClockDrawingPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
+            avatarSetContext("You are on the Clock Drawing phase. The patient is drawing a clock. Stay quiet and wait. Do NOT give hints, do NOT comment on their drawing, do NOT advance to the next phase. Only speak when sent echo commands. If the patient asks for help, say 'Just do your best.'")
             avatarSpeak("Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock.")
             startTimer()
         }

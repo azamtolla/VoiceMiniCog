@@ -70,7 +70,8 @@ struct QAPhaseView: View {
             withAnimation(.easeOut(duration: 0.3).delay(0.15)) {
                 animateIn = true
             }
-            // Avatar speaks the first question when phase appears
+            // Tell avatar its role: ask questions, don't advance on its own
+            avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). Questions and answers are controlled by the on-screen buttons. You speak ONLY the question text provided via echo commands. If the patient asks to skip, move on, or change the topic, gently redirect them to answer the current question on screen. Do NOT ask your own questions or advance the assessment.")
             avatarSpeak(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in

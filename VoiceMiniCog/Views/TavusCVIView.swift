@@ -262,6 +262,18 @@ func avatarSpeak(_ text: String) {
     )
 }
 
+/// Override the avatar's conversational context. This controls what the avatar's
+/// LLM knows about the current state and how it should respond to patient speech.
+/// Use this to prevent the avatar from advancing phases on its own.
+func avatarSetContext(_ context: String) {
+    guard !context.isEmpty else { return }
+    NotificationCenter.default.post(
+        name: .tavusContextUpdate,
+        object: nil,
+        userInfo: ["context": context]
+    )
+}
+
 // MARK: - Avatar Events
 
 enum TavusAvatarEvent {

@@ -87,6 +87,7 @@ struct WordRegistrationPhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
+            avatarSetContext("You are on the Word Registration phase. You will read 5 words via echo commands. The patient will repeat them back. Do NOT say any words on your own — only speak what is sent to you via echo. If the patient talks to you, briefly acknowledge and redirect focus to remembering the words.")
             if words.isEmpty {
                 qmciState.selectWordList()
             }
