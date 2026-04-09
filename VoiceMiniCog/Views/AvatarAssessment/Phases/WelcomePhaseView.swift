@@ -72,7 +72,7 @@ struct WelcomePhaseView: View {
             Button {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
-                layoutManager.transitionTo(.qdrs)
+                layoutManager.advanceToNextPhase()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "play.fill")

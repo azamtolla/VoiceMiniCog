@@ -10,6 +10,7 @@ import SwiftUI
 enum AppScreen {
     case home
     case avatarAssessment
+    case caregiverAssessment
     case report
 
     static func screen(for phase: Phase, state: AssessmentState? = nil) -> AppScreen {
@@ -34,24 +35,17 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // MARK: Avatar Canvas — ALWAYS in hierarchy so WebView stays connected.
+            // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
             AvatarAssessmentCanvas(
                 flowType: flowType,
                 assessmentState: assessmentState,
                 tavusService: TavusService.shared,
                 onComplete: {
-                    if flowType == .caregiver {
-                        // Caregiver flow ends at completion — go home, no scoring
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    } else {
-                        assessmentState.currentPhase = .scoring
-                        computeAllScores()
-                        assessmentState.currentPhase = .report
-                        currentScreen = .report
-                        AssessmentPersistence.clear()
-                    }
+                    assessmentState.currentPhase = .scoring
+                    computeAllScores()
+                    assessmentState.currentPhase = .report
+                    currentScreen = .report
+                    AssessmentPersistence.clear()
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
@@ -61,6 +55,24 @@ struct ContentView: View {
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
+
+            // MARK: Caregiver QDRS — completely separate UI, no cognitive subtest shell
+            if currentScreen == .caregiverAssessment {
+                CaregiverAssessmentView(
+                    assessmentState: assessmentState,
+                    tavusService: TavusService.shared,
+                    onComplete: {
+                        AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
+                        currentScreen = .home
+                    },
+                    onCancel: {
+                        AssessmentPersistence.clear()
+                        TavusService.shared.cancelPreWarm()
+                        currentScreen = .home
+                    }
+                )
+            }
 
             // MARK: Home
             if currentScreen == .home {
@@ -119,13 +131,14 @@ struct ContentView: View {
         assessmentState.qmciState.reset()
         flowType = selectedFlow
 
-        // Caregiver flow: auto-set informant respondent type
         if selectedFlow == .caregiver {
+            // Caregiver → dedicated QDRS view (no cognitive subtest shell)
             assessmentState.qdrsState.respondentType = .informant
+            currentScreen = .caregiverAssessment
+        } else {
+            // Quick / Extended → shared cognitive assessment canvas
+            currentScreen = .avatarAssessment
         }
-
-        // Reveal canvas — avatar is already streaming from pre-warm
-        currentScreen = .avatarAssessment
 
         // Fallback: if pre-warm never ran or failed, start fresh conversation
         if TavusService.shared.activeConversation == nil && !TavusService.shared.isCreatingConversation {
