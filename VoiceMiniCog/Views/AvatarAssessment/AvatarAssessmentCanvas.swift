@@ -57,8 +57,19 @@ struct AvatarAssessmentCanvas: View {
                     contentZone
                         .frame(width: contentWidth)
 
-                    // MARK: Avatar Zone (right)
-                    avatarZone(width: avatarWidth, height: geo.size.height)
+                    // MARK: Right Panel — avatar or status panel depending on phase
+                    if layoutManager.currentPhase == .clockDrawing {
+                        SessionStatusView(
+                            layoutManager: layoutManager,
+                            onDoneDrawing: {
+                                layoutManager.advanceToNextPhase()
+                            },
+                            onEndSession: onCancel
+                        )
+                        .frame(width: avatarWidth, height: geo.size.height)
+                    } else {
+                        avatarZone(width: avatarWidth, height: geo.size.height)
+                    }
                 }
             }
         }

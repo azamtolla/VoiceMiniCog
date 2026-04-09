@@ -69,6 +69,7 @@
 		CARD0002000000000002 /* AssessmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARD0001000000000001 /* AssessmentCard.swift */; };
 		COMP0002000000000002 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP0001000000000001 /* CompletionPhaseView.swift */; };
 		CARE0002000000000002 /* CaregiverAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARE0001000000000001 /* CaregiverAssessmentView.swift */; };
+		SESS0002000000000002 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESS0001000000000001 /* SessionStatusView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -161,6 +162,7 @@
 		CARD0001000000000001 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCard.swift; path = VoiceMiniCog/Views/AssessmentCard.swift; sourceTree = SOURCE_ROOT; };
 		COMP0001000000000001 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		CARE0001000000000001 /* CaregiverAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaregiverAssessmentView.swift; path = VoiceMiniCog/Views/CaregiverAssessmentView.swift; sourceTree = SOURCE_ROOT; };
+		SESS0001000000000001 /* SessionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStatusView.swift; path = VoiceMiniCog/Views/AvatarAssessment/SessionStatusView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -524,6 +526,7 @@
 				5E294F07BC2C05D9B61F7A1C /* ProgressTrackView.swift in Sources */,
 				638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */,
 				61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */,
+				SESS0002000000000002 /* SessionStatusView.swift in Sources */,
 				CARE0002000000000002 /* CaregiverAssessmentView.swift in Sources */,
 				CARD0002000000000002 /* AssessmentCard.swift in Sources */,
 				COMP0002000000000002 /* CompletionPhaseView.swift in Sources */,

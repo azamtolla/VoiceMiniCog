@@ -91,31 +91,13 @@ struct ClockDrawingPhaseView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
-            // 3. Bottom bar: timer + done button
+            // 3. Bottom bar: timer only (Done Drawing moved to right-side status panel)
             HStack {
-                // Timer display
-                Text(formatTime(timeRemaining))
-                    .font(.system(size: 32, weight: .bold, design: .monospaced))
-                    .foregroundStyle(timeRemaining <= 30 ? Color.red : AssessmentTheme.Content.textPrimary)
-
                 Spacer()
-
-                // Done Drawing button
-                Button {
-                    let gen = UIImpactFeedbackGenerator(style: .medium)
-                    gen.impactOccurred()
-                    timer?.invalidate()
-                    layoutManager.advanceToNextPhase()
-                } label: {
-                    Label("Done Drawing", systemImage: "checkmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Color.white)
-                        .frame(height: 56)
-                        .padding(.horizontal, 24)
-                        .background(layoutManager.accentColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-                .buttonStyle(.plain)
+                Text(formatTime(timeRemaining))
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                    .foregroundStyle(timeRemaining <= 30 ? Color.red : AssessmentTheme.Content.textSecondary)
+                Spacer()
             }
             .padding(.bottom, 4)
         }
