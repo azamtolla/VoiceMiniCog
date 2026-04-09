@@ -34,65 +34,75 @@ struct ContentView: View {
     @State private var showSettings = false
 
     var body: some View {
-        NavigationStack {
-            switch currentScreen {
-            case .home:
-                HomeView(
-                    onStart: { respondentType in
-                        AssessmentPersistence.clear()
-                        assessmentState = AssessmentState()
-                        assessmentState.qdrsState.respondentType = respondentType
-                        assessmentState.qmciState.reset()
-                        startAvatarAssessment()
-                    },
-                    onResume: {
-                        if let restored = AssessmentPersistence.restore() {
-                            assessmentState = restored
-                            currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+        ZStack {
+            // MARK: Avatar Canvas — ALWAYS in hierarchy so WebView stays connected.
+            // While on Home, this is hidden (opacity 0) but the WKWebView is live:
+            // bridge loaded, room joined, avatar streaming. When Start is pressed
+            // we just flip visibility — instant avatar.
+            AvatarAssessmentCanvas(
+                assessmentState: assessmentState,
+                tavusService: TavusService.shared,
+                onComplete: {
+                    assessmentState.currentPhase = .scoring
+                    computeAllScores()
+                    assessmentState.currentPhase = .report
+                    currentScreen = .report
+                    AssessmentPersistence.clear()
+                },
+                onCancel: {
+                    AssessmentPersistence.clear()
+                    TavusService.shared.cancelPreWarm()
+                    currentScreen = .home
+                }
+            )
+            .opacity(currentScreen == .avatarAssessment ? 1 : 0)
+            .allowsHitTesting(currentScreen == .avatarAssessment)
+
+            // MARK: Home / Report — created and destroyed normally
+            if currentScreen == .home {
+                NavigationStack {
+                    HomeView(
+                        onStart: { respondentType in
+                            AssessmentPersistence.clear()
+                            assessmentState = AssessmentState()
+                            assessmentState.qdrsState.respondentType = respondentType
+                            assessmentState.qmciState.reset()
+                            startAvatarAssessment()
+                        },
+                        onResume: {
+                            if let restored = AssessmentPersistence.restore() {
+                                assessmentState = restored
+                                currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+                            }
                         }
-                    }
-                )
+                    )
+                }
                 .onAppear {
-                    // Pre-warm Tavus conversation so the avatar is ready instantly
                     TavusService.shared.preWarm()
                 }
+            }
 
-            case .avatarAssessment:
-                AvatarAssessmentCanvas(
-                    assessmentState: assessmentState,
-                    tavusService: TavusService.shared,
-                    onComplete: {
-                        assessmentState.currentPhase = .scoring
-                        computeAllScores()
-                        assessmentState.currentPhase = .report
-                        currentScreen = .report
-                        AssessmentPersistence.clear()
-                    },
-                    onCancel: {
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    }
-                )
-
-            case .report:
-                PCPReportView(
-                    state: assessmentState,
-                    onRestart: {
-                        assessmentState.reset()
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    },
-                    onFinalize: {
-                        assessmentState.reset()
-                        AssessmentPersistence.clear()
-                        TavusService.shared.cancelPreWarm()
-                        currentScreen = .home
-                    }
-                )
+            if currentScreen == .report {
+                NavigationStack {
+                    PCPReportView(
+                        state: assessmentState,
+                        onRestart: {
+                            assessmentState.reset()
+                            AssessmentPersistence.clear()
+                            TavusService.shared.cancelPreWarm()
+                            currentScreen = .home
+                        },
+                        onFinalize: {
+                            assessmentState.reset()
+                            AssessmentPersistence.clear()
+                            TavusService.shared.cancelPreWarm()
+                            currentScreen = .home
+                        }
+                    )
+                }
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: currentScreen)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background, currentScreen != .home {
                 AssessmentPersistence.save(assessmentState)
@@ -101,10 +111,10 @@ struct ContentView: View {
     }
 
     private func startAvatarAssessment() {
+        // Just reveal the canvas — the avatar is already streaming behind the Home screen.
+        // If pre-warm failed or hasn't finished, the canvas shows its connecting/error UI.
         currentScreen = .avatarAssessment
-        // If pre-warm already delivered a conversation, we're done — avatar appears instantly.
-        // If pre-warm is still in-flight, the UI shows the connecting spinner until it finishes.
-        // If pre-warm failed or never ran, kick off a fresh attempt now.
+        // Fallback: if pre-warm never ran or failed, start a fresh conversation
         if TavusService.shared.activeConversation == nil && !TavusService.shared.isCreatingConversation {
             Task {
                 do {
@@ -113,7 +123,6 @@ struct ContentView: View {
                     )
                 } catch {
                     TavusService.shared.lastError = error.localizedDescription
-                    print("[Tavus] Failed to create conversation: \(error.localizedDescription)")
                 }
             }
         }
