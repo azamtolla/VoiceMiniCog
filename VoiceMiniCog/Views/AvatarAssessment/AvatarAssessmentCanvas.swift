@@ -68,7 +68,14 @@ struct AvatarAssessmentCanvas: View {
             reduceMotion ? AssessmentTheme.Anim.reducedMotion : AssessmentTheme.Anim.phaseTransition,
             value: layoutManager.currentPhase
         )
-        .onAppear { layoutManager.flowType = flowType }
+        .onAppear {
+            layoutManager.flowType = flowType
+            layoutManager.currentPhase = .welcome
+        }
+        .onChange(of: flowType) { _, newFlow in
+            layoutManager.flowType = newFlow
+            layoutManager.currentPhase = .welcome
+        }
         .pauseSheet(
             isPresented: $showPauseSheet,
             accentColor: layoutManager.accentColor,

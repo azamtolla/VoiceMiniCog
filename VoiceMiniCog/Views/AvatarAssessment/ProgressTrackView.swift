@@ -2,8 +2,8 @@
 //  ProgressTrackView.swift
 //  VoiceMiniCog
 //
-//  Weighted segmented progress bar for the avatar assessment canvas.
-//  Segment widths are proportional to clinical phase weights.
+//  Segmented progress bar driven by the layout manager's phase sequence.
+//  Only shows segments for phases in the current flow type.
 //
 
 import SwiftUI
@@ -11,8 +11,7 @@ import SwiftUI
 struct ProgressTrackView: View {
     let layoutManager: AvatarLayoutManager
 
-    private let weights = AssessmentTheme.progressWeights
-    private var totalWeight: Int { weights.reduce(0, +) }
+    private var phases: [AssessmentPhaseID] { layoutManager.phaseSequence }
 
     // MARK: - Body
 
@@ -20,10 +19,16 @@ struct ProgressTrackView: View {
         VStack(spacing: 6) {
             // Segmented progress bar
             GeometryReader { geometry in
+                let segmentCount = CGFloat(phases.count)
+                let totalSpacing = 2.0 * (segmentCount - 1)
+                let segmentWidth = (geometry.size.width - totalSpacing) / segmentCount
+
                 HStack(spacing: 2) {
-                    ForEach(Array(weights.enumerated()), id: \.offset) { index, weight in
-                        let segmentWidth = segmentWidth(for: weight, totalWidth: geometry.size.width)
-                        segmentView(for: index, width: segmentWidth)
+                    ForEach(Array(phases.enumerated()), id: \.element) { index, phase in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(segmentColor(for: phase))
+                            .frame(width: segmentWidth, height: AssessmentTheme.Sizing.progressTrackHeight)
+                            .animation(.easeInOut(duration: 0.3), value: layoutManager.currentPhase)
                     }
                 }
             }
@@ -38,39 +43,20 @@ struct ProgressTrackView: View {
         }
     }
 
-    // MARK: - Segment View
+    // MARK: - Segment Color
 
-    @ViewBuilder
-    private func segmentView(for index: Int, width: CGFloat) -> some View {
-        let phaseIndex = index + 1 // phases are 1-indexed
-        let currentIndex = layoutManager.currentPhase.rawValue
-
-        RoundedRectangle(cornerRadius: 2)
-            .fill(segmentColor(phaseIndex: phaseIndex, currentIndex: currentIndex))
-            .frame(width: width, height: AssessmentTheme.Sizing.progressTrackHeight)
-            .animation(.easeInOut(duration: 0.3), value: currentIndex)
-    }
-
-    // MARK: - Helpers
-
-    private func segmentColor(phaseIndex: Int, currentIndex: Int) -> Color {
-        if phaseIndex < currentIndex {
-            // Completed phase — full accent color
-            return AssessmentTheme.accent(for: phaseIndex)
-        } else if phaseIndex == currentIndex {
-            // Active phase — current phase accent color
-            return AssessmentTheme.accent(for: phaseIndex)
-        } else {
-            // Upcoming phase — muted gray
+    private func segmentColor(for phase: AssessmentPhaseID) -> Color {
+        let currentIndex = layoutManager.currentPhaseIndex
+        guard let phaseIndex = phases.firstIndex(of: phase) else {
             return Color.gray.opacity(0.2)
         }
-    }
 
-    private func segmentWidth(for weight: Int, totalWidth: CGFloat) -> CGFloat {
-        guard totalWeight > 0 else { return 0 }
-        let segmentCount = CGFloat(weights.count)
-        let totalSpacing = 2.0 * (segmentCount - 1)
-        let availableWidth = totalWidth - totalSpacing
-        return availableWidth * CGFloat(weight) / CGFloat(totalWeight)
+        if phaseIndex < currentIndex {
+            return AssessmentTheme.accent(for: phase.rawValue)
+        } else if phaseIndex == currentIndex {
+            return AssessmentTheme.accent(for: phase.rawValue)
+        } else {
+            return Color.gray.opacity(0.2)
+        }
     }
 }
