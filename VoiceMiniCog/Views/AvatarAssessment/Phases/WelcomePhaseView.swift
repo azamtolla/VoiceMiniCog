@@ -15,7 +15,6 @@ struct WelcomePhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    let onStandard: () -> Void
 
     // MARK: Body
 
@@ -93,16 +92,6 @@ struct WelcomePhaseView: View {
             }
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
 
-            // MARK: Standard Mode Link
-            Button {
-                onStandard()
-            } label: {
-                Text("Standard Mode (No Avatar)")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                    .frame(height: 44)
-            }
-
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
@@ -143,7 +132,6 @@ private struct SubtestRow: View {
 #Preview {
     WelcomePhaseView(
         layoutManager: AvatarLayoutManager(),
-        onStandard: {}
     )
     .background(AssessmentTheme.Content.background)
 }

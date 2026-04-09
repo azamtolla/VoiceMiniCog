@@ -15,11 +15,17 @@ import SwiftUI
 struct AvatarZoneView: View {
     let layoutManager: AvatarLayoutManager
     let conversationURL: String?
+    var isConnecting: Bool = false
+    var errorMessage: String? = nil
     let width: CGFloat
     let height: CGFloat
+    var onRetry: (() -> Void)? = nil
+    var onContinueWithoutAvatar: (() -> Void)? = nil
 
     @State private var ringScale: CGFloat = 1.0
     @State private var ringOpacity: Double = 1.0
+    @State private var connectingElapsed: TimeInterval = 0
+    private let connectionTimeout: TimeInterval = 15
 
     // MARK: - Body
 
@@ -33,13 +39,34 @@ struct AvatarZoneView: View {
                 endRadius: max(width, height) * 0.7
             )
 
-            // 2. Tavus CVI video feed (when conversation is active)
+            // 2. Tavus CVI video feed / connecting state / error recovery
             if let url = conversationURL {
                 TavusCVIView(conversationURL: url)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(16)
                     .opacity(layoutManager.avatarOpacity)
                     .animation(.easeInOut(duration: 0.3), value: layoutManager.avatarOpacity)
+            } else if isConnecting && connectingElapsed < connectionTimeout {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .scaleEffect(1.5)
+                    Text("Connecting avatar...")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .onAppear { connectingElapsed = 0 }
+                .task(id: isConnecting) {
+                    while !Task.isCancelled && isConnecting {
+                        try? await Task.sleep(for: .seconds(1))
+                        connectingElapsed += 1
+                    }
+                }
+            } else if let error = errorMessage {
+                avatarRecoveryView(message: error)
+            } else if isConnecting && connectingElapsed >= connectionTimeout {
+                avatarRecoveryView(message: "Avatar is taking longer than expected.")
             }
 
             // 3. Accent ring (hidden during .waiting)
@@ -95,6 +122,46 @@ struct AvatarZoneView: View {
         case .acknowledging:   return "Got it..."
         case .waiting:         return ""
         case .completing:      return "Finishing up..."
+        }
+    }
+
+    // MARK: - Recovery UI
+
+    private func avatarRecoveryView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28))
+                .foregroundColor(.orange)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+
+            if let onRetry {
+                Button {
+                    connectingElapsed = 0
+                    onRetry()
+                } label: {
+                    Label("Retry Connection", systemImage: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(.white.opacity(0.15))
+                        .clipShape(Capsule())
+                }
+            }
+
+            if let onContinue = onContinueWithoutAvatar {
+                Button {
+                    onContinue()
+                } label: {
+                    Text("Continue without avatar")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
         }
     }
 

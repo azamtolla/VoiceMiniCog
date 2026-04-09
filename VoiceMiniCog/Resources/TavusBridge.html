@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+#video-container {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+}
+#status {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.6); font-family: -apple-system, sans-serif;
+  font-size: 14px; padding: 6px 16px;
+  background: rgba(0,0,0,0.4); border-radius: 20px;
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+<div id="video-container">
+  <div id="status">Connecting...</div>
+</div>
+
+<script src="https://unpkg.com/@daily-co/daily-js"></script>
+<script>
+// === TAVUS BRIDGE ===
+// Custom Daily room page for MercyCognitive.
+// Gives Swift full control via evaluateJavaScript.
+
+let callObject = null;
+let conversationId = null;
+
+const status = document.getElementById('status');
+const container = document.getElementById('video-container');
+
+function log(msg) {
+  console.log('[TavusBridge] ' + msg);
+  window.webkit?.messageHandlers?.tavusBridge?.postMessage(JSON.stringify({type:'log', message: msg}));
+}
+
+function notifySwift(eventType, data) {
+  window.webkit?.messageHandlers?.tavusBridge?.postMessage(JSON.stringify({type: eventType, ...data}));
+}
+
+// === JOIN ROOM ===
+async function joinRoom(roomUrl) {
+  log('Joining: ' + roomUrl);
+  status.textContent = 'Connecting...';
+
+  // Extract conversation ID from URL
+  const parts = roomUrl.split('/');
+  conversationId = parts[parts.length - 1];
+
+  callObject = Daily.createCallObject({
+    url: roomUrl,
+    userName: 'Patient',
+    videoSource: true,
+    audioSource: true,
+    dailyConfig: {
+      experimentalChromeVideoMuteLightOff: true
+    }
+  });
+
+  // === EVENT HANDLERS ===
+
+  callObject.on('joined-meeting', (evt) => {
+    log('Joined meeting');
+    status.textContent = '';
+    notifySwift('joined', {});
+  });
+
+  callObject.on('participant-joined', (evt) => {
+    log('Participant joined: ' + evt.participant.session_id);
+    updateVideoElements();
+  });
+
+  callObject.on('participant-updated', (evt) => {
+    updateVideoElements();
+  });
+
+  callObject.on('participant-left', (evt) => {
+    log('Participant left');
+    updateVideoElements();
+  });
+
+  callObject.on('track-started', (evt) => {
+    log('Track started: ' + evt.track.kind + ' from ' + evt.participant.session_id);
+    updateVideoElements();
+  });
+
+  callObject.on('app-message', (evt) => {
+    // Receive Tavus events (replica speaking, etc.)
+    try {
+      const data = typeof evt.data === 'string' ? JSON.parse(evt.data) : evt.data;
+      log('App message: ' + (data.event_type || JSON.stringify(data).substring(0, 100)));
+      notifySwift('tavusEvent', {event: data});
+    } catch(e) {
+      log('App message (raw): ' + JSON.stringify(evt.data).substring(0, 100));
+    }
+  });
+
+  callObject.on('error', (evt) => {
+    log('Error: ' + JSON.stringify(evt));
+    status.textContent = 'Connection error';
+    notifySwift('error', {message: JSON.stringify(evt)});
+  });
+
+  callObject.on('left-meeting', () => {
+    log('Left meeting');
+    notifySwift('left', {});
+  });
+
+  try {
+    await callObject.join();
+    log('Join successful');
+  } catch(err) {
+    log('Join failed: ' + err.message);
+    status.textContent = 'Failed to connect';
+    notifySwift('error', {message: err.message});
+  }
+}
+
+// === VIDEO RENDERING ===
+function updateVideoElements() {
+  if (!callObject) return;
+
+  const participants = callObject.participants();
+
+  // Find remote participant (the Tavus replica)
+  for (const [id, p] of Object.entries(participants)) {
+    if (id === 'local') continue;
+
+    if (p.tracks?.video?.persistentTrack) {
+      let video = document.getElementById('remote-video');
+      if (!video) {
+        video = document.createElement('video');
+        video.id = 'remote-video';
+        video.autoplay = true;
+        video.playsInline = true;
+        // Remove status text when video appears
+        status.style.display = 'none';
+        container.appendChild(video);
+      }
+      const stream = new MediaStream([p.tracks.video.persistentTrack]);
+      if (p.tracks.audio?.persistentTrack) {
+        stream.addTrack(p.tracks.audio.persistentTrack);
+      }
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+      }
+    }
+  }
+}
+
+// === INTERACTION API (called from Swift) ===
+
+function sendInteraction(eventType, properties) {
+  if (!callObject || !conversationId) {
+    log('Cannot send interaction - not connected');
+    return false;
+  }
+  const msg = {
+    message_type: 'conversation',
+    event_type: eventType,
+    conversation_id: conversationId,
+    properties: properties || {}
+  };
+  callObject.sendAppMessage(msg, '*');
+  log('Sent: ' + eventType);
+  return true;
+}
+
+// Overwrite the avatar's conversation context (tells it what phase we're in)
+function sendContextUpdate(contextText) {
+  return sendInteraction('conversation.overwrite_context', {
+    context: contextText
+  });
+}
+
+// Make the avatar speak exact text (bypasses LLM)
+function sendEcho(text) {
+  return sendInteraction('conversation.echo', {
+    modality: 'text',
+    text: text,
+    inference_id: 'echo_' + Date.now(),
+    done: true
+  });
+}
+
+// Send a text response as if the LLM generated it
+function sendRespond(text) {
+  return sendInteraction('conversation.respond', {
+    text: text,
+    done: true
+  });
+}
+
+// Interrupt the avatar (stop speaking)
+function sendInterrupt() {
+  return sendInteraction('conversation.interrupt', {});
+}
+
+// Adjust turn-taking sensitivity
+function setSensitivity(pauseSensitivity, interruptSensitivity) {
+  return sendInteraction('conversation.sensitivity', {
+    participant_pause_sensitivity: pauseSensitivity,
+    participant_interrupt_sensitivity: interruptSensitivity
+  });
+}
+
+// === CLEANUP ===
+function leaveRoom() {
+  if (callObject) {
+    callObject.leave();
+    callObject.destroy();
+    callObject = null;
+  }
+}
+
+log('TavusBridge loaded, waiting for joinRoom()');
+</script>
+</body>
+</html>

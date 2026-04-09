@@ -14,13 +14,13 @@ import SwiftUI
 struct AvatarAssessmentCanvas: View {
 
     @Bindable var assessmentState: AssessmentState
-    let conversationURL: String?
+    var tavusService: TavusService
     let onComplete: () -> Void
-    let onFallback: () -> Void
     let onCancel: () -> Void
 
     @State private var layoutManager = AvatarLayoutManager()
     @State private var showPauseSheet = false
+    @State private var avatarDismissed = false
 
     // MARK: Body
 
@@ -101,7 +101,7 @@ struct AvatarAssessmentCanvas: View {
     private var phaseContent: some View {
         switch layoutManager.currentPhase {
         case .welcome:
-            WelcomePhaseView(layoutManager: layoutManager, onStandard: onFallback)
+            WelcomePhaseView(layoutManager: layoutManager)
         case .qdrs:
             QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .qdrs)
         case .phq2:
@@ -141,9 +141,26 @@ struct AvatarAssessmentCanvas: View {
     private func avatarZone(width: CGFloat, height: CGFloat) -> some View {
         AvatarZoneView(
             layoutManager: layoutManager,
-            conversationURL: conversationURL,
+            conversationURL: avatarDismissed ? nil : tavusService.activeConversation?.conversation_url,
+            isConnecting: avatarDismissed ? false : tavusService.isCreatingConversation,
+            errorMessage: avatarDismissed ? nil : tavusService.lastError,
             width: width,
-            height: height
+            height: height,
+            onRetry: {
+                Task {
+                    do {
+                        _ = try await tavusService.createConversation(
+                            conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
+                        )
+                    } catch {
+                        tavusService.lastError = error.localizedDescription
+                    }
+                }
+            },
+            onContinueWithoutAvatar: {
+                avatarDismissed = true
+                tavusService.lastError = nil
+            }
         )
         .frame(width: width, height: height)
     }
@@ -204,9 +221,8 @@ private extension View {
 #Preview {
     AvatarAssessmentCanvas(
         assessmentState: AssessmentState(),
-        conversationURL: nil,
+        tavusService: TavusService.shared,
         onComplete: {},
-        onFallback: {},
         onCancel: {}
     )
 }

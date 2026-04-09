@@ -10,29 +10,16 @@ import SwiftUI
 
 enum AppScreen {
     case home
-    case qdrs            // QDRS questionnaire
-    case phq2            // PHQ-2 depression gate
-    case qmciIntro       // Brief intro before Qmci
-    case qmciAssessment  // 6 Qmci subtests (on-device)
     case avatarAssessment // Avatar-guided assessment (Tavus CVI)
     case report          // PCP summary
 
     /// Maps a restored Phase + state to the correct AppScreen for navigation.
-    /// During the intake phase, checks sub-state completion to determine exact screen.
     static func screen(for phase: Phase, state: AssessmentState? = nil) -> AppScreen {
         switch phase {
-        case .intake:
-            // Intake spans QDRS → PHQ-2 → QmciIntro. Use sub-state to pick up where left off.
-            if let s = state {
-                if s.phq2State.isComplete { return .qmciIntro }
-                if s.qdrsState.isComplete || s.qdrsState.declined { return .phq2 }
-            }
-            return .qdrs
-        case .qmciOrientation, .qmciRegistration, .qmciClockDrawing,
-             .qmciVerbalFluency, .qmciLogicalMemory, .qmciDelayedRecall:
-            return .qmciAssessment
-        case .scoring:
-            return .qmciAssessment
+        case .intake, .qmciOrientation, .qmciRegistration, .qmciClockDrawing,
+             .qmciVerbalFluency, .qmciLogicalMemory, .qmciDelayedRecall,
+             .scoring:
+            return .avatarAssessment
         case .report:
             return .report
         }
@@ -56,7 +43,8 @@ struct ContentView: View {
                         assessmentState = AssessmentState()
                         assessmentState.qdrsState.respondentType = respondentType
                         assessmentState.qmciState.reset()
-                        currentScreen = .qdrs
+                        // Start Tavus conversation, then go directly to avatar split-screen
+                        startAvatarAssessment()
                     },
                     onResume: {
                         if let restored = AssessmentPersistence.restore() {
@@ -66,76 +54,16 @@ struct ContentView: View {
                     }
                 )
 
-            case .qdrs:
-                withCancelToolbar(
-                    QDRSView(
-                        qdrsState: assessmentState.qdrsState,
-                        onComplete: {
-                            currentScreen = .phq2
-                            AssessmentPersistence.save(assessmentState)
-                        },
-                        onDecline: {
-                            currentScreen = .phq2
-                            AssessmentPersistence.save(assessmentState)
-                        }
-                    )
-                )
-
-            case .phq2:
-                withCancelToolbar(
-                    PHQ2View(
-                        phq2State: $assessmentState.phq2State,
-                        onComplete: {
-                            currentScreen = .qmciIntro
-                            AssessmentPersistence.save(assessmentState)
-                        }
-                    )
-                )
-
-            case .qmciIntro:
-                withCancelToolbar(
-                    QmciModePickerView(
-                        onStandard: {
-                            currentScreen = .qmciAssessment
-                            AssessmentPersistence.save(assessmentState)
-                        },
-                        onAvatar: {
-                            currentScreen = .avatarAssessment
-                            AssessmentPersistence.save(assessmentState)
-                        }
-                    )
-                )
-
-            case .qmciAssessment:
-                QmciAssessmentView(
-                    state: assessmentState,
-                    onComplete: {
-                        // Scoring phase — compute all results
-                        assessmentState.currentPhase = .scoring
-                        computeAllScores()
-                        assessmentState.currentPhase = .report
-                        currentScreen = .report
-                        AssessmentPersistence.clear()
-                    },
-                    onCancel: {
-                        AssessmentPersistence.clear()
-                        currentScreen = .home
-                    }
-                )
-
             case .avatarAssessment:
                 AvatarAssessmentCanvas(
                     assessmentState: assessmentState,
-                    conversationURL: TavusService.shared.activeConversation?.conversation_url,
+                    tavusService: TavusService.shared,
                     onComplete: {
                         assessmentState.currentPhase = .scoring
                         computeAllScores()
                         assessmentState.currentPhase = .report
                         currentScreen = .report
                         AssessmentPersistence.clear()
-                    },
-                    onFallback: {
-                        currentScreen = .qmciAssessment
                     },
                     onCancel: {
                         AssessmentPersistence.clear()
@@ -162,6 +90,21 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background, currentScreen != .home {
                 AssessmentPersistence.save(assessmentState)
+            }
+        }
+    }
+
+    private func startAvatarAssessment() {
+        guard !TavusService.shared.isCreatingConversation else { return }
+        currentScreen = .avatarAssessment
+        Task {
+            do {
+                _ = try await TavusService.shared.createConversation(
+                    conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
+                )
+            } catch {
+                TavusService.shared.lastError = error.localizedDescription
+                print("[Tavus] Failed to create conversation: \(error.localizedDescription)")
             }
         }
     }

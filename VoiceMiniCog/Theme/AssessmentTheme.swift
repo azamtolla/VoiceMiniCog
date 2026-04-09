@@ -104,15 +104,24 @@ enum AssessmentTheme {
         static let helper     = Font.system(size: 14, weight: .regular, design: .default)
         /// Answer button label — 16pt medium
         static let buttonLabel = Font.system(size: 16, weight: .medium, design: .default)
+        /// Avatar zone label — 13pt medium
+        static let avatarLabel = Font.system(size: 13, weight: .medium, design: .default)
 
         // Timers & counters (monospaced for stable width)
         /// General timer display — 17pt monospaced regular
         static let timer          = Font.system(size: 17, weight: .regular, design: .monospaced)
+        /// Small timer display — 13pt monospaced medium
+        static let timerSmall     = Font.system(size: 13, weight: .medium, design: .monospaced)
         /// Large counter hero (e.g., fluency word count) — 48pt monospaced bold
         static let counterHero    = Font.system(size: 48, weight: .bold, design: .monospaced)
         /// Score display — 28pt monospaced bold
         static let score          = Font.system(size: 28, weight: .bold, design: .monospaced)
+        /// Score display alias
+        static let scoreDisplay   = Font.system(size: 28, weight: .bold, design: .monospaced)
     }
+
+    /// Alias for views that reference `Fonts` instead of `Typography`
+    typealias Fonts = Typography
 
     // MARK: Sizing
 
@@ -121,13 +130,24 @@ enum AssessmentTheme {
         static let buttonMinHeight: CGFloat = 56
         /// Progress track thickness: 4 pt
         static let progressTrack: CGFloat = 4
+        /// Progress track height (alias)
+        static let progressTrackHeight: CGFloat = 4
         /// Ring / indicator line width: 2 pt
         static let ring: CGFloat = 2
+        /// Avatar accent ring stroke width: 3 pt
+        static let avatarRingWidth: CGFloat = 3
         /// Pause button diameter: 44 pt
         static let pauseButton: CGFloat = 44
+        /// Pause button width: 44 pt
+        static let pauseButtonWidth: CGFloat = 44
+        /// Pause button height: 44 pt
+        static let pauseButtonHeight: CGFloat = 44
         /// Standard horizontal padding for content panel: 16 pt
         static let contentPadding: CGFloat = 16
     }
+
+    /// Alias for views that reference `Sizing` instead of `Size`
+    typealias Sizing = Size
 
     // MARK: Avatar Width Ratios (fraction of total screen width)
 
@@ -144,6 +164,27 @@ enum AssessmentTheme {
         static let recall: CGFloat   = 0.45
     }
 
+    // MARK: Avatar Width Ratios by Phase ID
+
+    /// Maps AssessmentPhaseID.rawValue → avatar width fraction.
+    static let avatarWidthRatios: [Int: CGFloat] = [
+        1: AvatarRatio.welcome,       // welcome
+        2: AvatarRatio.qa,            // qdrs
+        3: AvatarRatio.qa,            // phq2
+        4: AvatarRatio.qa,            // orientation
+        5: AvatarRatio.qa,            // wordRegistration
+        6: AvatarRatio.clockFluency,  // clockDrawing
+        7: AvatarRatio.clockFluency,  // verbalFluency
+        8: AvatarRatio.story,         // storyRecall
+        9: AvatarRatio.recall,        // wordRecall
+    ]
+
+    /// Phase accent color by AssessmentPhaseID.rawValue (1-based).
+    static func accent(for phaseRawValue: Int) -> Color {
+        let index = max(0, min(phaseRawValue - 1, Phase.all.count - 1))
+        return Phase.all[index]
+    }
+
     // MARK: Progress Segment Weights
 
     /// Relative weight of each phase segment in the progress bar.
@@ -151,6 +192,9 @@ enum AssessmentTheme {
     static let progressWeights: [Int] = [1, 4, 1, 2, 1, 3, 3, 2, 1]
 
     // MARK: Animation Constants
+
+    /// Alias for views that reference `Anim` instead of `Animation`
+    typealias Anim = Animation
 
     enum Animation {
         /// Phase transition — spring, 0.55 s, 0.15 bounce

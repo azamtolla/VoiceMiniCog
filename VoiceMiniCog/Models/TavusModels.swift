@@ -15,7 +15,7 @@ struct TavusConversationSession: Codable {
     let conversation_name: String?
     let conversation_url: String
     let status: String?
-    let meeting_token: String
+    let meeting_token: String?
 }
 
 struct TavusInteraction<Properties: Codable>: Codable {

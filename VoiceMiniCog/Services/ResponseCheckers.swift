@@ -65,7 +65,7 @@ func makeRecallChecker(wordList: [String]) -> (String) -> Bool {
         }
 
         // "That's all" / "Nothing else"
-        if s.contains("that's all") || s.contains("thats all") || s.contains("that's it") || s.contains("nothing else") || s.contains("only") {
+        if s.contains("that's all") || s.contains("thats all") || s.contains("that's it") || s.contains("thats it") || s.contains("nothing else") || s.contains("only") {
             return true
         }
 
