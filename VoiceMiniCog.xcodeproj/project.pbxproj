@@ -70,6 +70,8 @@
 		COMP0002000000000002 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP0001000000000001 /* CompletionPhaseView.swift */; };
 		CARE0002000000000002 /* CaregiverAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARE0001000000000001 /* CaregiverAssessmentView.swift */; };
 		SESS0002000000000002 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESS0001000000000001 /* SessionStatusView.swift */; };
+		COPY0002000000000002 /* LeftPaneSpeechCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = COPY0001000000000001 /* LeftPaneSpeechCopy.swift */; };
+		MODS0002000000000002 /* AssessmentViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODS0001000000000001 /* AssessmentViewModifiers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -163,6 +165,8 @@
 		COMP0001000000000001 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		CARE0001000000000001 /* CaregiverAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaregiverAssessmentView.swift; path = VoiceMiniCog/Views/CaregiverAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 		SESS0001000000000001 /* SessionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStatusView.swift; path = VoiceMiniCog/Views/AvatarAssessment/SessionStatusView.swift; sourceTree = SOURCE_ROOT; };
+		COPY0001000000000001 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LeftPaneSpeechCopy.swift; path = VoiceMiniCog/Theme/LeftPaneSpeechCopy.swift; sourceTree = SOURCE_ROOT; };
+		MODS0001000000000001 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentViewModifiers.swift; path = VoiceMiniCog/Theme/AssessmentViewModifiers.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -520,6 +524,8 @@
 				9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */,
 				90B4464396663EFA7F19795D /* TavusAssessmentView.swift in Sources */,
 				688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */,
+				MODS0002000000000002 /* AssessmentViewModifiers.swift in Sources */,
+				COPY0002000000000002 /* LeftPaneSpeechCopy.swift in Sources */,
 				52AF46D1BC06D1406F6C47E3 /* AvatarLayoutManager.swift in Sources */,
 				02E0487592CC543560C532CC /* AvatarAssessmentCanvas.swift in Sources */,
 				CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */,

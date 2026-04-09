@@ -212,6 +212,9 @@ enum AssessmentTheme {
         /// Content fade in/out — 0.25 s ease-in-out
         static let contentFade = SwiftUI.Animation.easeInOut(duration: 0.25)
 
+        /// Content enter — staggered fade + slide-up for phase elements
+        static let contentEnter = SwiftUI.Animation.easeOut(duration: 0.4)
+
         /// Button press feedback — spring, 0.15 s
         static let buttonPress = SwiftUI.Animation.spring(
             response: 0.15,

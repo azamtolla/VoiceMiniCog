@@ -19,6 +19,7 @@ struct WordRegistrationPhaseView: View {
 
     @State private var revealedCount = 0
     @State private var isRevealing = false
+    @State private var contentVisible = false
 
     private var words: [String] { qmciState.registrationWords }
 
@@ -33,23 +34,28 @@ struct WordRegistrationPhaseView: View {
             Image(systemName: "ear.fill")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 14)
+                .assessmentIconHeaderAccent(layoutManager.accentColor)
 
             // MARK: Title
-            Text("Listen carefully")
+            Text(LeftPaneSpeechCopy.wordRegistrationTitle)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 6)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             // MARK: Subtitle
-            Text("The avatar will say 5 words.\nRepeat them back when asked.")
+            Text(LeftPaneSpeechCopy.wordRegistrationSubtitle)
                 .font(AssessmentTheme.Fonts.helper)
                 .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 28)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
             // MARK: Word Chips
             if !words.isEmpty {
@@ -63,6 +69,8 @@ struct WordRegistrationPhaseView: View {
                     }
                 }
                 .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
             }
 
             Spacer()
@@ -80,18 +88,26 @@ struct WordRegistrationPhaseView: View {
                     .frame(height: 56)
                     .background(layoutManager.accentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: layoutManager.accentColor.opacity(0.3), radius: 10, y: 4)
             }
+            .buttonStyle(AssessmentPrimaryButtonStyle())
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.22), value: contentVisible)
 
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
         .onAppear {
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
             avatarSetContext("You are on the Word Registration phase. You will read 5 words via echo commands. The patient will repeat them back. Do NOT say any words on your own — only speak what is sent to you via echo. If the patient talks to you, briefly acknowledge and redirect focus to remembering the words.")
             if words.isEmpty {
                 qmciState.selectWordList()
             }
             startWordReveal()
+            avatarSpeak(LeftPaneSpeechCopy.wordRegistrationNarration(words: qmciState.registrationWords))
         }
     }
 
@@ -100,21 +116,10 @@ struct WordRegistrationPhaseView: View {
     private func startWordReveal() {
         guard !isRevealing else { return }
         isRevealing = true
-
-        // Avatar speaks the intro prompt
-        let introWords = words.joined(separator: "... ")
-        avatarSpeak("I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later. The words are: \(introWords).")
-
         for i in 0..<words.count {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 1.5) {
                 withAnimation(AssessmentTheme.Anim.chipAppear) { revealedCount = i + 1 }
             }
-        }
-
-        // After all words revealed, avatar asks for repetition
-        let totalRevealTime = Double(words.count) * 1.5 + 1.0
-        DispatchQueue.main.asyncAfter(deadline: .now() + totalRevealTime) {
-            avatarSpeak("Can you repeat those words for me?")
         }
     }
 }
