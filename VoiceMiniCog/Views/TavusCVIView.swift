@@ -27,15 +27,27 @@ struct TavusCVIView: UIViewRepresentable {
     var onAvatarEvent: ((TavusAvatarEvent) -> Void)?
 
     func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
+        // === Try to use pre-loaded WebView (instant avatar) ===
+        if let preloaded = TavusService.shared.claimPreloadedWebView(),
+           let handler = TavusService.shared.preloadHandler {
+            // Wire the preload handler's event callback to our onAvatarEvent
+            handler.onAvatarEvent = onAvatarEvent
+            // Give the coordinator the pre-loaded WebView so NotificationCenter
+            // observers (context updates, echo requests) route JS calls to it
+            context.coordinator.webView = preloaded
+            context.coordinator.conversationURL = conversationURL
+            context.coordinator.onAvatarEvent = onAvatarEvent
+            context.coordinator.hasJoined = true
+            context.coordinator.preloadHandler = handler
+            print("[TavusCVI] Using pre-loaded WebView (instant)")
+            return preloaded
+        }
 
-        // Allow inline media playback (required for WebRTC video)
+        // === Fallback: create fresh WebView ===
+        let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-
-        // Register Swift message handler for JS → Swift bridge
-        let contentController = config.userContentController
-        contentController.add(context.coordinator, name: "tavusBridge")
+        config.userContentController.add(context.coordinator, name: "tavusBridge")
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
@@ -44,16 +56,14 @@ struct TavusCVIView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
 
-        // Store reference for sending JS commands later
         context.coordinator.webView = webView
         context.coordinator.conversationURL = conversationURL
         context.coordinator.onAvatarEvent = onAvatarEvent
 
-        // Load the custom bridge HTML
         if let bridgePath = Bundle.main.path(forResource: "TavusBridge", ofType: "html") {
             let bridgeURL = URL(fileURLWithPath: bridgePath)
             webView.loadFileURL(bridgeURL, allowingReadAccessTo: bridgeURL.deletingLastPathComponent())
-            print("[TavusCVI] Loading bridge HTML")
+            print("[TavusCVI] Loading bridge HTML (no pre-load available)")
         } else {
             print("[TavusCVI] ERROR: TavusBridge.html not found in bundle")
         }
@@ -75,7 +85,9 @@ struct TavusCVIView: UIViewRepresentable {
         var webView: WKWebView?
         var conversationURL: String?
         var onAvatarEvent: ((TavusAvatarEvent) -> Void)?
-        private var hasJoined = false
+        var hasJoined = false
+        /// Holds a strong reference to the preload handler so WK doesn't lose it.
+        var preloadHandler: TavusPreloadHandler?
         private var contextObserver: NSObjectProtocol?
         private var echoObserver: NSObjectProtocol?
 
