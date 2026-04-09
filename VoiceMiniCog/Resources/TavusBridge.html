@@ -39,6 +39,8 @@ video {
 
 let callObject = null;
 let conversationId = null;
+let isJoined = false;
+let pendingEchos = [];  // Queue for echo requests that arrive before room join
 
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
@@ -97,6 +99,16 @@ async function joinRoom(roomUrl) {
     // 2. Reduce turn-taking sensitivity as a second layer
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
+
+    // 3. Mark as joined and flush any pending echo requests
+    isJoined = true;
+    if (pendingEchos.length > 0) {
+      log('Flushing ' + pendingEchos.length + ' pending echo(s)');
+      // Only send the most recent one — earlier ones are stale
+      const latest = pendingEchos[pendingEchos.length - 1];
+      pendingEchos = [];
+      sendEcho(latest);
+    }
   });
 
   callObject.on('participant-joined', (evt) => {
@@ -219,6 +231,12 @@ function sendContextUpdate(contextText) {
 
 // Make the avatar speak exact text (bypasses LLM)
 function sendEcho(text) {
+  if (!isJoined) {
+    log('Echo queued (not yet joined): ' + text.substring(0, 60) + '...');
+    pendingEchos.push(text);
+    return false;
+  }
+  log('Echo sending: ' + text.substring(0, 60) + '...');
   return sendInteraction('conversation.echo', {
     modality: 'text',
     text: text,
