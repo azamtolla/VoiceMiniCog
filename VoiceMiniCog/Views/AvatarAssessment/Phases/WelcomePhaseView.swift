@@ -2,8 +2,8 @@
 //  WelcomePhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 1 — Welcome screen. Displays assessment overview, subtest list,
-//  Begin Assessment button, and a Standard Mode (No Avatar) fallback link.
+//  Phase 1 — Welcome screen. Avatar delivers full engaging intro script.
+//  "Begin Assessment" button only appears after the avatar finishes speaking.
 //
 
 import SwiftUI
@@ -15,6 +15,8 @@ struct WelcomePhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
+
+    @State private var showBeginButton = false
 
     // MARK: Body
 
@@ -68,38 +70,74 @@ struct WelcomePhaseView: View {
 
             Spacer()
 
-            // MARK: Begin Assessment Button
-            Button {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                layoutManager.advanceToNextPhase()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "play.fill")
-                    Text("Begin Assessment")
+            // MARK: Begin Assessment Button — only visible after avatar finishes intro
+            if showBeginButton {
+                Button {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                    layoutManager.advanceToNextPhase()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.fill")
+                        Text("Begin Assessment")
+                    }
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(layoutManager.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(
+                        color: layoutManager.accentColor.opacity(0.35),
+                        radius: 8,
+                        y: 4
+                    )
                 }
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(layoutManager.accentColor)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .shadow(
-                    color: layoutManager.accentColor.opacity(0.35),
-                    radius: 8,
-                    y: 4
-                )
+                .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
-            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
 
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
         .onAppear {
-            // Set avatar context: it must NOT advance phases on its own
-            avatarSetContext("You are a clinical assessment avatar on the Welcome screen. The patient sees a 'Begin Assessment' button on the left panel. You have already greeted them. IMPORTANT: You do NOT control the assessment flow. If the patient says 'let's begin', 'start', 'I'm ready', or anything about starting — tell them to press the Begin Assessment button on the screen. Do NOT start asking questions or move to the next phase. Only speak when the app tells you to via echo commands. Keep responses brief and warm.")
-            avatarSpeak("Welcome to the Brain Health Assessment. When you're ready, press the Begin Assessment button on the screen to start.")
+            avatarSetContext("You are a warm, enthusiastic neuroscience avatar delivering an engaging introduction to a brain health assessment. Speak the script sent via echo with energy, warmth, and varied pacing. After finishing the script, tell the patient to press the Begin Assessment button on screen. Do NOT start asking assessment questions. Do NOT advance phases.")
+            avatarSpeak(welcomeIntroScript)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            // Show Begin button when avatar finishes the intro
+            withAnimation(.easeInOut(duration: 0.4)) {
+                showBeginButton = true
+            }
+        }
+    }
+
+    // MARK: - Full Welcome Intro Script
+
+    private var welcomeIntroScript: String {
+        """
+        Hey — I'm really glad you're here. \
+        What you're about to do in the next few minutes is one of the most genuinely interesting things you can do for your own health. \
+        Not a blood draw. Not a treadmill. Not a questionnaire with a hundred 'on a scale of one to ten' questions. \
+        We're going to look at your brain — how it remembers, how it thinks, how it moves through the world. \
+        And honestly? It's kind of incredible. \
+        Here's what most people don't realize: your brain is giving off signals all the time — signals about memory, attention, and processing — and most of those signals go completely unnoticed. \
+        Until today. Because today we're actually listening. \
+        This assessment — six short activities — is designed by neuroscientists to gently reveal how different parts of your brain are performing right now. \
+        Not to judge. Not to alarm. Just to know. And knowing is the most powerful thing there is. \
+        We start with something that might sound simple but is actually profound. I'm going to ask you where you are, what day it is, what year. \
+        Your brain has to actively construct that answer every single time. It's not stored like a file — it's rebuilt, moment to moment. Ten points. Pretty cool for a warm-up, right? \
+        Next, I'm going to say a few words to you. Just words. And your only job is to listen. \
+        What's happening in your brain in that moment is extraordinary — your hippocampus is firing, encoding those words into short-term memory. Five points — and they come back later. \
+        Then I'm going to ask you to draw a clock. A simple clock. But what your brain has to do — the spatial reasoning, the planning, the sequencing — it's activating multiple brain systems simultaneously. Fifteen points. \
+        After that, I'm going to give you a category, and you're going to name as many things in that category as you possibly can. Fast. Really fast. Twenty points. Your brain loves to sprint. \
+        Then I'll tell you a short story, and later I'll ask you about it. Thirty points — the biggest block in the whole assessment. So listen closely. Every word counts. \
+        And finally, those words from the very beginning? It's time to bring them back. Twenty points. \
+        Six activities. Five to seven minutes. And at the end, you'll know something real about how your brain is working today. \
+        Not a diagnosis. Not a verdict. A snapshot of one of the most complex objects in the known universe: your brain. \
+        I'll be right here with you, every step of the way. \
+        Whenever you're ready, press the Begin Assessment button on the screen, and let's get started.
+        """
     }
 }
 

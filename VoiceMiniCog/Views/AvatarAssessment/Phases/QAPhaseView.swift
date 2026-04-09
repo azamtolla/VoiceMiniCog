@@ -93,6 +93,12 @@ struct QAPhaseView: View {
             }
             speakQuestion(currentVoicePrompt)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
+            // Patient finished speaking → advance orientation to next question
+            if phaseID == .orientation && waitingForPatientResponse {
+                advanceOrientationQuestion()
+            }
+        }
     }
 
     // MARK: - Orientation Scoring Area
@@ -114,22 +120,37 @@ struct QAPhaseView: View {
         }
     }
 
-    // MARK: - Auto-Advance Orientation
+    @State private var waitingForPatientResponse = false
 
-    /// After the avatar finishes speaking and the patient has time to answer,
-    /// auto-advance to the next question. No clinician interaction needed.
-    private func autoAdvanceOrientation() {
+    // MARK: - Wait for Patient Response (Orientation)
+
+    /// After the avatar finishes speaking, wait for the patient to respond.
+    /// Advances to next question when patientDoneSpeaking fires, with a
+    /// fallback timeout of 15 seconds in case the event doesn't fire.
+    private func waitForPatientResponse() {
+        waitingForPatientResponse = true
         orientationAutoAdvanceTask?.cancel()
+
+        // Fallback: if patient doesn't respond within 15 seconds, advance anyway
         orientationAutoAdvanceTask = Task { @MainActor in
-            // Give patient 8 seconds to answer after avatar finishes speaking
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
             guard !Task.isCancelled else { return }
+            advanceOrientationQuestion()
+        }
+    }
 
-            // Record as answered (scoring is deferred to report review)
-            if currentIndex < assessmentState.qmciState.orientationAnswers.count {
-                assessmentState.qmciState.orientationAnswers[currentIndex] = true
-            }
+    private func advanceOrientationQuestion() {
+        guard waitingForPatientResponse else { return }
+        waitingForPatientResponse = false
+        orientationAutoAdvanceTask?.cancel()
 
+        // Record as answered (scoring deferred to report)
+        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
+            assessmentState.qmciState.orientationAnswers[currentIndex] = true
+        }
+
+        // Brief pause before next question so it doesn't feel rushed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if currentIndex < totalQuestions - 1 {
                 currentIndex += 1
             } else {
@@ -207,9 +228,9 @@ struct QAPhaseView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
             layoutManager.setAvatarListening()
             avatarDoneSpeaking = true
-            // For orientation: auto-advance after patient has time to answer
+            // For orientation: wait for patient to respond before advancing
             if phaseID == .orientation {
-                autoAdvanceOrientation()
+                waitForPatientResponse()
             }
         }
     }

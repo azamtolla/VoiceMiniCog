@@ -16,6 +16,10 @@ import WebKit
 extension Notification.Name {
     static let tavusContextUpdate = Notification.Name("tavusContextUpdate")
     static let tavusEchoRequest = Notification.Name("tavusEchoRequest")
+    /// Fired when the avatar finishes speaking (replica stopped)
+    static let avatarDoneSpeaking = Notification.Name("avatarDoneSpeaking")
+    /// Fired when the patient finishes speaking (user stopped)
+    static let patientDoneSpeaking = Notification.Name("patientDoneSpeaking")
 }
 
 // MARK: - CLINICAL-UI
@@ -178,10 +182,12 @@ struct TavusCVIView: UIViewRepresentable {
                         onAvatarEvent?(.replicaStartedSpeaking)
                     case "conversation.replica.stopped_speaking":
                         onAvatarEvent?(.replicaStoppedSpeaking)
+                        NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)
                     case "conversation.user.started_speaking":
                         onAvatarEvent?(.userStartedSpeaking)
                     case "conversation.user.stopped_speaking":
                         onAvatarEvent?(.userStoppedSpeaking)
+                        NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)
                     default:
                         break
                     }
