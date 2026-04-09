@@ -95,10 +95,10 @@ enum OrientationAnswerType {
 }
 
 let ORIENTATION_ITEMS: [OrientationItem] = [
-    OrientationItem(id: 0, question: "What year is it?", voicePrompt: "What year is it right now?", correctAnswerType: .year),
-    OrientationItem(id: 1, question: "What month is it?", voicePrompt: "What month are we in?", correctAnswerType: .month),
-    OrientationItem(id: 2, question: "What day of the week is it?", voicePrompt: "What day of the week is it today?", correctAnswerType: .dayOfWeek),
-    OrientationItem(id: 3, question: "What is today's date?", voicePrompt: "What is today's date, the number?", correctAnswerType: .date),
+    OrientationItem(id: 0, question: "What year is it?", voicePrompt: "What year is it?", correctAnswerType: .year),
+    OrientationItem(id: 1, question: "What month is it?", voicePrompt: "What month is it?", correctAnswerType: .month),
+    OrientationItem(id: 2, question: "What day of the week is it?", voicePrompt: "What day of the week is it?", correctAnswerType: .dayOfWeek),
+    OrientationItem(id: 3, question: "What is today's date?", voicePrompt: "What is today's date?", correctAnswerType: .date),
     OrientationItem(id: 4, question: "What country are we in?", voicePrompt: "What country are we in?", correctAnswerType: .country),
 ]
 

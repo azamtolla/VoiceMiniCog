@@ -38,7 +38,7 @@ struct ClockDrawingPhaseView: View {
         VStack(spacing: 12) {
 
             // 1. Instruction text
-            Text("Draw a clock. Put in all the numbers.\nSet the hands to ten past eleven.")
+            Text("Draw a clock. Include all 12 numbers.\nSet the hands to 11:10.")
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)

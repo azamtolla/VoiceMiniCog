@@ -456,7 +456,7 @@ class AssessmentState: Codable {
 
     func getWordIntroPrompt() -> String {
         let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
-        return "I'm going to say \(wordList.count) words that I'd like you to remember. I'll ask you to recall them later. The words are: \(wordList.joined(separator: "... "))."
+        return "I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later. The words are: \(wordList.joined(separator: "... "))."
     }
 
     func getRepeatPrompt() -> String {
@@ -465,49 +465,64 @@ class AssessmentState: Codable {
 
     func getRetryPrompt(attempt: Int, lastScore: Int) -> String {
         let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
-        if lastScore == 0 {
-            return "Let me say those words one more time. Listen carefully: \(wordList.joined(separator: "... ")). Now, can you tell me those words?"
-        } else {
-            return "Good, you got \(lastScore)! One more time: \(wordList.joined(separator: "... ")). Can you repeat them all?"
-        }
+        // Neutral language — no praise for partial scores (clinically non-standard)
+        return "Let me read those words one more time: \(wordList.joined(separator: "... ")). Can you say those back to me?"
     }
 
     func getRecallFollowupPrompt(count: Int) -> String {
         if count == 0 {
-            return "Take your time. Can you try to remember any of the words?"
+            return "Take your time. Try to think back — can you recall any of the words I asked you to remember?"
         } else {
-            return "Good, you remembered \(count). Can you remember any others?"
+            // Neutral — no count praise
+            return "Can you remember any of the other words?"
         }
     }
 
     func getThankYouPrompt() -> String {
-        return "Thank you, nice job."
+        return "Thank you."
     }
 
     func getTransitionToClockPrompt() -> String {
-        return "Great, now we're going to do something different."
+        return "Great. Now we're going to do something a little different."
     }
 
     func getClockInstructionsPrompt() -> String {
-        return "Now I'd like you to draw a clock. Draw a circle, put in all the numbers, and set the hands to show ten minutes past eleven."
+        return "Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock."
     }
 
     func getQDRSIntroPrompt() -> String {
-        "Before we start the memory test, I'd like to ask you \(QDRS_QUESTIONS.count) short questions about your everyday memory and activities. There are no right or wrong answers."
+        "Thank you for being here today. Before we begin the memory exercises, I have ten brief questions for you — the caregiver or family member. I'll ask you about any changes you may have noticed in the patient's everyday memory and activities. There are no right or wrong answers. Please answer based on what you've observed."
     }
 
     func getQDRSQuestionPrompt(index: Int) -> String {
         guard index < QDRS_QUESTIONS.count else { return "" }
         let q = QDRS_QUESTIONS[index]
-        return "Question \(index + 1) of \(QDRS_QUESTIONS.count): \(q.voicePrompt) Would you say no change, sometimes, or yes, it has changed?"
+        // Avatar speaks full canonical question text — no shortened aliases
+        return q.voicePrompt
     }
 
     func getQDRSCompletionPrompt() -> String {
-        "Thank you for answering those questions. Now let's move on to the memory exercise."
+        "Thank you for answering those questions. That information is very helpful. Now we'll move on to the memory exercises."
+    }
+
+    func getStoryRecallPrompt() -> String {
+        return "Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can."
+    }
+
+    func getStoryRecallFollowupPrompt() -> String {
+        return "Anything else you can remember?"
+    }
+
+    func getVerbalFluencyMidTimerPrompt() -> String {
+        return "Good, keep going."
+    }
+
+    func getPHQ2IntroPrompt() -> String {
+        return "Just two more questions. These are about how you've been feeling recently — not about memory."
     }
 
     func getFinalThankYouPrompt() -> String {
-        return "Thank you for taking the test. We're all done with the memory exercise."
+        return "That's everything — thank you so much for your time and effort today. Your clinician will review the results and follow up with you."
     }
 
     // MARK: - Phase name mapping for stepper

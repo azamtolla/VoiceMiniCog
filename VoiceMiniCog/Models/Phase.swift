@@ -71,17 +71,17 @@ extension Phase {
     var prompt: String {
         switch self {
         case .intake:
-            return "Before we begin, I have a few short questions about your everyday memory and activities."
+            return "Thank you for being here today. Before we begin the memory exercises, I have ten brief questions for you — the caregiver or family member. I'll ask you about any changes you may have noticed in the patient's everyday memory and activities. There are no right or wrong answers. Please answer based on what you've observed."
         case .qmciOrientation:
-            return "I'm going to ask you a few questions about today's date."
+            return "First, I'll ask a few general questions — things like today's date and where we are. There are no trick questions. Just answer as best you can."
         case .qmciRegistration:
-            return "I'm going to say five words. Please listen carefully and remember them."
+            return "I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later."
         case .qmciClockDrawing:
-            return "Now, please draw a clock face with all the numbers. Set the hands to show ten past eleven."
+            return "Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock."
         case .qmciVerbalFluency:
-            return "Name as many animals as you can in one minute."
+            return "I'd like you to name as many different animals as you can. You can name any animal — dogs, birds, fish, anything. Try to name as many as you can in one minute. Ready? Begin."
         case .qmciLogicalMemory:
-            return "I'm going to read you a short story. Listen carefully, and then tell me everything you remember."
+            return "I'm going to read you a short story. Listen carefully and try to remember as much of it as you can. When I'm finished, I'll ask you to tell me everything you can recall — even small details. Ready?"
         case .qmciDelayedRecall:
             return "What were those five words I asked you to remember earlier?"
         case .scoring:
