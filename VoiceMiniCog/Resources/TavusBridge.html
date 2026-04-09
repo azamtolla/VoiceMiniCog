@@ -73,14 +73,28 @@ async function joinRoom(roomUrl) {
 
   // === EVENT HANDLERS ===
 
-  callObject.on('joined-meeting', (evt) => {
+  callObject.on('joined-meeting', async (evt) => {
     log('Joined meeting');
     status.textContent = '';
     notifySwift('joined', {});
 
-    // Clinical turn-taking: reduce sensitivity to ambient noise.
-    // "low" pause = avatar waits longer before responding (patient has time to think).
-    // "low" interrupt = avatar is hard to interrupt by background noise.
+    // === CLINICAL AUDIO SETUP ===
+
+    // 1. Enable Daily.js noise cancellation — filters ambient noise
+    //    (HVAC, chair squeaks, coughs) at the audio input level BEFORE
+    //    Tavus VAD even hears it.
+    try {
+      await callObject.updateInputSettings({
+        audio: {
+          processor: { type: 'noise-cancellation' }
+        }
+      });
+      log('Noise cancellation enabled');
+    } catch(e) {
+      log('Noise cancellation not available: ' + e.message);
+    }
+
+    // 2. Reduce turn-taking sensitivity as a second layer
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
   });
@@ -110,6 +124,16 @@ async function joinRoom(roomUrl) {
       const data = typeof evt.data === 'string' ? JSON.parse(evt.data) : evt.data;
       log('App message: ' + (data.event_type || JSON.stringify(data).substring(0, 100)));
       notifySwift('tavusEvent', {event: data});
+
+      // 3. Mic mute/unmute during avatar speech — prevents iPad speaker
+      //    from feeding back into the mic and triggering the VAD.
+      if (data.event_type === 'conversation.replica.started_speaking') {
+        callObject.setLocalAudio(false);
+        log('Mic muted (avatar speaking)');
+      } else if (data.event_type === 'conversation.replica.stopped_speaking') {
+        callObject.setLocalAudio(true);
+        log('Mic unmuted (avatar stopped)');
+      }
     } catch(e) {
       log('App message (raw): ' + JSON.stringify(evt.data).substring(0, 100));
     }
@@ -222,6 +246,13 @@ function setSensitivity(pauseSensitivity, interruptSensitivity) {
     participant_pause_sensitivity: pauseSensitivity,
     participant_interrupt_sensitivity: interruptSensitivity
   });
+}
+
+// Mute/unmute local mic (called from Swift or auto during avatar speech)
+function setMicMuted(muted) {
+  if (!callObject) return;
+  callObject.setLocalAudio(!muted);
+  log('Mic ' + (muted ? 'muted' : 'unmuted') + ' (explicit)');
 }
 
 // === CLEANUP ===
