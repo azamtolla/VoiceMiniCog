@@ -21,7 +21,7 @@ final class TavusService {
 
     /// Tavus API key — loaded from UserDefaults (configured in Settings)
     var apiKey: String {
-        UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+        UserDefaults.standard.string(forKey: "tavus_api_key") ?? "ad59dab220804a8f81f07e21e78b5ba6"
     }
 
     /// Default persona for clinical assessment
