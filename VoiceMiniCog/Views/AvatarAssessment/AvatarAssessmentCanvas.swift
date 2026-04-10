@@ -21,7 +21,7 @@ struct AvatarAssessmentCanvas: View {
     let onCancel: () -> Void
 
     @State private var layoutManager = AvatarLayoutManager()
-    @State private var showPauseSheet = false
+    // Pause sheet removed — End Session button replaces it
     @State private var avatarDismissed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -94,11 +94,6 @@ struct AvatarAssessmentCanvas: View {
             layoutManager.currentPhase = .welcome
             avatarDismissed = false
         }
-        .pauseSheet(
-            isPresented: $showPauseSheet,
-            accentColor: layoutManager.accentColor,
-            onCancel: onCancel
-        )
     }
 
     // MARK: - Content Zone
@@ -130,8 +125,8 @@ struct AvatarAssessmentCanvas: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Pause button
-            pauseButton
+            // End Session button
+            endSessionButton
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .padding(.bottom, 24)
@@ -173,12 +168,22 @@ struct AvatarAssessmentCanvas: View {
         ProgressTrackView(layoutManager: layoutManager)
     }
 
-    // MARK: - Pause Button
+    // MARK: - End Session Button
 
-    private var pauseButton: some View {
-        PauseButtonView {
-            showPauseSheet = true
+    private var endSessionButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onCancel()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "xmark.circle")
+                    .font(.system(size: 14))
+                Text("End Session")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .foregroundStyle(Color(hex: "#DC2626"))
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Avatar Zone
@@ -209,56 +214,6 @@ struct AvatarAssessmentCanvas: View {
             }
         )
         .frame(width: width, height: height)
-    }
-}
-
-// MARK: - Pause Sheet View Modifier
-
-private struct PauseSheetModifier: ViewModifier {
-    @Binding var isPresented: Bool
-    let accentColor: Color
-    let onCancel: () -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .sheet(isPresented: $isPresented) {
-                VStack(spacing: 24) {
-                    Text("Assessment Paused")
-                        .font(.system(size: 22, weight: .bold))
-                    Text("The patient can take a break.")
-                        .font(.system(size: 16))
-                        .foregroundColor(AssessmentTheme.Content.textSecondary)
-                    Button("Resume Assessment") { isPresented = false }
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(accentColor)
-                        .cornerRadius(14)
-                    Button("End Session") {
-                        isPresented = false
-                        onCancel()
-                    }
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Color(hex: "#DC2626"))
-                }
-                .padding(32)
-                .presentationDetents([.medium])
-            }
-    }
-}
-
-private extension View {
-    func pauseSheet(
-        isPresented: Binding<Bool>,
-        accentColor: Color,
-        onCancel: @escaping () -> Void
-    ) -> some View {
-        modifier(PauseSheetModifier(
-            isPresented: isPresented,
-            accentColor: accentColor,
-            onCancel: onCancel
-        ))
     }
 }
 
