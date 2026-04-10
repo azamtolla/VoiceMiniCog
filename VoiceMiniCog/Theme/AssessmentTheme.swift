@@ -153,16 +153,12 @@ enum AssessmentTheme {
     // MARK: Avatar Width Ratios (fraction of total screen width)
 
     enum AvatarRatio {
-        /// Welcome / intro phase: avatar is large
-        static let welcome: CGFloat  = 0.65
-        /// Orientation & registration Q&A phases
+        /// Uniform 50/50 split across all phases
+        static let welcome: CGFloat  = 0.50
         static let qa: CGFloat       = 0.50
-        /// Clock drawing & fluency (avatar steps back)
-        static let clockFluency: CGFloat = 0.30
-        /// Logical memory story delivery
-        static let story: CGFloat    = 0.55
-        /// Delayed recall
-        static let recall: CGFloat   = 0.45
+        static let clockFluency: CGFloat = 0.50
+        static let story: CGFloat    = 0.50
+        static let recall: CGFloat   = 0.50
     }
 
     // MARK: Avatar Width Ratios by Phase ID

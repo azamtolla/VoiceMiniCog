@@ -36,7 +36,7 @@ struct CaregiverAssessmentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let questions = QDRS_QUESTIONS
-    private let avatarWidthRatio: CGFloat = 0.45
+    private let avatarWidthRatio: CGFloat = 0.50
 
     // MARK: - Body
 
