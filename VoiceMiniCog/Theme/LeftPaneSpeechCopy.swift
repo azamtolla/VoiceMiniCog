@@ -5,6 +5,10 @@
 //  Centralized text constants for the left panel display AND avatar speech.
 //  Single source of truth: the avatar speaks what the left panel shows.
 //
+//  PERSONA: The avatar IS the neuropsychologist examiner. All voice strings
+//  use verbatim QMCI protocol wording from the validation literature.
+//  Do not ad-lib, simplify, or paraphrase the examiner scripts.
+//
 
 import Foundation
 
@@ -14,75 +18,87 @@ enum LeftPaneSpeechCopy {
 
     static let welcomeTitle = "Brain Health Assessment"
 
-    static let welcomeSubtitle = "6 cognitive activities, about 5-7 minutes"
+    static let welcomeSubtitle = "6 cognitive activities, about 3-5 minutes"
 
-    // MARK: - Word Registration
+    // MARK: - Subtest 1: Orientation (10 pts)
+
+    static let orientationIntro = "I am going to ask you a few questions. Please answer as best you can."
+
+    static let orientationOnScreen = "Please answer the following questions."
+
+    // MARK: - Subtest 2: Word Registration (5 pts)
 
     static let wordRegistrationTitle = "Listen carefully"
 
-    static let wordRegistrationSubtitle = "The avatar will say 5 words.\nRepeat them back when asked."
+    static let wordRegistrationSubtitle = "I will say 5 words.\nRepeat them back when asked."
+
+    static let wordRegistrationIntro = "I am going to say 5 words. After I have said these 5 words, repeat them back to me."
 
     static func wordRegistrationNarration(words: [String]) -> String {
-        let wordList = words.joined(separator: "... ")
-        return "I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later. The words are: \(wordList)."
+        // Read words slowly, one per second — joined with pauses
+        let wordList = words.joined(separator: " ... ")
+        return "\(wordList)."
     }
 
-    static let wordRegistrationRepeat = "Can you repeat those words for me?"
+    static let wordRegistrationRepeat = "Now repeat them back to me."
+
+    static let wordRegistrationRemember = "Remember these words because I'll ask you to recall them later."
 
     static func wordRegistrationRetry(words: [String]) -> String {
-        let wordList = words.joined(separator: "... ")
-        return "Let me read those words one more time: \(wordList). Can you say those back to me?"
+        let wordList = words.joined(separator: " ... ")
+        return "Let me say those words again: \(wordList). Now repeat them back to me."
     }
 
-    // MARK: - Orientation
+    // MARK: - Subtest 3: Clock Drawing (15 pts, 60 sec)
 
-    static let orientationIntro = "First, I'll ask a few general questions — things like today's date and where we are. There are no trick questions. Just answer as best you can."
+    static let clockDrawingInstruction = "Draw a clock face and set the time to ten past eleven."
 
-    // MARK: - Clock Drawing
+    static let clockDrawingOnScreen = "Draw a clock face.\nSet the time to ten past eleven."
 
-    static let clockDrawingInstruction = "Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock."
+    static let clockDrawingStop = "Please stop drawing now."
 
-    static let clockDrawingOnScreen = "Draw a clock. Include all 12 numbers.\nSet the hands to 11:10."
+    // MARK: - Subtest 4: Delayed Recall (20 pts, 30 sec)
 
-    // MARK: - Verbal Fluency
+    static let delayedRecallTitle = "Word Recall"
+
+    static let delayedRecallPrompt = "A few minutes ago I said five words. Please name as many of the words as you can remember."
+
+    static let delayedRecallOnScreen = "Recall the 5 words from earlier."
+
+    // MARK: - Subtest 5: Verbal Fluency (20 pts, 60 sec)
 
     static let verbalFluencyTitle = "Name as many animals\nas you can"
 
     static let verbalFluencySubtitle = "You have one minute."
 
-    static let verbalFluencyInstruction = "I'd like you to name as many different animals as you can. You can name any animal — dogs, birds, fish, anything. Try to name as many as you can in one minute. Ready? Begin."
+    static let verbalFluencyInstruction = "Name as many animals as you can in one minute."
 
-    static let verbalFluencyMidTimer = "Good, keep going."
+    // No mid-timer prompts per QMCI protocol — examiner stays silent during timed tasks
+    // static let verbalFluencyMidTimer removed — protocol says no hints or prompts
 
-    // MARK: - Story Recall
+    // MARK: - Subtest 6: Logical Memory (30 pts)
 
     static let storyRecallListeningTitle = "Listen carefully to\nthis short story"
 
-    static let storyRecallListeningSubtitle = "The avatar is reading a story.\nPay close attention."
+    static let storyRecallListeningSubtitle = "I will read the story once.\nPay close attention."
 
-    static let storyRecallRecallingTitle = "Now tell me everything\nyou remember"
+    static let storyRecallRecallingTitle = "Tell me as much of the\nstory as you can"
 
-    static let storyRecallRecallingSubtitle = "Take your time. Say everything\nyou can recall."
+    static let storyRecallRecallingSubtitle = "Take your time.\nRecall as many exact words as possible."
 
-    static let storyRecallIntro = "I'm going to read you a short story. Listen carefully and try to remember as much of it as you can. When I'm finished, I'll ask you to tell me everything you can recall — even small details. Ready?"
+    static let storyRecallIntro = "I am going to read you a short story. When I am finished, tell me as much of the story as you can."
 
-    static let storyRecallPrompt = "Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can."
+    static let storyRecallPrompt = "Now tell me as much of the story as you can remember."
 
-    static let storyRecallFollowup = "Anything else you can remember?"
-
-    // MARK: - Word Recall
-
-    static let wordRecallTitle = "What were the 5 words?"
-
-    // MARK: - Word Recall
-
-    static let wordRecallPrompt = "What were those five words I asked you to remember earlier?"
-
-    static let wordRecallFollowupPartial = "Can you remember any of the other words?"
-
-    static let wordRecallFollowupZero = "Take your time. Try to think back — can you recall any of the words I asked you to remember?"
+    static let storyRecallFollowup = "Anything else?"
 
     // MARK: - Closing
 
-    static let closingThankYou = "That's everything — thank you so much for your time and effort today. Your clinician will review the results and follow up with you."
+    static let closingThankYou = "That's everything. Thank you for your time and effort today. Your clinician will review the results and follow up with you."
+
+    // MARK: - QDRS (Caregiver Flow)
+
+    static let qdrsIntro = "Thank you for being here today. I have ten brief questions about any changes you may have noticed in the patient's everyday memory and activities. There are no right or wrong answers. Please answer based on what you've observed."
+
+    static let qdrsCompletion = "Thank you for answering those questions. That information is very helpful. The clinician will review your responses."
 }

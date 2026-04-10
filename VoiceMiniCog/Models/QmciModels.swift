@@ -94,21 +94,23 @@ enum OrientationAnswerType {
     case country
 }
 
+// QMCI protocol order: country, year, month, date, day of week
+// 2 pts each, max 10 sec per answer, no hints
 let ORIENTATION_ITEMS: [OrientationItem] = [
-    OrientationItem(id: 0, question: "What year is it?", voicePrompt: "What year is it?", correctAnswerType: .year),
-    OrientationItem(id: 1, question: "What month is it?", voicePrompt: "What month is it?", correctAnswerType: .month),
-    OrientationItem(id: 2, question: "What day of the week is it?", voicePrompt: "What day of the week is it?", correctAnswerType: .dayOfWeek),
+    OrientationItem(id: 0, question: "What country are we in?", voicePrompt: "What country are we in?", correctAnswerType: .country),
+    OrientationItem(id: 1, question: "What year is it?", voicePrompt: "What year is it?", correctAnswerType: .year),
+    OrientationItem(id: 2, question: "What month is it?", voicePrompt: "What month is it?", correctAnswerType: .month),
     OrientationItem(id: 3, question: "What is today's date?", voicePrompt: "What is today's date?", correctAnswerType: .date),
-    OrientationItem(id: 4, question: "What country are we in?", voicePrompt: "What country are we in?", correctAnswerType: .country),
+    OrientationItem(id: 4, question: "What day of the week is it?", voicePrompt: "What day of the week is it?", correctAnswerType: .dayOfWeek),
 ]
 
 // MARK: - Registration Word Lists (5 words each)
 
+// Validated QMCI word sets — use alternates for repeat testing to reduce practice effects
 let QMCI_WORD_LISTS: [[String]] = [
-    ["butter", "arm", "shore", "letter", "queen"],
-    ["cabin", "pipe", "elephant", "chest", "silk"],
-    ["bell", "coffee", "school", "parent", "moon"],
-    ["engine", "dollar", "bridge", "ticket", "grass"],
+    ["dog", "rain", "butter", "love", "door"],       // Standard set
+    ["cat", "dark", "rat", "heat", "bread"],          // Alternate set 2
+    ["fear", "round", "bed", "chair", "fruit"],       // Alternate set 3
 ]
 
 // MARK: - Logical Memory Stories
@@ -121,27 +123,40 @@ struct LogicalMemoryStory: Identifiable {
     let maxScore: Int = 30
 }
 
+// Validated QMCI Logical Memory stories — verbatim recall only, 2 pts per key word
+// Use alternates for repeat testing to reduce practice effects
 let LOGICAL_MEMORY_STORIES: [LogicalMemoryStory] = [
     LogicalMemoryStory(
         id: 0,
-        text: "Anna Thompson of South Boston, employed as a cook in a school cafeteria, reported at the police station that she had been held up on State Street the night before, and robbed of fifty-six dollars. She had four small children, the rent was due, and they had not eaten for two days. The officers, touched by the woman's story, took up a collection for her.",
-        voiceText: "Anna Thompson, of South Boston, employed as a cook in a school cafeteria, reported at the police station that she had been held up on State Street the night before and robbed of fifty-six dollars. She had four small children, the rent was due, and they had not eaten for two days. The officers, touched by the woman's story, took up a collection for her.",
+        text: "The red fox ran across the ploughed field. It was a hot May morning. It was chased by a brown dog. The blossoms were forming on the bushes.",
+        voiceText: "The red fox ran across the ploughed field. It was a hot May morning. It was chased by a brown dog. The blossoms were forming on the bushes.",
         scoringUnits: [
-            "Anna", "Thompson", "South Boston", "cook", "school cafeteria",
-            "police station", "held up", "State Street", "night before",
-            "robbed", "fifty-six dollars", "four children", "rent due",
-            "not eaten", "two days", "officers", "collection"
+            "red", "fox", "ran", "across", "ploughed",
+            "field", "hot", "May", "morning",
+            "chased", "brown", "dog", "blossoms",
+            "forming", "bushes"
         ]
     ),
     LogicalMemoryStory(
         id: 1,
-        text: "Robert Miller of the town of Denton, a truck driver for a local oil company, was walking home late one evening through a park when a young man stepped out from behind a tree and demanded his wallet. Robert gave him the wallet which contained thirty-two dollars and a photograph of his daughter. He called the police from a nearby store.",
-        voiceText: "Robert Miller, of the town of Denton, a truck driver for a local oil company, was walking home late one evening through a park when a young man stepped out from behind a tree and demanded his wallet. Robert gave him the wallet, which contained thirty-two dollars and a photograph of his daughter. He called the police from a nearby store.",
+        text: "The brown dog ran across the metal bridge. It was a cold October day. It was hunting a white rabbit. The ripe apples were hanging on the trees.",
+        voiceText: "The brown dog ran across the metal bridge. It was a cold October day. It was hunting a white rabbit. The ripe apples were hanging on the trees.",
         scoringUnits: [
-            "Robert", "Miller", "Denton", "truck driver", "oil company",
-            "walking home", "late evening", "park", "young man",
-            "behind a tree", "demanded", "wallet", "thirty-two dollars",
-            "photograph", "daughter", "called police", "nearby store"
+            "brown", "dog", "ran", "across", "metal",
+            "bridge", "cold", "October", "day",
+            "hunting", "white", "rabbit", "ripe",
+            "apples", "trees"
+        ]
+    ),
+    LogicalMemoryStory(
+        id: 2,
+        text: "The white hen walked across the concrete road. It was a warm September afternoon. It was followed by a black cat. The dry leaves were blowing in the wind.",
+        voiceText: "The white hen walked across the concrete road. It was a warm September afternoon. It was followed by a black cat. The dry leaves were blowing in the wind.",
+        scoringUnits: [
+            "white", "hen", "walked", "across", "concrete",
+            "road", "warm", "September", "afternoon",
+            "followed", "black", "cat", "dry",
+            "leaves", "wind"
         ]
     ),
 ]

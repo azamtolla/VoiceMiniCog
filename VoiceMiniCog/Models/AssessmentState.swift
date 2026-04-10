@@ -454,75 +454,61 @@ class AssessmentState: Codable {
         return phase.prompt
     }
 
+    // MARK: - QMCI Protocol Prompts (verbatim examiner scripts)
+
     func getWordIntroPrompt() -> String {
-        let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
-        return "I'm going to read you five words. Please listen carefully and try to remember them — I'll ask you about them again later. The words are: \(wordList.joined(separator: "... "))."
+        return LeftPaneSpeechCopy.wordRegistrationIntro
     }
 
     func getRepeatPrompt() -> String {
-        return "Can you repeat those words for me?"
+        return LeftPaneSpeechCopy.wordRegistrationRepeat
     }
 
     func getRetryPrompt(attempt: Int, lastScore: Int) -> String {
         let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
-        // Neutral language — no praise for partial scores (clinically non-standard)
-        return "Let me read those words one more time: \(wordList.joined(separator: "... ")). Can you say those back to me?"
+        return LeftPaneSpeechCopy.wordRegistrationRetry(words: wordList)
     }
 
     func getRecallFollowupPrompt(count: Int) -> String {
-        if count == 0 {
-            return "Take your time. Try to think back — can you recall any of the words I asked you to remember?"
-        } else {
-            // Neutral — no count praise
-            return "Can you remember any of the other words?"
-        }
+        // QMCI protocol: no hints or prompts during delayed recall — 30 seconds, silence
+        return ""
     }
 
     func getThankYouPrompt() -> String {
-        return "Thank you."
+        return LeftPaneSpeechCopy.closingThankYou
     }
 
     func getTransitionToClockPrompt() -> String {
-        return "Great. Now we're going to do something a little different."
+        return LeftPaneSpeechCopy.clockDrawingInstruction
     }
 
     func getClockInstructionsPrompt() -> String {
-        return "Now I'd like you to draw a clock face. Put in all twelve numbers. Then draw the hands to show the time eleven ten — like ten minutes after eleven o'clock."
+        return LeftPaneSpeechCopy.clockDrawingInstruction
     }
 
     func getQDRSIntroPrompt() -> String {
-        "Thank you for being here today. Before we begin the memory exercises, I have ten brief questions for you — the caregiver or family member. I'll ask you about any changes you may have noticed in the patient's everyday memory and activities. There are no right or wrong answers. Please answer based on what you've observed."
+        return LeftPaneSpeechCopy.qdrsIntro
     }
 
     func getQDRSQuestionPrompt(index: Int) -> String {
         guard index < QDRS_QUESTIONS.count else { return "" }
-        let q = QDRS_QUESTIONS[index]
-        // Avatar speaks full canonical question text — no shortened aliases
-        return q.voicePrompt
+        return QDRS_QUESTIONS[index].voicePrompt
     }
 
     func getQDRSCompletionPrompt() -> String {
-        "Thank you for answering those questions. That information is very helpful. Now we'll move on to the memory exercises."
+        return LeftPaneSpeechCopy.qdrsCompletion
     }
 
     func getStoryRecallPrompt() -> String {
-        return "Now tell me everything you can remember about that story — start from the beginning and tell me as much as you can."
+        return LeftPaneSpeechCopy.storyRecallPrompt
     }
 
     func getStoryRecallFollowupPrompt() -> String {
-        return "Anything else you can remember?"
-    }
-
-    func getVerbalFluencyMidTimerPrompt() -> String {
-        return "Good, keep going."
-    }
-
-    func getPHQ2IntroPrompt() -> String {
-        return "Just two more questions. These are about how you've been feeling recently — not about memory."
+        return LeftPaneSpeechCopy.storyRecallFollowup
     }
 
     func getFinalThankYouPrompt() -> String {
-        return "That's everything — thank you so much for your time and effort today. Your clinician will review the results and follow up with you."
+        return LeftPaneSpeechCopy.closingThankYou
     }
 
     // MARK: - Phase name mapping for stepper

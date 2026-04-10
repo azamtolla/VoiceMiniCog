@@ -46,8 +46,11 @@ enum AssessmentFlowType: String, Codable {
     var phaseSequence: [AssessmentPhaseID] {
         switch self {
         case .quick, .extended:
+            // QMCI protocol order: Orientation → Registration → Clock Drawing →
+            // Delayed Recall → Verbal Fluency → Logical Memory
+            // Clock Drawing serves as the distractor interval between registration and recall
             return [.welcome, .orientation, .wordRegistration, .clockDrawing,
-                    .verbalFluency, .storyRecall, .wordRecall]
+                    .wordRecall, .verbalFluency, .storyRecall]
         case .caregiver:
             return [.welcome, .qdrs, .completion]
         }

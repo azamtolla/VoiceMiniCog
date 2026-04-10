@@ -206,10 +206,7 @@ struct VerbalFluencyPhaseView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if timeRemaining > 0 {
                 timeRemaining -= 1
-                // Mid-timer encouragement at 30 seconds
-                if timeRemaining == 30 {
-                    avatarSpeak(LeftPaneSpeechCopy.verbalFluencyMidTimer)
-                }
+                // QMCI protocol: examiner stays silent during timed tasks — no prompts
             } else {
                 stopTimer()
                 qmciState.verbalFluencyWords = wordsEntered

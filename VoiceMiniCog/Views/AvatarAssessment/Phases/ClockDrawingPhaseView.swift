@@ -29,7 +29,7 @@ struct ClockDrawingPhaseView: View {
 
     @State private var lines: [[CGPoint]] = []
     @State private var currentLine: [CGPoint] = []
-    @State private var timeRemaining = 180 // 3 minutes
+    @State private var timeRemaining = 60 // QMCI protocol: exactly 1 minute
     @State private var timer: Timer?
     @State private var contentVisible = false
 
@@ -127,6 +127,7 @@ struct ClockDrawingPhaseView: View {
             if timeRemaining > 0 {
                 timeRemaining -= 1
             } else {
+                avatarSpeak(LeftPaneSpeechCopy.clockDrawingStop)
                 timer?.invalidate()
                 layoutManager.advanceToNextPhase()
             }

@@ -65,7 +65,7 @@ struct WordRecallPhaseView: View {
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             // MARK: Title
-            Text(LeftPaneSpeechCopy.wordRecallTitle)
+            Text(LeftPaneSpeechCopy.delayedRecallTitle)
                 .font(AssessmentTheme.Fonts.question)
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
@@ -144,7 +144,7 @@ struct WordRecallPhaseView: View {
                 contentVisible = true
             }
             layoutManager.setAvatarSpeaking()
-            avatarSpeak(LeftPaneSpeechCopy.wordRecallPrompt)
+            avatarSpeak(LeftPaneSpeechCopy.delayedRecallPrompt)
             // Switch to listening after avatar finishes speaking (~3s)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                 layoutManager.setAvatarListening()
