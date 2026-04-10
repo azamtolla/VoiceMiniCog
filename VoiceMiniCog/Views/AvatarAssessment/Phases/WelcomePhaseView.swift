@@ -2,8 +2,9 @@
 //  WelcomePhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 1 — Welcome screen. Avatar delivers full engaging intro script.
-//  "Begin Assessment" button only appears after the avatar finishes speaking.
+//  Phase 1 — Welcome screen. Avatar introduces the assessment as a
+//  neuropsychologist. Each subtest row reveals as the avatar describes it.
+//  Begin Assessment button appears with a bounce after the avatar finishes.
 //
 
 import SwiftUI
@@ -12,69 +13,94 @@ import SwiftUI
 
 struct WelcomePhaseView: View {
 
-    // MARK: Properties
-
     let layoutManager: AvatarLayoutManager
 
     @State private var showBeginButton = false
+    @State private var buttonBounce = false
+    @State private var revealedSubtests = 0
+    @State private var headerVisible = false
 
-    // MARK: Body
+    // Timing: seconds after avatar starts speaking when each subtest is mentioned.
+    // Matches the neuropsychologist intro script structure.
+    private let subtestRevealDelays: [Double] = [
+        16,   // Orientation — "First, I will ask you a few orientation questions..."
+        26,   // Word Learning — "Second, I will read you five words..."
+        36,   // Clock Drawing — "Third, I will ask you to draw a clock face..."
+        46,   // Word Recall — "Fourth, I will ask you to recall those five words..."
+        54,   // Verbal Fluency — "Fifth, I will ask you to name as many animals..."
+        64,   // Story Recall — "And finally, I will read you a short story..."
+    ]
+
+    // Begin button appears after avatar finishes (~85 seconds)
+    private let beginButtonDelay: Double = 80
 
     var body: some View {
         VStack(spacing: 0) {
 
             Spacer()
 
-            // MARK: Brain Icon
-            Image(systemName: "brain.head.profile")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 44)
-                .foregroundStyle(layoutManager.accentColor)
-                .padding(.bottom, 14)
+            // MARK: Header (fades in immediately)
+            Group {
+                Image(systemName: "brain.head.profile")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(layoutManager.accentColor)
+                    .assessmentIconHeaderAccent(layoutManager.accentColor)
+                    .padding(.bottom, 14)
 
-            // MARK: Title
-            Text("Brain Health Assessment")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                .multilineTextAlignment(.center)
-                .padding(.bottom, 6)
+                Text(LeftPaneSpeechCopy.welcomeTitle)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 6)
 
-            // MARK: Subtitle
-            Text("6 cognitive activities, about 5-7 minutes")
-                .font(AssessmentTheme.Fonts.helper)
-                .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.bottom, 24)
+                Text("6 cognitive activities, about 3-5 minutes")
+                    .font(AssessmentTheme.Fonts.helper)
+                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, 24)
+            }
+            .opacity(headerVisible ? 1 : 0)
+            .offset(y: headerVisible ? 0 : 10)
 
-            // MARK: Subtest List Card
+            // MARK: Subtest List Card — rows reveal one by one
             VStack(spacing: 0) {
                 ForEach(Array(QmciSubtest.allCases.enumerated()), id: \.element) { index, subtest in
-                    SubtestRow(subtest: subtest, accentColor: layoutManager.accentColor)
+                    if index < revealedSubtests {
+                        SubtestRow(subtest: subtest, accentColor: layoutManager.accentColor)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                removal: .opacity
+                            ))
 
-                    if index < QmciSubtest.allCases.count - 1 {
-                        Divider()
-                            .padding(.leading, 44)
+                        if index < QmciSubtest.allCases.count - 1 && index < revealedSubtests - 1 {
+                            Divider()
+                                .padding(.leading, 44)
+                                .transition(.opacity)
+                        }
                     }
                 }
             }
             .padding(.vertical, 8)
-            .background(AssessmentTheme.Content.surface)
+            .background(revealedSubtests > 0 ? AssessmentTheme.Content.surface : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(
-                color: AssessmentTheme.Content.shadowColor.opacity(0.08),
+                color: revealedSubtests > 0
+                    ? AssessmentTheme.Content.shadowColor.opacity(0.08)
+                    : Color.clear,
                 radius: 12,
                 y: 2
             )
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .animation(.easeOut(duration: 0.4), value: revealedSubtests)
 
             Spacer()
 
-            // MARK: Begin Assessment Button — only visible after avatar finishes intro
+            // MARK: Begin Assessment Button — bouncy entrance after avatar finishes
             if showBeginButton {
                 Button {
-                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                    generator.impactOccurred()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     layoutManager.advanceToNextPhase()
                 } label: {
                     HStack(spacing: 8) {
@@ -92,21 +118,57 @@ struct WelcomePhaseView: View {
                         radius: 8,
                         y: 4
                     )
+                    .scaleEffect(buttonBounce ? 1.0 : 0.85)
                 }
+                .buttonStyle(AssessmentPrimaryButtonStyle())
                 .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
 
-            // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
         .onAppear {
+            // 1. Show header immediately
+            withAnimation(.easeOut(duration: 0.4)) {
+                headerVisible = true
+            }
+
+            // 2. Set neuropsychologist context
             avatarSetContext("You are a board-certified clinical neuropsychologist introducing a standardized cognitive assessment. Speak with a calm, measured, professional tone. Warm but clinical. Clear enunciation, moderate pace. No slang, no exclamation marks, no performance feedback. After the introduction, instruct the patient to press the Begin Assessment button.")
+
+            // 3. Avatar speaks the full intro
             avatarSpeak(welcomeIntroScript)
+
+            // 4. Reveal each subtest row timed to the avatar's speech
+            for (index, delay) in subtestRevealDelays.enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                        revealedSubtests = index + 1
+                    }
+                }
+            }
+
+            // 5. Show Begin button with bounce after avatar finishes
+            DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonDelay) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+                    showBeginButton = true
+                    buttonBounce = true
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
-            withAnimation(.easeInOut(duration: 0.4)) {
-                showBeginButton = true
+            // Backup: if avatar finishes before timer, show button immediately
+            if !showBeginButton {
+                // Reveal any remaining subtests
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    revealedSubtests = QmciSubtest.allCases.count
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+                        showBeginButton = true
+                        buttonBounce = true
+                    }
+                }
             }
         }
     }
@@ -164,7 +226,7 @@ private struct SubtestRow: View {
 
 #Preview {
     WelcomePhaseView(
-        layoutManager: AvatarLayoutManager(),
+        layoutManager: AvatarLayoutManager()
     )
     .background(AssessmentTheme.Content.background)
 }
