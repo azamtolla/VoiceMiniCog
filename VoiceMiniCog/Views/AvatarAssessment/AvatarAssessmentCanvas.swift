@@ -14,6 +14,7 @@ import SwiftUI
 struct AvatarAssessmentCanvas: View {
 
     let flowType: AssessmentFlowType
+    let sessionID: UUID
     @Bindable var assessmentState: AssessmentState
     var tavusService: TavusService
     let onComplete: () -> Void
@@ -86,6 +87,12 @@ struct AvatarAssessmentCanvas: View {
         .onChange(of: flowType) { _, newFlow in
             layoutManager.flowType = newFlow
             layoutManager.currentPhase = .welcome
+        }
+        .onChange(of: sessionID) { _, _ in
+            // New assessment started — reset to welcome regardless of flow type
+            layoutManager.flowType = flowType
+            layoutManager.currentPhase = .welcome
+            avatarDismissed = false
         }
         .pauseSheet(
             isPresented: $showPauseSheet,
@@ -260,6 +267,7 @@ private extension View {
 #Preview {
     AvatarAssessmentCanvas(
         flowType: .quick,
+        sessionID: UUID(),
         assessmentState: AssessmentState(),
         tavusService: TavusService.shared,
         onComplete: {},

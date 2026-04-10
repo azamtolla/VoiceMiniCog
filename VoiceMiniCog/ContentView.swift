@@ -36,11 +36,10 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // MARK: Cognitive Assessment Canvas — in hierarchy when not in caregiver mode
-            // Only one TavusCVIView can hold the Daily WebRTC connection at a time.
-            if currentScreen != .caregiverAssessment {
+            // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
             AvatarAssessmentCanvas(
                 flowType: flowType,
+                sessionID: sessionID,
                 assessmentState: assessmentState,
                 tavusService: TavusService.shared,
                 onComplete: {
@@ -58,8 +57,6 @@ struct ContentView: View {
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
-            .id(sessionID) // Forces full recreation on new assessment start
-            } // end if not caregiver
 
             // MARK: Caregiver QDRS — created on demand, shares pre-warmed conversation
             if currentScreen == .caregiverAssessment {
