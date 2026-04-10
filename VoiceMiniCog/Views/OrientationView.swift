@@ -99,12 +99,12 @@ struct OrientationView: View {
                         .onSubmit { checkAnswer() }
 
                     // Result indicator (legacy view — avatar flow uses auto-advance)
-                    if showResult, let answer = qmciState.orientationAnswers[currentIndex] {
+                    if showResult, let score = qmciState.orientationScores[currentIndex] {
                         HStack(spacing: 8) {
-                            Image(systemName: answer ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            Image(systemName: score >= 2 ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .font(.system(size: 20))
                         }
-                        .foregroundColor(answer ? MCDesign.Colors.success : MCDesign.Colors.error)
+                        .foregroundColor(score >= 2 ? MCDesign.Colors.success : MCDesign.Colors.error)
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -135,13 +135,13 @@ struct OrientationView: View {
         guard currentIndex < ORIENTATION_ITEMS.count else { return }
         let item = ORIENTATION_ITEMS[currentIndex]
         let correct = scoreOrientationAnswer(type: item.correctAnswerType, transcript: patientAnswer)
-        qmciState.orientationAnswers[currentIndex] = correct
+        qmciState.orientationScores[currentIndex] = correct ? 2 : 0
         showResult = true
         advanceAfterDelay()
     }
 
     private func scoreManual(correct: Bool) {
-        qmciState.orientationAnswers[currentIndex] = correct
+        qmciState.orientationScores[currentIndex] = correct ? 2 : 0
         showResult = true
         advanceAfterDelay()
     }
@@ -163,7 +163,7 @@ struct OrientationView: View {
         guard currentIndex > 0 else { return }
         currentIndex -= 1
         patientAnswer = ""
-        qmciState.orientationAnswers[currentIndex] = nil
+        qmciState.orientationScores[currentIndex] = nil
     }
 }
 

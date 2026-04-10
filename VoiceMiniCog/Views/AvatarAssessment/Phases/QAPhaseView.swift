@@ -213,8 +213,10 @@ struct QAPhaseView: View {
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
 
-        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
-            assessmentState.qmciState.orientationAnswers[currentIndex] = true
+        // Avatar cannot judge correctness — default to full credit (2 pts).
+        // The clinician will adjust to 0/1/2 in the PCP report.
+        if currentIndex < assessmentState.qmciState.orientationScores.count {
+            assessmentState.qmciState.orientationScores[currentIndex] = 2
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -300,16 +302,17 @@ struct QAPhaseView: View {
     // MARK: - Orientation Dot Color
 
     private func orientationDotColor(at index: Int) -> Color {
-        guard index < assessmentState.qmciState.orientationAnswers.count else {
+        guard index < assessmentState.qmciState.orientationScores.count else {
             return Color.gray.opacity(0.2)
         }
-        guard let answer = assessmentState.qmciState.orientationAnswers[safe: index] else {
+        guard let score = assessmentState.qmciState.orientationScores[safe: index] ?? nil else {
             return Color.gray.opacity(0.2)
         }
-        if let correct = answer {
-            return correct ? Color(hex: "#34C759") : Color(hex: "#FF3B30")
+        switch score {
+        case 2:  return Color(hex: "#34C759")   // full credit — green
+        case 1:  return Color(hex: "#FF9500")   // partial credit — orange
+        default: return Color(hex: "#FF3B30")   // no credit — red
         }
-        return Color.gray.opacity(0.2)
     }
 }
 

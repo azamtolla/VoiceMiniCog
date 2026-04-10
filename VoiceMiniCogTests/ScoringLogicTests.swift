@@ -206,26 +206,40 @@ class QmciScoringTests: XCTestCase {
 
     func testOrientationAllCorrect() {
         let state = QmciState()
-        state.orientationAnswers = [true, true, true, true, true]
+        state.orientationScores = [2, 2, 2, 2, 2]
         XCTAssertEqual(state.orientationScore, 10, "5 correct × 2 pts = 10")
     }
 
     func testOrientationAllIncorrect() {
         let state = QmciState()
-        state.orientationAnswers = [false, false, false, false, false]
+        state.orientationScores = [0, 0, 0, 0, 0]
         XCTAssertEqual(state.orientationScore, 0)
     }
 
     func testOrientationPartialCredit() {
         let state = QmciState()
-        state.orientationAnswers = [true, false, true, false, true]
+        state.orientationScores = [2, 0, 2, 0, 2]
         XCTAssertEqual(state.orientationScore, 6, "3 correct × 2 pts = 6")
     }
 
     func testOrientationNilCountsAsIncorrect() {
         let state = QmciState()
-        state.orientationAnswers = [true, nil, nil, nil, true]
-        XCTAssertEqual(state.orientationScore, 4, "Nils filtered out, 2 true × 2 = 4")
+        state.orientationScores = [2, nil, nil, nil, 2]
+        XCTAssertEqual(state.orientationScore, 4, "Nils filtered out, 2 full × 2 = 4")
+    }
+
+    func testOrientationThreeLevelScoring() {
+        let state = QmciState()
+        // QMCI 3-level: 2 + 1 + 2 + 0 + 1 = 6
+        state.orientationScores = [2, 1, 2, 0, 1]
+        XCTAssertEqual(state.orientationScore, 6, "3-level scoring sums directly")
+    }
+
+    func testOrientationCappedAtTen() {
+        let state = QmciState()
+        // Defensive: summing to > 10 should be clamped
+        state.orientationScores = [2, 2, 2, 2, 2]
+        XCTAssertEqual(state.orientationScore, 10, "Capped at 10")
     }
 
     // MARK: Registration
@@ -325,7 +339,7 @@ class QmciScoringTests: XCTestCase {
 
     func testTotalScorePerfect() {
         let state = QmciState()
-        state.orientationAnswers = [true, true, true, true, true]  // 10
+        state.orientationScores = [2, 2, 2, 2, 2]  // 10
         state.registrationRecalledWords = ["a", "b", "c", "d", "e"]  // 5
         state.clockDrawingScore = 15  // 15
         state.verbalFluencyWords = (0..<20).map { "animal\($0)" }  // 20
@@ -338,7 +352,7 @@ class QmciScoringTests: XCTestCase {
     func testClassificationNormalBoundary() {
         let state = QmciState()
         // Set up to get exactly 67
-        state.orientationAnswers = [true, true, true, true, true]  // 10
+        state.orientationScores = [2, 2, 2, 2, 2]  // 10
         state.registrationRecalledWords = ["a", "b", "c", "d", "e"]  // 5
         state.clockDrawingScore = 12  // 12
         state.verbalFluencyWords = (0..<20).map { "a\($0)" }  // 20
@@ -352,7 +366,7 @@ class QmciScoringTests: XCTestCase {
     func testClassificationMCIBoundary() {
         let state = QmciState()
         // totalScore = 66 → MCI Probable
-        state.orientationAnswers = [true, true, true, true, true]  // 10
+        state.orientationScores = [2, 2, 2, 2, 2]  // 10
         state.registrationRecalledWords = ["a", "b", "c", "d", "e"]  // 5
         state.clockDrawingScore = 11  // 11
         state.verbalFluencyWords = (0..<20).map { "a\($0)" }  // 20
@@ -366,7 +380,7 @@ class QmciScoringTests: XCTestCase {
     func testClassificationMCILowerBoundary() {
         let state = QmciState()
         // totalScore = 54 → MCI Probable (not dementia)
-        state.orientationAnswers = [true, true, true, true, true]  // 10
+        state.orientationScores = [2, 2, 2, 2, 2]  // 10
         state.registrationRecalledWords = ["a", "b", "c", "d"]  // 4
         state.clockDrawingScore = 0  // 0
         state.verbalFluencyWords = (0..<20).map { "a\($0)" }  // 20
@@ -380,7 +394,7 @@ class QmciScoringTests: XCTestCase {
     func testClassificationDementiaBoundary() {
         let state = QmciState()
         // totalScore = 53 → Dementia Range
-        state.orientationAnswers = [true, true, true, true, true]  // 10
+        state.orientationScores = [2, 2, 2, 2, 2]  // 10
         state.registrationRecalledWords = ["a", "b", "c"]  // 3
         state.clockDrawingScore = 0  // 0
         state.verbalFluencyWords = (0..<20).map { "a\($0)" }  // 20
@@ -521,7 +535,7 @@ class CompositeRiskTests: XCTestCase {
     func testQmciQDRSBothPositiveIsHigh() {
         let qmci = QmciState()
         // Score < 54 → dementia range → isPositive = true
-        qmci.orientationAnswers = [false, false, false, false, false]  // 0
+        qmci.orientationScores = [0, 0, 0, 0, 0]  // 0
         qmci.clockDrawingScore = 0
         let qdrs = QDRSState()
         qdrs.answers[0] = .changed; qdrs.answers[1] = .changed  // 2.0
@@ -534,7 +548,7 @@ class CompositeRiskTests: XCTestCase {
 
     func testQmciQDRSBothNegativeIsLow() {
         let qmci = QmciState()
-        qmci.orientationAnswers = [true, true, true, true, true]  // 10
+        qmci.orientationScores = [2, 2, 2, 2, 2]  // 10
         qmci.registrationRecalledWords = ["a", "b", "c", "d", "e"]  // 5
         qmci.clockDrawingScore = 15
         qmci.verbalFluencyWords = (0..<20).map { "a\($0)" }  // 20
@@ -555,7 +569,7 @@ class CompositeRiskTests: XCTestCase {
         let qmci = QmciState()
         let qdrs = QDRSState()
         // Both negative → low risk
-        qmci.orientationAnswers = [true, true, true, true, true]
+        qmci.orientationScores = [2, 2, 2, 2, 2]
         qmci.registrationRecalledWords = ["a", "b", "c", "d", "e"]
         qmci.clockDrawingScore = 15
         qmci.verbalFluencyWords = (0..<20).map { "a\($0)" }
@@ -574,7 +588,7 @@ class CompositeRiskTests: XCTestCase {
     func testPHQ2NegativeNoDepressionAction() {
         let qmci = QmciState()
         let qdrs = QDRSState()
-        qmci.orientationAnswers = [true, true, true, true, true]
+        qmci.orientationScores = [2, 2, 2, 2, 2]
         qmci.registrationRecalledWords = ["a", "b", "c", "d", "e"]
         qmci.clockDrawingScore = 15
         qmci.verbalFluencyWords = (0..<20).map { "a\($0)" }
@@ -591,7 +605,7 @@ class CompositeRiskTests: XCTestCase {
 
     func testAbnormalClockUpgradesLow() {
         let qmci = QmciState()
-        qmci.orientationAnswers = [true, true, true, true, true]
+        qmci.orientationScores = [2, 2, 2, 2, 2]
         qmci.registrationRecalledWords = ["a", "b", "c", "d", "e"]
         qmci.clockDrawingScore = 15
         qmci.verbalFluencyWords = (0..<20).map { "a\($0)" }

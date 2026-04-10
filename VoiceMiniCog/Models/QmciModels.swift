@@ -168,7 +168,10 @@ let LOGICAL_MEMORY_STORIES: [LogicalMemoryStory] = [
 @Observable
 class QmciState: Codable {
     var currentSubtest: QmciSubtest = .orientation
-    var orientationAnswers: [Bool?] = Array(repeating: nil, count: 5)
+    /// QMCI orientation scoring — 3 levels per question:
+    /// 2 = completely correct, 1 = attempted but incorrect, 0 = no attempt / unrelated.
+    /// `nil` = unanswered. Final scoring is clinician-adjusted in the PCP report.
+    var orientationScores: [Int?] = Array(repeating: nil, count: 5)
     var registrationWords: [String] = []
     var registrationWordListIndex: Int = 0
     var registrationRecalledWords: [String] = []
@@ -185,8 +188,44 @@ class QmciState: Codable {
     var isComplete: Bool = false
     var clockDrawingScore: Int = 0
 
+    // MARK: - QMCI 15-point Clock Drawing (manual clinician scoring)
+    //
+    // QMCI protocol rubric for clock drawing (max 15 points):
+    //   • 1 point per correctly placed number (1-12)            → 12 pts max
+    //   • 1 point for minute hand pointing toward 2 (for 11:10) → 1 pt
+    //   • 1 point for hour hand pointing toward 11              → 1 pt
+    //   • 1 point for pivot (center point where hands meet)     → 1 pt
+    //   • -1 per duplicate number or number > 12
+    //
+    // Populated by the clinician in the PCP Report view. Call
+    // `recomputeClockDrawingScore()` after mutating any cdt* field to
+    // refresh `clockDrawingScore`.
+    var cdtNumbersPlaced: [Bool] = Array(repeating: false, count: 12)
+    var cdtMinuteHandCorrect: Bool = false
+    var cdtHourHandCorrect: Bool = false
+    var cdtPivotCorrect: Bool = false
+    var cdtInvalidNumbersCount: Int = 0
+
+    /// QMCI 15-point clock drawing score computed from detailed fields.
+    /// Clamped to 0...15.
+    var cdtComputedScore: Int {
+        let numberPoints = cdtNumbersPlaced.filter { $0 }.count
+        let minutePoint = cdtMinuteHandCorrect ? 1 : 0
+        let hourPoint = cdtHourHandCorrect ? 1 : 0
+        let pivotPoint = cdtPivotCorrect ? 1 : 0
+        let raw = numberPoints + minutePoint + hourPoint + pivotPoint - cdtInvalidNumbersCount
+        return max(0, min(15, raw))
+    }
+
+    /// Recompute `clockDrawingScore` from the detailed 15-point fields and
+    /// write it back to the stored property. Call whenever any cdt* field changes.
+    func recomputeClockDrawingScore() {
+        clockDrawingScore = cdtComputedScore
+    }
+
+    /// Sum of 3-level orientation scores (0, 1, or 2 per question). Max 10.
     var orientationScore: Int {
-        orientationAnswers.compactMap { $0 }.filter { $0 }.count * 2
+        min(orientationScores.compactMap { $0 }.reduce(0, +), 10)
     }
     var registrationScore: Int { min(registrationRecalledWords.count, 5) }
 
@@ -209,6 +248,37 @@ class QmciState: Codable {
         if totalScore >= 54 { return .mciProbable }
         return .dementiaRange
     }
+
+    /// Age/education-adjusted classification per QMCI normative guidance.
+    ///
+    /// - Patients >75 years old: add 3 points to raw score
+    /// - Patients with <12 years of education: add 4 points to raw score
+    /// - Both adjustments combine additively.
+    ///
+    /// The adjusted score is then compared against the standard QMCI cutoffs
+    /// (>=67 normal, >=54 MCI, <54 dementia range).
+    func adjustedClassification(age: Int, educationYears: Int) -> QmciClassification {
+        let adjusted = adjustedScore(age: age, educationYears: educationYears)
+        if adjusted >= 67 { return .normal }
+        if adjusted >= 54 { return .mciProbable }
+        return .dementiaRange
+    }
+
+    /// Returns the effective score used for normative classification.
+    func adjustedScore(age: Int, educationYears: Int) -> Int {
+        var score = totalScore
+        if age > 75 { score += 3 }
+        if educationYears < 12 { score += 4 }
+        return score
+    }
+
+    /// Human-readable list of adjustments applied for display in reports.
+    func adjustmentReasons(age: Int, educationYears: Int) -> [String] {
+        var reasons: [String] = []
+        if age > 75 { reasons.append("Age-adjusted: +3 for age >75") }
+        if educationYears < 12 { reasons.append("Education-adjusted: +4 for <12 years") }
+        return reasons
+    }
     var currentStory: LogicalMemoryStory {
         LOGICAL_MEMORY_STORIES[logicalMemoryStoryIndex % LOGICAL_MEMORY_STORIES.count]
     }
@@ -216,18 +286,32 @@ class QmciState: Codable {
     // MARK: - Codable (manual for @Observable)
 
     enum CodingKeys: String, CodingKey {
-        case currentSubtest, orientationAnswers, registrationWords, registrationWordListIndex
+        case currentSubtest, orientationScores, orientationAnswers
+        case registrationWords, registrationWordListIndex
         case registrationRecalledWords, registrationAttempts
         case verbalFluencyWords, verbalFluencyDurationSec, verbalFluencyTranscript
         case logicalMemoryStoryIndex, logicalMemoryRecalledUnits, logicalMemoryTranscript
         case delayedRecallWords, delayedRecallTranscript
         case completedSubtests, isComplete, clockDrawingScore
+        case cdtNumbersPlaced, cdtMinuteHandCorrect, cdtHourHandCorrect
+        case cdtPivotCorrect, cdtInvalidNumbersCount
     }
 
     required init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         currentSubtest = try c.decode(QmciSubtest.self, forKey: .currentSubtest)
-        orientationAnswers = try c.decode([Bool?].self, forKey: .orientationAnswers)
+        // Prefer the new 3-level scores field; fall back to legacy Bool? answers
+        // for backward compatibility with previously-saved assessments.
+        if let scores = try c.decodeIfPresent([Int?].self, forKey: .orientationScores) {
+            orientationScores = scores
+        } else if let legacy = try c.decodeIfPresent([Bool?].self, forKey: .orientationAnswers) {
+            orientationScores = legacy.map { bool in
+                guard let bool else { return nil }
+                return bool ? 2 : 0
+            }
+        } else {
+            orientationScores = Array(repeating: nil, count: 5)
+        }
         registrationWords = try c.decode([String].self, forKey: .registrationWords)
         registrationWordListIndex = try c.decode(Int.self, forKey: .registrationWordListIndex)
         registrationRecalledWords = try c.decode([String].self, forKey: .registrationRecalledWords)
@@ -243,12 +327,22 @@ class QmciState: Codable {
         completedSubtests = try c.decode(Set<QmciSubtest>.self, forKey: .completedSubtests)
         isComplete = try c.decode(Bool.self, forKey: .isComplete)
         clockDrawingScore = try c.decode(Int.self, forKey: .clockDrawingScore)
+        // QMCI 15-point detailed fields (optional for backward compat)
+        cdtNumbersPlaced = try c.decodeIfPresent([Bool].self, forKey: .cdtNumbersPlaced)
+            ?? Array(repeating: false, count: 12)
+        if cdtNumbersPlaced.count != 12 {
+            cdtNumbersPlaced = Array(repeating: false, count: 12)
+        }
+        cdtMinuteHandCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtMinuteHandCorrect) ?? false
+        cdtHourHandCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtHourHandCorrect) ?? false
+        cdtPivotCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtPivotCorrect) ?? false
+        cdtInvalidNumbersCount = try c.decodeIfPresent(Int.self, forKey: .cdtInvalidNumbersCount) ?? 0
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(currentSubtest, forKey: .currentSubtest)
-        try c.encode(orientationAnswers, forKey: .orientationAnswers)
+        try c.encode(orientationScores, forKey: .orientationScores)
         try c.encode(registrationWords, forKey: .registrationWords)
         try c.encode(registrationWordListIndex, forKey: .registrationWordListIndex)
         try c.encode(registrationRecalledWords, forKey: .registrationRecalledWords)
@@ -264,6 +358,11 @@ class QmciState: Codable {
         try c.encode(completedSubtests, forKey: .completedSubtests)
         try c.encode(isComplete, forKey: .isComplete)
         try c.encode(clockDrawingScore, forKey: .clockDrawingScore)
+        try c.encode(cdtNumbersPlaced, forKey: .cdtNumbersPlaced)
+        try c.encode(cdtMinuteHandCorrect, forKey: .cdtMinuteHandCorrect)
+        try c.encode(cdtHourHandCorrect, forKey: .cdtHourHandCorrect)
+        try c.encode(cdtPivotCorrect, forKey: .cdtPivotCorrect)
+        try c.encode(cdtInvalidNumbersCount, forKey: .cdtInvalidNumbersCount)
     }
 
     init() {}
@@ -285,12 +384,17 @@ class QmciState: Codable {
 
     func reset() {
         currentSubtest = .orientation
-        orientationAnswers = Array(repeating: nil, count: 5)
+        orientationScores = Array(repeating: nil, count: 5)
         registrationWords = []; registrationRecalledWords = []; registrationAttempts = 0
         verbalFluencyWords = []; verbalFluencyTranscript = ""
         logicalMemoryRecalledUnits = []; logicalMemoryTranscript = ""
         delayedRecallWords = []; delayedRecallTranscript = ""
         completedSubtests = []; isComplete = false; clockDrawingScore = 0
+        cdtNumbersPlaced = Array(repeating: false, count: 12)
+        cdtMinuteHandCorrect = false
+        cdtHourHandCorrect = false
+        cdtPivotCorrect = false
+        cdtInvalidNumbersCount = 0
         selectWordList(); selectStory()
     }
 }

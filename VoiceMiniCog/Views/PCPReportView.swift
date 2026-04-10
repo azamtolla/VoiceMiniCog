@@ -16,6 +16,7 @@ struct PCPReportView: View {
 
     @State private var showShareSheet = false
     @State private var pdfData: Data?
+    @State private var isClockScoringExpanded: Bool = true
 
     var body: some View {
         ScrollView {
@@ -36,10 +37,8 @@ struct PCPReportView: View {
                     qdrsSection
                 }
 
-                // 5. Clock Drawing
-                if state.clockImage != nil {
-                    clockSection
-                }
+                // 5. Clock Drawing (QMCI 15-point manual scoring + reference canvas)
+                clockSection
 
                 // 6. Depression Screen
                 if state.phq2State.isComplete {
@@ -192,10 +191,16 @@ struct PCPReportView: View {
 
     private var qmciProfileSection: some View {
         let q = state.qmciState
+        let age = state.patientAge
+        let edu = state.patientEducationYears
+        let adjustedClass = q.adjustedClassification(age: age, educationYears: edu)
+        let adjustedScore = q.adjustedScore(age: age, educationYears: edu)
+        let reasons = q.adjustmentReasons(age: age, educationYears: edu)
+        let hasAdjustments = !reasons.isEmpty
 
         return reportCard(title: "Cognitive Profile (Qmci)", icon: "brain", accentColor: MCDesign.Colors.primary700) {
             VStack(spacing: 14) {
-                // Total score
+                // Raw total score
                 HStack {
                     Text("\(q.totalScore)")
                         .font(.system(size: 40, weight: .bold))
@@ -212,6 +217,20 @@ struct PCPReportView: View {
                         .background(scoreColor(q.classification))
                         .cornerRadius(8)
                 }
+
+                Text("Raw score")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(MCDesign.Colors.textTertiary)
+                    .tracking(0.6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Demographics entry + adjusted classification
+                demographicsAndAdjustmentSection(
+                    adjustedClass: adjustedClass,
+                    adjustedScore: adjustedScore,
+                    reasons: reasons,
+                    hasAdjustments: hasAdjustments
+                )
 
                 // Subtest bars
                 ForEach(QmciSubtest.allCases, id: \.rawValue) { subtest in
@@ -253,45 +272,169 @@ struct PCPReportView: View {
         }
     }
 
-    // MARK: - Orientation Detail
+    // MARK: - Demographics + Normative Adjustment
 
-    private func orientationDetailSection(state q: QmciState) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-                .padding(.vertical, 4)
+    @ViewBuilder
+    private func demographicsAndAdjustmentSection(
+        adjustedClass: QmciClassification,
+        adjustedScore: Int,
+        reasons: [String],
+        hasAdjustments: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider().padding(.vertical, 2)
 
-            Text("ORIENTATION RESPONSES")
+            Text("NORMATIVE ADJUSTMENT")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(MCDesign.Colors.textTertiary)
                 .tracking(0.8)
 
-            ForEach(0..<ORIENTATION_ITEMS.count, id: \.self) { i in
-                let item = ORIENTATION_ITEMS[i]
-                let answered = i < q.orientationAnswers.count ? q.orientationAnswers[i] : nil
-
-                HStack(spacing: 8) {
-                    Image(systemName: answered == true ? "checkmark.circle.fill" :
-                          answered == false ? "xmark.circle.fill" : "circle")
+            // Clinician entry for age & education
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Age")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(MCDesign.Colors.textSecondary)
+                    TextField("Age", value: $state.patientAge, format: .number)
+                        .keyboardType(.numberPad)
                         .font(.system(size: 14))
-                        .foregroundColor(answered == true ? MCDesign.Colors.success :
-                                        answered == false ? MCDesign.Colors.error :
-                                        MCDesign.Colors.textTertiary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(MCDesign.Colors.surfaceInset)
+                        .cornerRadius(6)
+                }
 
-                    Text(item.question)
-                        .font(.system(size: 13))
-                        .foregroundColor(MCDesign.Colors.textPrimary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Years of Education")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(MCDesign.Colors.textSecondary)
+                    TextField("Education years", value: $state.patientEducationYears, format: .number)
+                        .keyboardType(.numberPad)
+                        .font(.system(size: 14))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(MCDesign.Colors.surfaceInset)
+                        .cornerRadius(6)
+                }
+            }
 
-                    Spacer()
+            // Adjusted score + classification
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Adjusted score")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.6)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(adjustedScore)")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundColor(scoreColor(adjustedClass))
+                        Text("/ 100")
+                            .font(.system(size: 13))
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                    }
+                }
 
-                    Text(answered == true ? "Correct" :
-                         answered == false ? "Incorrect" : "—")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(answered == true ? MCDesign.Colors.success :
-                                        answered == false ? MCDesign.Colors.error :
-                                        MCDesign.Colors.textTertiary)
+                Spacer()
+
+                Text(adjustedClass.rawValue)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(scoreColor(adjustedClass))
+                    .cornerRadius(7)
+            }
+            .padding(10)
+            .background(MCDesign.Colors.surfaceInset)
+            .cornerRadius(8)
+
+            // Adjustment reasoning
+            if hasAdjustments {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(reasons, id: \.self) { reason in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "info.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(MCDesign.Colors.primary700)
+                                .padding(.top, 2)
+                            Text(reason)
+                                .font(.system(size: 12))
+                                .foregroundColor(MCDesign.Colors.textSecondary)
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                    Text("No normative adjustments applied (age \u{2264} 75 and education \u{2265} 12 years).")
+                        .font(.system(size: 12))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
                 }
             }
         }
+    }
+
+    // MARK: - Orientation Detail
+
+    private func orientationDetailSection(state q: QmciState) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+                .padding(.vertical, 4)
+
+            HStack {
+                Text("ORIENTATION RESPONSES")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(MCDesign.Colors.textTertiary)
+                    .tracking(0.8)
+
+                Spacer()
+
+                Text("\(q.orientationScore)/10")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(MCDesign.Colors.textSecondary)
+            }
+
+            Text("Review each response and adjust the score. 2 = correct, 1 = attempted but incorrect, 0 = no attempt or unrelated.")
+                .font(.system(size: 11))
+                .foregroundColor(MCDesign.Colors.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(0..<ORIENTATION_ITEMS.count, id: \.self) { i in
+                orientationScoreRow(index: i, state: q)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func orientationScoreRow(index i: Int, state q: QmciState) -> some View {
+        let rawScore: Int? = (i < q.orientationScores.count) ? q.orientationScores[i] : nil
+        let currentScore = rawScore ?? 2
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text(ORIENTATION_ITEMS[i].question)
+                .font(.system(size: 13))
+                .foregroundColor(MCDesign.Colors.textPrimary)
+
+            Picker("Score", selection: Binding<Int>(
+                get: { currentScore },
+                set: { newValue in
+                    guard i < q.orientationScores.count else { return }
+                    q.orientationScores[i] = newValue
+                    // Refresh composite risk banner so it reflects the new total.
+                    computeResults()
+                }
+            )) {
+                Text("0").tag(0)
+                Text("1").tag(1)
+                Text("2").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+        }
+        .padding(.vertical, 4)
     }
 
     // MARK: - QDRS
@@ -331,38 +474,343 @@ struct PCPReportView: View {
     // MARK: - Clock
 
     private var clockSection: some View {
-        reportCard(title: "Clock Drawing", icon: "clock.fill", accentColor: MCDesign.Colors.clockAccent) {
-            HStack(spacing: 16) {
-                if let img = state.clockImage {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 100, height: 100)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(MCDesign.Colors.border, lineWidth: 1)
-                        )
+        let q = state.qmciState
+        let currentScore = q.cdtComputedScore
+
+        return reportCard(title: "Clock Drawing — QMCI 15-point Scoring",
+                          icon: "clock.fill",
+                          accentColor: MCDesign.Colors.clockAccent) {
+            VStack(alignment: .leading, spacing: 14) {
+                // MARK: - Header with drawing + current total
+                HStack(alignment: .top, spacing: 16) {
+                    // Drawing canvas (reference image)
+                    if let img = state.clockImage {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 140, height: 140)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(MCDesign.Colors.border, lineWidth: 1)
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(MCDesign.Colors.surfaceInset)
+                            .frame(width: 140, height: 140)
+                            .overlay(
+                                VStack(spacing: 4) {
+                                    Image(systemName: "clock.badge.questionmark")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(MCDesign.Colors.textTertiary)
+                                    Text("No drawing")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(MCDesign.Colors.textTertiary)
+                                }
+                            )
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Clinician Score")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                            .tracking(0.6)
+
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("\(currentScore)")
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(MCDesign.Colors.primary700)
+                            Text("/ 15")
+                                .font(.system(size: 16))
+                                .foregroundColor(MCDesign.Colors.textTertiary)
+                        }
+
+                        // Legacy AI score for reference (not authoritative)
+                        if let analysis = state.clockAnalysis {
+                            Text("AI reference: \(analysis.severity) (Shulman \(analysis.shulmanRange))")
+                                .font(.system(size: 10))
+                                .foregroundColor(MCDesign.Colors.textTertiary)
+                                .italic()
+                        }
+                    }
+
+                    Spacer()
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    if let score = state.clockScore {
-                        Text("AI Score: \(score)/2")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(MCDesign.Colors.textPrimary)
+                // MARK: - Expand/Collapse header
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isClockScoringExpanded.toggle()
                     }
-                    if let analysis = state.clockAnalysis {
-                        Text(analysis.severity)
-                            .font(.system(size: 13))
-                            .foregroundColor(MCDesign.Colors.textSecondary)
-                        Text("Shulman \(analysis.shulmanRange)")
-                            .font(.system(size: 12))
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: isClockScoringExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(MCDesign.Colors.primary700)
+                        Text(isClockScoringExpanded ? "Hide Manual Scoring" : "Show Manual Scoring")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(MCDesign.Colors.primary700)
+                        Spacer()
+                        Text("Clock Drawing: \(currentScore)/15")
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
                             .foregroundColor(MCDesign.Colors.textSecondary)
                     }
+                    .padding(10)
+                    .background(MCDesign.Colors.surfaceInset)
+                    .cornerRadius(8)
                 }
-                Spacer()
+                .buttonStyle(.plain)
+
+                // MARK: - Expanded rubric
+                if isClockScoringExpanded {
+                    clockRubricEditor
+                }
             }
         }
+    }
+
+    /// Clinician-editable rubric for QMCI 15-point clock drawing score.
+    /// Structure:
+    ///   • Numbers placed (12 checkboxes for 1..12, 1 pt each)
+    ///   • Minute hand correct (toward 2)
+    ///   • Hour hand correct (toward 11)
+    ///   • Pivot correct
+    ///   • Invalid-number penalty counter (-1 each)
+    private var clockRubricEditor: some View {
+        let q = state.qmciState
+
+        return VStack(alignment: .leading, spacing: 16) {
+            // --- Numbers placed section ---
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("NUMBERS PLACED (1 PT EACH)")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.6)
+                    Spacer()
+                    Text("\(q.cdtNumbersPlaced.filter { $0 }.count)/12")
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundColor(MCDesign.Colors.textSecondary)
+                }
+
+                let columns = [GridItem(.adaptive(minimum: 64), spacing: 8)]
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(0..<12, id: \.self) { idx in
+                        clockNumberToggle(index: idx)
+                    }
+                }
+            }
+
+            Divider()
+
+            // --- Hands + pivot section ---
+            VStack(alignment: .leading, spacing: 8) {
+                Text("HANDS & PIVOT (1 PT EACH)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(MCDesign.Colors.textTertiary)
+                    .tracking(0.6)
+
+                clockRubricRow(
+                    label: "Minute hand toward 2 (11:10)",
+                    isOn: Binding(
+                        get: { q.cdtMinuteHandCorrect },
+                        set: { newValue in
+                            q.cdtMinuteHandCorrect = newValue
+                            q.recomputeClockDrawingScore()
+                        }
+                    )
+                )
+                clockRubricRow(
+                    label: "Hour hand toward 11",
+                    isOn: Binding(
+                        get: { q.cdtHourHandCorrect },
+                        set: { newValue in
+                            q.cdtHourHandCorrect = newValue
+                            q.recomputeClockDrawingScore()
+                        }
+                    )
+                )
+                clockRubricRow(
+                    label: "Pivot (center where hands meet)",
+                    isOn: Binding(
+                        get: { q.cdtPivotCorrect },
+                        set: { newValue in
+                            q.cdtPivotCorrect = newValue
+                            q.recomputeClockDrawingScore()
+                        }
+                    )
+                )
+            }
+
+            Divider()
+
+            // --- Penalty counter ---
+            VStack(alignment: .leading, spacing: 8) {
+                Text("PENALTIES (-1 EACH)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(MCDesign.Colors.textTertiary)
+                    .tracking(0.6)
+
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Duplicate or >12 numbers")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(MCDesign.Colors.textPrimary)
+                        Text("Each duplicate or out-of-range number subtracts 1 point")
+                            .font(.system(size: 11))
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 10) {
+                        Button(action: {
+                            if q.cdtInvalidNumbersCount > 0 {
+                                q.cdtInvalidNumbersCount -= 1
+                                q.recomputeClockDrawingScore()
+                            }
+                        }) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(q.cdtInvalidNumbersCount > 0
+                                                 ? MCDesign.Colors.error
+                                                 : MCDesign.Colors.border)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(q.cdtInvalidNumbersCount == 0)
+
+                        Text("\(q.cdtInvalidNumbersCount)")
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundColor(MCDesign.Colors.textPrimary)
+                            .frame(minWidth: 24)
+
+                        Button(action: {
+                            q.cdtInvalidNumbersCount += 1
+                            q.recomputeClockDrawingScore()
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(MCDesign.Colors.primary700)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Divider()
+
+            // --- Total + reset ---
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TOTAL")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.6)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(q.cdtComputedScore)")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(MCDesign.Colors.primary700)
+                        Text("/ 15")
+                            .font(.system(size: 14))
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                    }
+                }
+
+                Spacer()
+
+                Button(action: resetClockRubric) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Reset")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(MCDesign.Colors.textSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(MCDesign.Colors.surfaceInset)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// Single tappable number tile for a clock number (1..12).
+    private func clockNumberToggle(index: Int) -> some View {
+        let q = state.qmciState
+        let number = index + 1
+        let isChecked = q.cdtNumbersPlaced.indices.contains(index)
+            ? q.cdtNumbersPlaced[index]
+            : false
+
+        return Button(action: {
+            guard q.cdtNumbersPlaced.indices.contains(index) else { return }
+            q.cdtNumbersPlaced[index].toggle()
+            q.recomputeClockDrawingScore()
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: isChecked ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 16))
+                    .foregroundColor(isChecked
+                                     ? MCDesign.Colors.primary700
+                                     : MCDesign.Colors.border)
+                Text("\(number)")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(isChecked
+                                     ? MCDesign.Colors.textPrimary
+                                     : MCDesign.Colors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isChecked
+                        ? MCDesign.Colors.primary700.opacity(0.08)
+                        : MCDesign.Colors.surfaceInset)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isChecked
+                            ? MCDesign.Colors.primary700.opacity(0.3)
+                            : MCDesign.Colors.border,
+                            lineWidth: 1)
+            )
+            .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Single toggleable row (minute hand / hour hand / pivot).
+    private func clockRubricRow(label: String, isOn: Binding<Bool>) -> some View {
+        Button(action: { isOn.wrappedValue.toggle() }) {
+            HStack(spacing: 10) {
+                Image(systemName: isOn.wrappedValue ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 18))
+                    .foregroundColor(isOn.wrappedValue
+                                     ? MCDesign.Colors.primary700
+                                     : MCDesign.Colors.border)
+                Text(label)
+                    .font(.system(size: 14))
+                    .foregroundColor(MCDesign.Colors.textPrimary)
+                Spacer()
+                Text(isOn.wrappedValue ? "+1" : "0")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(isOn.wrappedValue
+                                     ? MCDesign.Colors.success
+                                     : MCDesign.Colors.textTertiary)
+            }
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func resetClockRubric() {
+        let q = state.qmciState
+        q.cdtNumbersPlaced = Array(repeating: false, count: 12)
+        q.cdtMinuteHandCorrect = false
+        q.cdtHourHandCorrect = false
+        q.cdtPivotCorrect = false
+        q.cdtInvalidNumbersCount = 0
+        q.recomputeClockDrawingScore()
     }
 
     // MARK: - PHQ-2

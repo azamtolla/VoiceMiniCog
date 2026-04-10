@@ -2,7 +2,13 @@
 //  CDTOnDeviceScorer.swift
 //  VoiceMiniCog
 //
-//  On-device Clock Drawing Test scoring using CoreML
+//  On-device Clock Drawing Test scoring using CoreML.
+//
+//  DEPRECATED: This scorer implements the Shulman 0–5 / Mini-Cog 0–2 scale.
+//  The QMCI protocol requires a 15-point manual rubric (see QmciState.cdt*
+//  fields and the Clock Drawing scoring section in PCPReportView). Kept for
+//  backward compatibility only — prefer the clinician-driven 15-point scorer
+//  in the final report.
 //
 
 import Foundation
@@ -60,6 +66,10 @@ enum CDTScorerError: Error, LocalizedError {
     }
 }
 
+// DEPRECATED: The QMCI protocol requires a 15-point manual clinician rubric.
+// The authoritative clock drawing score is now captured in the PCP Report view
+// via QmciState.cdt* fields. This class is retained for backward compatibility
+// with legacy Mini-Cog/Shulman flows only — do not introduce new callers.
 class CDTOnDeviceScorer {
     static let shared = CDTOnDeviceScorer()
 
