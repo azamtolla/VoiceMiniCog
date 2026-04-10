@@ -2,10 +2,13 @@
 //  QAPhaseView.swift
 //  VoiceMiniCog
 //
-//  Reusable Q&A template for QDRS (10 questions), PHQ-2 (2 questions),
-//  and Orientation (5 questions). Shows question text, answer buttons,
-//  and progress. Avatar asks questions vocally; this provides visual
-//  reinforcement and clinician scoring.
+//  Reusable Q&A template for QDRS and Orientation.
+//
+//  Orientation: avatar asks each question, patient answers verbally,
+//  auto-advances after patient response (via .patientDoneSpeaking).
+//  No Correct/Incorrect buttons — fully hands-free.
+//
+//  QDRS: avatar asks, clinician taps answer buttons.
 //
 
 import SwiftUI
@@ -23,6 +26,9 @@ struct QAPhaseView: View {
     @State private var currentIndex = 0
     @State private var selectedAnswer: Int? = nil
     @State private var contentVisible = false
+    @State private var avatarDoneSpeaking = false
+    @State private var waitingForPatientResponse = false
+    @State private var orientationAutoAdvanceTask: Task<Void, Never>?
 
     // MARK: Body
 
@@ -47,20 +53,27 @@ struct QAPhaseView: View {
                     .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                     .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-                // Answer buttons
-                VStack(spacing: 8) {
-                    ForEach(Array(currentAnswers.enumerated()), id: \.offset) { index, answer in
-                        answerButton(text: answer, index: index)
+                if phaseID == .orientation {
+                    // Orientation: listening indicator (no buttons)
+                    orientationListeningArea
+                        .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+                        .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
+                } else {
+                    // QDRS / PHQ-2: answer buttons
+                    VStack(spacing: 8) {
+                        ForEach(Array(currentAnswers.enumerated()), id: \.offset) { index, answer in
+                            answerButton(text: answer, index: index)
+                        }
                     }
+                    .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+                    .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
                 }
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
             }
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
 
             Spacer()
 
-            // Orientation dots (only for orientation phase)
+            // Orientation dots
             if phaseID == .orientation {
                 orientationFooter
                     .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
@@ -71,16 +84,44 @@ struct QAPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
+            avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). You speak ONLY the question text provided via echo commands. Do NOT ask your own questions or advance the assessment. If the patient asks to skip or move on, gently redirect them to answer the current question.")
+            speakQuestion(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in
             contentVisible = false
+            avatarDoneSpeaking = false
+            selectedAnswer = nil
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
+            }
+            speakQuestion(currentVoicePrompt)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
+            if phaseID == .orientation && waitingForPatientResponse {
+                advanceOrientationQuestion()
             }
         }
     }
 
-    // MARK: - Answer Button
+    // MARK: - Orientation Listening Area
+
+    @ViewBuilder
+    private var orientationListeningArea: some View {
+        if avatarDoneSpeaking {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AssessmentTheme.Phase.welcome)
+                    .symbolEffect(.variableColor.iterative, isActive: true)
+                Text("Listening...")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
+            }
+            .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - Answer Button (QDRS only)
 
     private func answerButton(text: String, index: Int) -> some View {
         Button {
@@ -90,7 +131,6 @@ struct QAPhaseView: View {
             recordAnswer(index)
             layoutManager.acknowledgeAnswer()
 
-            // Auto-advance after brief delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                 if currentIndex < totalQuestions - 1 {
                     selectedAnswer = nil
@@ -132,8 +172,58 @@ struct QAPhaseView: View {
                     y: selectedAnswer == index ? 4 : 0
                 )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AssessmentPrimaryButtonStyle())
         .disabled(selectedAnswer != nil)
+    }
+
+    // MARK: - Speak Question + Avatar Sync
+
+    private func speakQuestion(_ text: String) {
+        avatarDoneSpeaking = false
+        waitingForPatientResponse = false
+        orientationAutoAdvanceTask?.cancel()
+        layoutManager.setAvatarSpeaking()
+        avatarSpeak(text)
+        let wordCount = text.split(separator: " ").count
+        let speakDuration = max(2.0, Double(wordCount) * 0.08 + 1.5)
+        DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
+            layoutManager.setAvatarListening()
+            avatarDoneSpeaking = true
+            if phaseID == .orientation {
+                waitForPatientResponse()
+            }
+        }
+    }
+
+    // MARK: - Wait for Patient Response (Orientation)
+
+    private func waitForPatientResponse() {
+        waitingForPatientResponse = true
+        orientationAutoAdvanceTask?.cancel()
+        orientationAutoAdvanceTask = Task { @MainActor in
+            // Fallback: 15 seconds if patient doesn't respond
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            guard !Task.isCancelled else { return }
+            advanceOrientationQuestion()
+        }
+    }
+
+    private func advanceOrientationQuestion() {
+        guard waitingForPatientResponse else { return }
+        waitingForPatientResponse = false
+        orientationAutoAdvanceTask?.cancel()
+
+        if currentIndex < assessmentState.qmciState.orientationAnswers.count {
+            assessmentState.qmciState.orientationAnswers[currentIndex] = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if currentIndex < totalQuestions - 1 {
+                currentIndex += 1
+            } else {
+                layoutManager.advanceToNextPhase()
+            }
+        }
     }
 
     // MARK: - Orientation Footer
@@ -162,36 +252,36 @@ struct QAPhaseView: View {
 
     private var currentQuestionText: String {
         switch phaseID {
-        case .qdrs:
-            return QDRS_QUESTIONS[safe: currentIndex]?.text ?? ""
-        case .phq2:
-            return PHQ2_QUESTIONS[safe: currentIndex] ?? ""
-        case .orientation:
-            return ORIENTATION_ITEMS[safe: currentIndex]?.question ?? ""
-        default:
-            return ""
+        case .qdrs:         return QDRS_QUESTIONS[safe: currentIndex]?.text ?? ""
+        case .phq2:         return PHQ2_QUESTIONS[safe: currentIndex] ?? ""
+        case .orientation:  return ORIENTATION_ITEMS[safe: currentIndex]?.question ?? ""
+        default:            return ""
+        }
+    }
+
+    private var currentVoicePrompt: String {
+        switch phaseID {
+        case .qdrs:         return QDRS_QUESTIONS[safe: currentIndex]?.voicePrompt ?? ""
+        case .phq2:         return PHQ2_QUESTIONS[safe: currentIndex] ?? ""
+        case .orientation:  return ORIENTATION_ITEMS[safe: currentIndex]?.voicePrompt ?? ""
+        default:            return ""
         }
     }
 
     private var currentAnswers: [String] {
         switch phaseID {
-        case .qdrs:
-            return ["No Change", "Sometimes", "Yes, Changed"]
-        case .phq2:
-            return ["Not at all", "Several days", "More than half the days", "Nearly every day"]
-        case .orientation:
-            return [] // Orientation is auto-advancing — no buttons, patient answers verbally
-        default:
-            return []
+        case .qdrs:         return ["No Change", "Sometimes", "Yes, Changed"]
+        case .phq2:         return ["Not at all", "Several days", "More than half the days", "Nearly every day"]
+        case .orientation:  return [] // Auto-advancing, no buttons
+        default:            return []
         }
     }
 
-    // MARK: - Record Answer
+    // MARK: - Record Answer (QDRS / PHQ-2 only)
 
     private func recordAnswer(_ index: Int) {
         switch phaseID {
         case .qdrs:
-            // QDRSAnswer rawValues are Strings; map index → case
             let answer: QDRSAnswer
             switch index {
             case 0: answer = .normal
@@ -199,16 +289,9 @@ struct QAPhaseView: View {
             default: answer = .changed
             }
             assessmentState.qdrsState.answers[currentIndex] = answer
-
         case .phq2:
             let answer = PHQ2Answer(rawValue: index) ?? .notAtAll
             assessmentState.phq2State.answers[currentIndex] = answer
-
-        case .orientation:
-            if currentIndex < assessmentState.qmciState.orientationAnswers.count {
-                assessmentState.qmciState.orientationAnswers[currentIndex] = (index == 0)
-            }
-
         default:
             break
         }
@@ -239,24 +322,6 @@ private extension Array {
 }
 
 // MARK: - Preview
-
-#Preview("QDRS Phase") {
-    QAPhaseView(
-        layoutManager: AvatarLayoutManager(),
-        assessmentState: AssessmentState(),
-        phaseID: .qdrs
-    )
-    .background(AssessmentTheme.Content.background)
-}
-
-#Preview("PHQ-2 Phase") {
-    QAPhaseView(
-        layoutManager: AvatarLayoutManager(),
-        assessmentState: AssessmentState(),
-        phaseID: .phq2
-    )
-    .background(AssessmentTheme.Content.background)
-}
 
 #Preview("Orientation Phase") {
     QAPhaseView(
