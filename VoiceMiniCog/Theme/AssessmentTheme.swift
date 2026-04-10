@@ -153,12 +153,16 @@ enum AssessmentTheme {
     // MARK: Avatar Width Ratios (fraction of total screen width)
 
     enum AvatarRatio {
-        /// Uniform 50/50 split across all phases
-        static let welcome: CGFloat  = 0.50
-        static let qa: CGFloat       = 0.50
-        static let clockFluency: CGFloat = 0.50
-        static let story: CGFloat    = 0.50
-        static let recall: CGFloat   = 0.50
+        /// Welcome / intro — balanced 50/50
+        static let welcome: CGFloat      = 0.50
+        /// Q&A phases (orientation, registration, word recall) — balanced 50/50
+        static let qa: CGFloat           = 0.50
+        /// Clock drawing & verbal fluency — content takes over (70/30)
+        static let clockFluency: CGFloat = 0.30
+        /// Story recall — avatar dominant (40/60), patient just listens
+        static let story: CGFloat        = 0.60
+        /// Delayed word recall — balanced 50/50
+        static let recall: CGFloat       = 0.50
     }
 
     // MARK: Avatar Width Ratios by Phase ID
