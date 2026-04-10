@@ -16,6 +16,8 @@ import WebKit
 extension Notification.Name {
     static let tavusContextUpdate = Notification.Name("tavusContextUpdate")
     static let tavusEchoRequest = Notification.Name("tavusEchoRequest")
+    /// Fired when the avatar starts speaking (replica started)
+    static let avatarStartedSpeaking = Notification.Name("avatarStartedSpeaking")
     /// Fired when the avatar finishes speaking (replica stopped)
     static let avatarDoneSpeaking = Notification.Name("avatarDoneSpeaking")
     /// Fired when the patient finishes speaking (user stopped)
@@ -181,6 +183,7 @@ struct TavusCVIView: UIViewRepresentable {
                     switch eventType {
                     case "conversation.replica.started_speaking":
                         onAvatarEvent?(.replicaStartedSpeaking)
+                        NotificationCenter.default.post(name: .avatarStartedSpeaking, object: nil)
                     case "conversation.replica.stopped_speaking":
                         onAvatarEvent?(.replicaStoppedSpeaking)
                         NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)

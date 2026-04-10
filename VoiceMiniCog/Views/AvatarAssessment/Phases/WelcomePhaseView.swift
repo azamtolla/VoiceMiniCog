@@ -2,10 +2,10 @@
 //  WelcomePhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 1 — Welcome screen. The entire intro is sent as ONE echo call.
-//  Subtest rows reveal at pre-calculated times based on word count
-//  at ~2.5 words/second (calm neuropsychologist pace). No chaining,
-//  no sequential echo calls, no avatarDoneSpeaking dependency.
+//  Phase 1 — Welcome screen. The avatar speaks a short, tight intro.
+//  Subtest rows reveal ~200ms before she says each name, triggered by
+//  conversation.replica.started_speaking (not onAppear).
+//  Begin button appears as she says "press Begin Assessment".
 //
 
 import SwiftUI
@@ -19,51 +19,34 @@ struct WelcomePhaseView: View {
     @State private var buttonBounce = false
     @State private var revealedSubtests = 0
     @State private var headerVisible = false
+    @State private var echoSent = false
+    @State private var revealTriggered = false
 
-    // MARK: - Intro Script Segments
+    // MARK: - Intro Script (single echo)
 
-    // Each segment: (text, cumulative word count up to end of this segment)
-    // Used to calculate when the avatar reaches each section.
-    // At ~2.5 words/second (calm clinical pace), we can predict reveal times.
-    private static let segments: [(text: String, revealsSubtest: Bool)] = [
-        // Opening — 68 words ≈ 27s
-        ("Hello, and welcome to your Brain Health Assessment. On the left side of the screen, you will see an overview of the activities we will complete together. This is a brief, standardized cognitive screening. It will take approximately three to five minutes, and it will help your clinician understand how different areas of your brain are functioning today. There are six short activities. Let me explain each one.", false),
+    private let introScript = "Welcome to your Brain Health Check. We'll go through six quick activities together. First, Orientation. Then, Word Learning. Next, Clock Drawing. After that, Verbal Fluency. Then Story Recall. And finally, Word Recall. When you're ready, press Begin Assessment."
 
-        // Orientation — 25 words ≈ 10s
-        ("First, orientation. I will ask you a few simple questions, such as today's date and what country we are in.", true),
-
-        // Word Learning — 28 words ≈ 11s
-        ("Second, word registration. I will read you five words and ask you to repeat them back. This measures how well you take in new information.", true),
-
-        // Clock Drawing — 30 words ≈ 12s
-        ("Third, clock drawing. I will ask you to draw a clock and set it to a specific time. This tests how your brain plans and organizes visually.", true),
-
-        // Word Recall — 27 words ≈ 11s
-        ("Fourth, delayed recall. After a short break, I will ask you to remember those five words from earlier. This measures how well your memory holds over time.", true),
-
-        // Verbal Fluency — 24 words ≈ 10s
-        ("Fifth, verbal fluency. I will ask you to name as many animals as you can in one minute. This measures how quickly your brain retrieves information.", true),
-
-        // Story Recall — 32 words ≈ 13s
-        ("And finally, logical memory. I will read you a short story, and then ask you to repeat back as much as you can remember. This is the most sensitive part of the assessment.", true),
-
-        // Closing — 30 words ≈ 12s
-        ("There are no trick questions and there is no pass or fail. When you are ready, press the Begin Assessment button on the screen.", false),
+    // MARK: - Reveal Timings (ms after replica.started_speaking fires)
+    // Calibrated to land ~200ms before she says each section name.
+    // Avatar reads at ~2.5 words/sec. Script word positions:
+    //   0.0s  "Welcome to your Brain Health Check."
+    //   2.5s  "We'll go through six quick activities together."
+    //   5.0s  "First, Orientation."              ← reveal Orientation at 4.8s
+    //   6.5s  "Then, Word Learning."             ← reveal at 6.3s
+    //   8.0s  "Next, Clock Drawing."             ← reveal at 7.8s
+    //   9.5s  "After that, Verbal Fluency."      ← reveal at 9.3s
+    //  11.0s  "Then Story Recall."               ← reveal at 10.8s
+    //  12.5s  "And finally, Word Recall."        ← reveal at 12.3s
+    //  14.0s  "When you're ready, press Begin Assessment."
+    private let revealDelays: [Double] = [
+        4.8,   // Orientation
+        6.3,   // Word Learning
+        7.8,   // Clock Drawing
+        9.3,   // Verbal Fluency
+        10.8,  // Story Recall
+        12.3,  // Word Recall
     ]
-
-    // Pre-calculated reveal times (seconds from start) based on cumulative word count at 2.5 words/sec
-    // Segment word counts: 68, 25, 28, 30, 27, 24, 32, 30
-    // Cumulative: 68, 93, 121, 151, 178, 202, 234, 264
-    // At 2.5 w/s: 27.2, 37.2, 48.4, 60.4, 71.2, 80.8, 93.6, 105.6
-    private let revealTimes: [Double] = [
-        28,   // Orientation appears (after opening finishes)
-        38,   // Word Learning
-        50,   // Clock Drawing
-        62,   // Word Recall (delayed recall)
-        73,   // Verbal Fluency
-        87,   // Story Recall
-    ]
-    private let beginButtonTime: Double = 100  // Begin button appears
+    private let beginButtonDelay: Double = 14.5  // As she says "press Begin Assessment"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -95,61 +78,61 @@ struct WelcomePhaseView: View {
             .opacity(headerVisible ? 1 : 0)
             .offset(y: headerVisible ? 0 : 10)
 
-            // MARK: Subtest List — rows reveal timed to avatar speech
+            // MARK: Subtest List — card shell is always visible, rows reveal one by one
             VStack(spacing: 0) {
                 ForEach(Array(QmciSubtest.allCases.enumerated()), id: \.element) { index, subtest in
-                    if index < revealedSubtests {
-                        SubtestRow(subtest: subtest, accentColor: layoutManager.accentColor)
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)),
-                                removal: .opacity
-                            ))
+                    SubtestRow(subtest: subtest, accentColor: layoutManager.accentColor)
+                        .opacity(index < revealedSubtests ? 1 : 0)
+                        .offset(x: index < revealedSubtests ? 0 : -20)
+                        .animation(
+                            .spring(response: 0.45, dampingFraction: 0.78),
+                            value: revealedSubtests
+                        )
 
-                        if index < min(revealedSubtests - 1, QmciSubtest.allCases.count - 1) {
-                            Divider()
-                                .padding(.leading, 44)
-                                .transition(.opacity)
-                        }
+                    if index < QmciSubtest.allCases.count - 1 {
+                        Divider()
+                            .padding(.leading, 44)
+                            .opacity(index < revealedSubtests - 1 ? 1 : 0)
+                            .animation(.easeOut(duration: 0.3), value: revealedSubtests)
                     }
                 }
             }
-            .padding(.vertical, revealedSubtests > 0 ? 8 : 0)
-            .background(revealedSubtests > 0 ? AssessmentTheme.Content.surface : Color.clear)
+            .padding(.vertical, 8)
+            .background(AssessmentTheme.Content.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(
-                color: revealedSubtests > 0
-                    ? AssessmentTheme.Content.shadowColor.opacity(0.08)
-                    : Color.clear,
+                color: AssessmentTheme.Content.shadowColor.opacity(0.08),
                 radius: 12, y: 2
             )
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-            .animation(.spring(response: 0.5, dampingFraction: 0.75), value: revealedSubtests)
+            .opacity(headerVisible ? 1 : 0)
 
             Spacer()
 
             // MARK: Begin Assessment Button
-            if showBeginButton {
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    layoutManager.advanceToNextPhase()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "play.fill")
-                        Text("Begin Assessment")
-                    }
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Color.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(layoutManager.accentColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: layoutManager.accentColor.opacity(0.35), radius: 8, y: 4)
-                    .scaleEffect(buttonBounce ? 1.0 : 0.85)
+            Button {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                layoutManager.advanceToNextPhase()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                    Text("Begin Assessment")
                 }
-                .buttonStyle(AssessmentPrimaryButtonStyle())
-                .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-                .transition(.scale(scale: 0.8).combined(with: .opacity))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(layoutManager.accentColor)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: layoutManager.accentColor.opacity(0.35), radius: 8, y: 4)
+                .scaleEffect(showBeginButton ? (buttonBounce ? 1.0 : 0.85) : 0.85)
+                .opacity(showBeginButton ? 1 : 0)
+                .offset(y: showBeginButton ? 0 : 10)
             }
+            .buttonStyle(AssessmentPrimaryButtonStyle())
+            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .disabled(!showBeginButton)
+            .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showBeginButton)
 
             // MARK: Go to Main Menu
             Button { onGoToMainMenu?() } label: {
@@ -162,46 +145,50 @@ struct WelcomePhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
-            // Show header
             withAnimation(.easeOut(duration: 0.4)) { headerVisible = true }
 
-            // Set persona
-            avatarSetContext("You are a board-certified clinical neuropsychologist. Speak with a calm, measured, professional tone. Clear enunciation, moderate pace. No slang, no exclamation marks. Speak the text exactly as provided.")
+            avatarSetContext("You are a calm, professional clinical neuropsychologist. Speak exactly the text sent via echo. Do not add your own introduction, do not paraphrase. Speak at a moderate pace with natural pauses.")
 
-            // Send the ENTIRE intro as one echo — avatar speaks it continuously
-            let fullScript = Self.segments.map(\.text).joined(separator: " ")
-            avatarSpeak(fullScript)
-
-            // Reveal subtests at pre-calculated times
-            for (index, time) in revealTimes.enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + time) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                        revealedSubtests = index + 1
-                    }
-                }
+            // Send the single echo — reveals will fire when replica.started_speaking arrives
+            if !echoSent {
+                echoSent = true
+                avatarSpeak(introScript)
             }
-
-            // Begin button with bounce
-            DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonTime) {
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarStartedSpeaking)) { _ in
+            // Trigger only once — the first time the replica starts speaking our echo
+            guard !revealTriggered else { return }
+            revealTriggered = true
+            startRevealSequence()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            // Safety fallback: if she finishes before our timers complete, show everything
+            if !showBeginButton {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    revealedSubtests = QmciSubtest.allCases.count
+                }
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
                     showBeginButton = true
                     buttonBounce = true
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
-            // Backup: if avatar finishes before timers, reveal everything
-            if !showBeginButton {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    revealedSubtests = QmciSubtest.allCases.count
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
-                        showBeginButton = true
-                        buttonBounce = true
-                    }
-                }
+    }
+
+    // MARK: - Reveal Sequence
+
+    private func startRevealSequence() {
+        // Reveal each subtest row at its calibrated delay
+        for (index, delay) in revealDelays.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                revealedSubtests = index + 1
             }
+        }
+
+        // Reveal Begin button as she says "press Begin Assessment"
+        DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonDelay) {
+            showBeginButton = true
+            buttonBounce = true
         }
     }
 }
