@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "DE7A8F23-276E-4B5F-AACA-8356B6934640",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:VoiceMiniCog.xcodeproj",
+      "identifier" : "9246E5222F6390E700743FA8",
+      "name" : "VoiceMiniCog"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:VoiceMiniCog.xcodeproj",
+        "identifier" : "9246E52F2F6390E900743FA8",
+        "name" : "VoiceMiniCogTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:VoiceMiniCog.xcodeproj",
+        "identifier" : "9246E5392F6390E900743FA8",
+        "name" : "VoiceMiniCogUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

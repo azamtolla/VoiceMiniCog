@@ -2,8 +2,14 @@
 //  WordRecallPhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 9 — Word Recall. Clinician marks each of the 5 registration words
-//  as correctly recalled or not. Final score saved to qmciState.delayedRecallWords.
+//  Phase 5 — Delayed Word Recall (QMCI subtest 4, 20 pts). Clinician marks
+//  each of the 5 registration words as correctly recalled or not. Writes the
+//  matched words into `qmciState.delayedRecallWords`, then advances to the
+//  next phase in the sequence (Verbal Fluency → Story Recall → Completion).
+//
+//  NOTE: This view is NOT the terminal phase of the quick flow. It must call
+//  `layoutManager.advanceToNextPhase()` rather than `onComplete()`, otherwise
+//  Verbal Fluency and Story Recall become unreachable.
 //
 
 import SwiftUI
@@ -15,8 +21,7 @@ struct WordRecallPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @Bindable var qmciState: QmciState
-    let onComplete: () -> Void
+    @ObservedObject var qmciState: QmciState
 
     @State private var recallResults: [Bool?]
     @State private var contentVisible = false
@@ -25,12 +30,10 @@ struct WordRecallPhaseView: View {
 
     init(
         layoutManager: AvatarLayoutManager,
-        qmciState: QmciState,
-        onComplete: @escaping () -> Void
+        qmciState: QmciState
     ) {
         self.layoutManager = layoutManager
         self.qmciState = qmciState
-        self.onComplete = onComplete
         _recallResults = State(initialValue: Array(repeating: nil, count: qmciState.registrationWords.count))
     }
 
@@ -106,17 +109,27 @@ struct WordRecallPhaseView: View {
 
             Spacer()
 
-            // MARK: Complete Button
+            // MARK: Continue Button
             if allMarked {
                 Button {
                     let generator = UIImpactFeedbackGenerator(style: .medium)
                     generator.impactOccurred()
-                    qmciState.delayedRecallWords = words.enumerated().compactMap { i, w in
+                    let recalled = words.enumerated().compactMap { i, w in
                         recallResults[i] == true ? w : nil
                     }
-                    onComplete()
+                    qmciState.delayedRecallWords = recalled
+                    // Persist a view-layer transcript derived from the words
+                    // the clinician marked as correctly recalled. If a real
+                    // speech service is later wired in, this write can be
+                    // replaced with the raw transcript.
+                    // TODO: replace with live SpeechService transcript when available.
+                    let joined = recalled.joined(separator: " ")
+                    if !joined.isEmpty {
+                        qmciState.delayedRecallTranscript += joined + " "
+                    }
+                    layoutManager.advanceToNextPhase()
                 } label: {
-                    Text("Complete Assessment")
+                    Text("Continue")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(Color.white)
                         .frame(maxWidth: .infinity)
@@ -222,8 +235,7 @@ struct WordRecallPhaseView: View {
 
     return WordRecallPhaseView(
         layoutManager: layoutManager,
-        qmciState: qmciState,
-        onComplete: {}
+        qmciState: qmciState
     )
     .background(AssessmentTheme.Content.background)
 }

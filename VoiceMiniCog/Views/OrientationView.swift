@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct OrientationView: View {
-    @Bindable var qmciState: QmciState
+    @ObservedObject var qmciState: QmciState
     let onComplete: () -> Void
 
     @State private var currentIndex = 0
@@ -136,12 +136,28 @@ struct OrientationView: View {
         let item = ORIENTATION_ITEMS[currentIndex]
         let correct = scoreOrientationAnswer(type: item.correctAnswerType, transcript: patientAnswer)
         qmciState.orientationScores[currentIndex] = correct ? 2 : 0
+        // Persist raw patient response + attempted flag for view-layer display
+        if currentIndex < qmciState.orientationResponses.count {
+            qmciState.orientationResponses[currentIndex] = patientAnswer
+        }
+        let trimmed = patientAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, currentIndex < qmciState.orientationAttempted.count {
+            qmciState.orientationAttempted[currentIndex] = true
+        }
         showResult = true
         advanceAfterDelay()
     }
 
     private func scoreManual(correct: Bool) {
         qmciState.orientationScores[currentIndex] = correct ? 2 : 0
+        // Persist raw patient response + attempted flag for view-layer display
+        if currentIndex < qmciState.orientationResponses.count {
+            qmciState.orientationResponses[currentIndex] = patientAnswer
+        }
+        let trimmed = patientAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, currentIndex < qmciState.orientationAttempted.count {
+            qmciState.orientationAttempted[currentIndex] = true
+        }
         showResult = true
         advanceAfterDelay()
     }

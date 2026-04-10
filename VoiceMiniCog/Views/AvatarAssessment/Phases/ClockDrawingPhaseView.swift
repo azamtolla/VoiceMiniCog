@@ -33,6 +33,16 @@ struct ClockDrawingPhaseView: View {
     @State private var timer: Timer?
     @State private var contentVisible = false
 
+    // Biomarker capture — stroke timings and canvas dimensions for later PNG render
+    @State private var canvasStartTime: Date = Date()
+    @State private var canvasSize: CGSize = .zero
+    @State private var didPersistBiomarkers = false
+
+    // Pause biomarker: timestamp of the most recent stroke end. Used to
+    // compute inter-stroke gaps; reset on view appear so stale state from a
+    // prior session can't produce a phantom pause.
+    @State private var lastStrokeEndTime: Date? = nil
+
     // MARK: Body
 
     var body: some View {
@@ -84,7 +94,33 @@ struct ClockDrawingPhaseView: View {
                             }
                             .onEnded { _ in
                                 if !currentLine.isEmpty {
-                                    lines.append(currentLine)
+                                    let stroke = currentLine
+                                    lines.append(stroke)
+                                    // Pause biomarker: if a prior stroke has
+                                    // already ended, measure the inter-stroke
+                                    // gap. QMCI spec: capture only gaps
+                                    // strictly greater than 500 ms.
+                                    let now = Date()
+                                    if let lastEnd = lastStrokeEndTime {
+                                        let gapMs = Int((now.timeIntervalSince(lastEnd) * 1000).rounded())
+                                        if gapMs > 500 {
+                                            let pause = ClockPauseEvent(
+                                                startTimestamp: lastEnd.timeIntervalSince(canvasStartTime),
+                                                durationMs: gapMs
+                                            )
+                                            assessmentState.qmciState.clockPauseEvents.append(pause)
+                                        }
+                                    }
+                                    // Record stroke biomarker: timestamp at
+                                    // commit (relative to canvasStartTime) and
+                                    // the full point path for later analysis.
+                                    let ts = now.timeIntervalSince(canvasStartTime)
+                                    let event = ClockStrokeEvent(
+                                        timestamp: ts,
+                                        points: stroke.map { CGPointCodable($0) }
+                                    )
+                                    assessmentState.qmciState.clockStrokeEvents.append(event)
+                                    lastStrokeEndTime = now
                                     currentLine = []
                                 }
                             }
@@ -92,6 +128,12 @@ struct ClockDrawingPhaseView: View {
                 }
                 .frame(width: size, height: size)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    canvasSize = CGSize(width: size, height: size)
+                }
+                .onChange(of: size) { _, newSize in
+                    canvasSize = CGSize(width: newSize, height: newSize)
+                }
             }
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
@@ -111,12 +153,21 @@ struct ClockDrawingPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
+            // Reset canvas start time so stroke timestamps are relative to
+            // when the patient actually saw the drawing surface.
+            canvasStartTime = Date()
+            // Clear any stale stroke-end reference from a prior session so
+            // the first stroke never generates a phantom pause.
+            lastStrokeEndTime = nil
             avatarSetContext("You are a clinical neuropsychologist administering the Clock Drawing subtest. The patient is drawing. Remain silent and observe. Do not provide hints, corrections, or commentary on the drawing. Do not tell the patient how much time remains. If the patient asks for help, say calmly: 'Please do your best.' Speak only when sent echo commands.")
             avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
         }
         .onDisappear {
             timer?.invalidate()
+            // Safety net: if the view disappears before the timer fires
+            // (e.g. early advance), still persist whatever we have.
+            persistBiomarkersIfNeeded()
         }
     }
 
@@ -129,9 +180,37 @@ struct ClockDrawingPhaseView: View {
             } else {
                 avatarSpeak(LeftPaneSpeechCopy.clockDrawingStop)
                 timer?.invalidate()
+                // Canvas locks here — capture biomarkers BEFORE advancing so
+                // the next phase can read the persisted fields if needed.
+                persistBiomarkersIfNeeded()
                 layoutManager.advanceToNextPhase()
             }
         }
+    }
+
+    // MARK: - Biomarker Persistence
+
+    /// Renders the current drawing to a PNG and stores it on the QmciState.
+    /// Idempotent — safe to call from both the timer lockout path and the
+    /// `onDisappear` safety net.
+    private func persistBiomarkersIfNeeded() {
+        guard !didPersistBiomarkers else { return }
+        didPersistBiomarkers = true
+
+        // PNG render — reconstruct the finished drawing as a standalone view
+        // (no guide circle, no shadow, no background UI) and rasterize via
+        // ImageRenderer (iOS 16+).
+        let renderSize = canvasSize == .zero ? CGSize(width: 512, height: 512) : canvasSize
+        let snapshot = ClockDrawingSnapshot(lines: lines, size: renderSize)
+        let renderer = ImageRenderer(content: snapshot)
+        renderer.scale = UIScreen.main.scale
+        if let uiImage = renderer.uiImage,
+           let png = uiImage.pngData() {
+            assessmentState.qmciState.clockDrawingImagePNG = png
+        }
+        // Stroke events are already appended on each gesture-end. Pause
+        // events are not tracked in this view — skipping per spec guidance:
+        // TODO: capture stroke biomarkers (pause events) if timing infra lands.
     }
 
     // MARK: - Drawing Helpers
@@ -150,6 +229,29 @@ struct ClockDrawingPhaseView: View {
         let m = seconds / 60
         let s = seconds % 60
         return String(format: "%d:%02d", m, s)
+    }
+}
+
+// MARK: - ClockDrawingSnapshot
+
+/// Minimal view used solely by `ImageRenderer` to rasterize the finished
+/// clock drawing to PNG bytes. Matches the stroke style of the main Canvas.
+private struct ClockDrawingSnapshot: View {
+    let lines: [[CGPoint]]
+    let size: CGSize
+
+    var body: some View {
+        Canvas { context, _ in
+            for stroke in lines {
+                var path = Path()
+                guard let first = stroke.first else { continue }
+                path.move(to: first)
+                for point in stroke.dropFirst() { path.addLine(to: point) }
+                context.stroke(path, with: .color(.black), lineWidth: 2.5)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .background(Color.white)
     }
 }
 

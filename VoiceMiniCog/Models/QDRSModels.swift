@@ -11,6 +11,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 enum QDRSAnswer: String, Codable, CaseIterable {
     case normal = "normal"
@@ -62,13 +63,12 @@ let QDRS_QUESTIONS: [QDRSQuestion] = [
     QDRSQuestion(id: 9, domain: "Repetition", text: "Do you find that the patient repeats the same questions or stories more than before?", voicePrompt: "Do you find that the patient repeats the same questions or stories more than before?"),
 ]
 
-@Observable
-class QDRSState: Codable {
-    var answers: [QDRSAnswer?] = Array(repeating: nil, count: QDRS_QUESTIONS.count)
-    var currentIndex: Int = 0
-    var declined: Bool = false
-    var isComplete: Bool = false
-    var respondentType: QDRSRespondentType = .patient
+final class QDRSState: ObservableObject, Codable {
+    @Published var answers: [QDRSAnswer?] = Array(repeating: nil, count: QDRS_QUESTIONS.count)
+    @Published var currentIndex: Int = 0
+    @Published var declined: Bool = false
+    @Published var isComplete: Bool = false
+    @Published var respondentType: QDRSRespondentType = .patient
 
     var totalScore: Double { answers.compactMap { $0?.score }.reduce(0, +) }
     var isPositiveScreen: Bool { totalScore >= 1.5 }
@@ -128,6 +128,10 @@ class QDRSState: Codable {
     }
 
     init() {}
+
+    // Avoid swift_task_deinitOnExecutorMainActorBackDeploy crash on iOS 17.6
+    // by never hopping to the main actor at dealloc time.
+    nonisolated deinit {}
 
     func answer(_ answer: QDRSAnswer) {
         guard currentIndex < QDRS_QUESTIONS.count else { return }

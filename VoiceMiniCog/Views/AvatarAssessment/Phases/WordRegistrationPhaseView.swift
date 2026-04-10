@@ -28,7 +28,7 @@ struct WordRegistrationPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @Bindable var qmciState: QmciState
+    @ObservedObject var qmciState: QmciState
 
     // Trial bookkeeping
     @State private var currentTrial: Int = 0           // 1...totalTrials once running
@@ -37,6 +37,12 @@ struct WordRegistrationPhaseView: View {
     @State private var isFinalRemember: Bool = false   // Shows final "Remember these words"
     @State private var hasStarted: Bool = false
     @State private var contentVisible: Bool = false
+
+    // Speech recognition for capturing patient responses during the listening pause.
+    // `SpeechService` is an `@Observable` class, so `@State` is the correct wrapper
+    // to hold it in a SwiftUI view on iOS 17+.
+    @State private var speech = SpeechService()
+    @State private var didRequestAuth: Bool = false
 
     // Timing constants (seconds)
     private let totalTrials: Int = 3
@@ -110,6 +116,15 @@ struct WordRegistrationPhaseView: View {
                 contentVisible = true
             }
             avatarSetContext("You are a clinical neuropsychologist administering the QMCI Word Registration subtest. This test has up to 3 trials of the same 5 words to help the patient learn them. Read the five words slowly and clearly, one per second, exactly as provided via echo commands. Do not add any words of your own. Do not provide feedback on the patient's recall. If the patient speaks between words, respond briefly: 'Let us continue.' Maintain a calm, professional tone throughout.")
+            // Request speech recognition authorization in the background so the
+            // avatar flow is not blocked. On simulator or denied devices the
+            // listening pause will simply capture nothing.
+            Task {
+                if !didRequestAuth {
+                    _ = await speech.requestAuthorization()
+                    didRequestAuth = true
+                }
+            }
             if words.isEmpty {
                 qmciState.selectWordList()
             }
@@ -170,14 +185,32 @@ struct WordRegistrationPhaseView: View {
         // records the total number of trials administered.
         qmciState.registrationAttempts = trial
 
-        // Avatar speaks: intro narration for Trial 1, retry phrasing otherwise.
-        let speech: String
-        if trial == 1 {
-            speech = LeftPaneSpeechCopy.wordRegistrationNarration(words: words)
-        } else {
-            speech = LeftPaneSpeechCopy.wordRegistrationRetry(words: words)
+        // Ensure the per-trial recalled-words bucket exists for this trial so
+        // downstream persistence can index into `registrationTrialWords[trial-1]`.
+        // The structure is initialized to 3 empty inner arrays by QmciState;
+        // here we just guarantee the trial's slot is reset if this view is
+        // re-entered mid-session.
+        let trialIdx = trial - 1
+        if qmciState.registrationTrialWords.indices.contains(trialIdx) {
+            qmciState.registrationTrialWords[trialIdx] = []
         }
-        avatarSpeak(speech)
+
+        // Make sure any lingering recognition session from a previous trial is
+        // torn down and the live transcript is cleared. Do NOT start listening
+        // here — the avatar is about to speak the word list, and we don't want
+        // to capture the avatar's own voice as patient speech. The actual
+        // `startListening()` call happens inside `beginListeningPause(after:)`.
+        speech.stopListening()
+        speech.transcript = ""
+
+        // Avatar speaks: intro narration for Trial 1, retry phrasing otherwise.
+        let speechText: String
+        if trial == 1 {
+            speechText = LeftPaneSpeechCopy.wordRegistrationNarration(words: words)
+        } else {
+            speechText = LeftPaneSpeechCopy.wordRegistrationRetry(words: words)
+        }
+        avatarSpeak(speechText)
 
         // Progressive chip reveal — one chip per `wordRevealInterval` seconds.
         for i in 0..<words.count {
@@ -205,8 +238,42 @@ struct WordRegistrationPhaseView: View {
             isListeningPause = true
         }
 
+        // Begin live speech-to-text capture for this trial. On the iOS
+        // simulator `SpeechService.startListening()` short-circuits and never
+        // captures audio, so the trial words simply stay empty — matching the
+        // prior behavior.
+        Task {
+            do {
+                speech.transcript = ""
+                try await speech.startListening()
+            } catch {
+                // Simulator, unauthorized, or audio engine failure — leave the
+                // transcript empty and let the pause elapse normally.
+            }
+        }
+
         DispatchQueue.main.asyncAfter(deadline: .now() + listeningPauseDuration) {
             guard self.currentTrial == trial else { return }
+
+            // Stop capture and parse the accumulated transcript into matched
+            // target words using the shared scoring helper.
+            self.speech.stopListening()
+            let result = scoreWordRecall(
+                transcript: self.speech.transcript,
+                wordList: self.qmciState.registrationWords
+            )
+            let trialIdx = trial - 1
+            if self.qmciState.registrationTrialWords.indices.contains(trialIdx) {
+                self.qmciState.registrationTrialWords[trialIdx] = result.recalled
+            }
+            if trial == 1 {
+                // Mirror Trial 1 into the legacy scored field so existing
+                // scoring tests and `QMCIScoringEngine.registrationScore`
+                // continue to work. Trials 2 and 3 deliberately do NOT
+                // overwrite this field — only Trial 1 counts toward the score.
+                self.qmciState.registrationRecalledWords = result.recalled
+            }
+
             withAnimation(.easeInOut(duration: 0.25)) {
                 self.isListeningPause = false
             }
@@ -223,6 +290,10 @@ struct WordRegistrationPhaseView: View {
     /// Final step — avatar reminds the patient to remember the words, then the
     /// layout manager advances to the next phase after the prompt finishes.
     private func finishRegistration() {
+        // Safety net: make sure the recognizer is torn down if the patient is
+        // still speaking when the final trial ends.
+        speech.stopListening()
+
         withAnimation(.easeInOut(duration: 0.25)) {
             isFinalRemember = true
         }

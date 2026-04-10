@@ -47,10 +47,12 @@ enum AssessmentFlowType: String, Codable {
         switch self {
         case .quick, .extended:
             // QMCI protocol order: Orientation → Registration → Clock Drawing →
-            // Delayed Recall → Verbal Fluency → Logical Memory
-            // Clock Drawing serves as the distractor interval between registration and recall
+            // Delayed Recall → Verbal Fluency → Logical Memory → Completion
+            // Clock Drawing serves as the distractor interval between registration and recall.
+            // The final .completion phase is required — without it the last subtest
+            // has no next phase to advance into and the assessment cannot finish cleanly.
             return [.welcome, .orientation, .wordRegistration, .clockDrawing,
-                    .wordRecall, .verbalFluency, .storyRecall]
+                    .wordRecall, .verbalFluency, .storyRecall, .completion]
         case .caregiver:
             return [.welcome, .qdrs, .completion]
         }

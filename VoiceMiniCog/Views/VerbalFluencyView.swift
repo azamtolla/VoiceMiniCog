@@ -10,7 +10,7 @@ import SwiftUI
 import Speech
 
 struct VerbalFluencyView: View {
-    @Bindable var qmciState: QmciState
+    @ObservedObject var qmciState: QmciState
     let onComplete: () -> Void
 
     @State private var timeRemaining = 60

@@ -30,9 +30,9 @@ enum LeftPaneSpeechCopy {
 
     static let wordRegistrationTitle = "Listen carefully"
 
-    static let wordRegistrationSubtitle = "I will say 5 words.\nRepeat them back when asked."
+    static let wordRegistrationSubtitle = "I will say some words.\nRepeat them back when asked."
 
-    static let wordRegistrationIntro = "I am going to say 5 words. After I have said these 5 words, repeat them back to me."
+    static let wordRegistrationIntro = "I am going to say some words. After I have said these words, repeat them back to me."
 
     static func wordRegistrationNarration(words: [String]) -> String {
         // Read words slowly, one per second — joined with pauses
@@ -51,6 +51,9 @@ enum LeftPaneSpeechCopy {
 
     // MARK: - Subtest 3: Clock Drawing (15 pts, 60 sec)
 
+    // Verbatim QMCI scoring-sheet phrasing (Molloy & O'Caoimh): "ten past eleven".
+    // Do not change to "ten minutes after eleven" or "11:10" — the written
+    // validation protocol uses this exact wording (single quotes in the sheet).
     static let clockDrawingInstruction = "Draw a clock face and set the time to ten past eleven."
 
     static let clockDrawingOnScreen = "Draw a clock face.\nSet the time to ten past eleven."
@@ -61,7 +64,7 @@ enum LeftPaneSpeechCopy {
 
     static let delayedRecallTitle = "Word Recall"
 
-    static let delayedRecallPrompt = "A few minutes ago I said five words. Please name as many of the words as you can remember."
+    static let delayedRecallPrompt = "A few minutes ago I said some words. Please name as many words as you can remember."
 
     static let delayedRecallOnScreen = "Recall the 5 words from earlier."
 

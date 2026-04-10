@@ -16,7 +16,7 @@ struct VerbalFluencyPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @Bindable var qmciState: QmciState
+    @ObservedObject var qmciState: QmciState
 
     @State private var timeRemaining = 60
     @State private var isRunning = false
@@ -192,7 +192,13 @@ struct VerbalFluencyPhaseView: View {
 
     private func addWord() {
         let word = currentWord.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !word.isEmpty, !wordsEntered.contains(word) else { return }
+        guard !word.isEmpty else { return }
+        // Verbatim list INCLUDES duplicates — append before the dedup check.
+        qmciState.fluencyAnimalsNamed.append(word)
+        guard !wordsEntered.contains(word) else {
+            currentWord = ""
+            return
+        }
         withAnimation(AssessmentTheme.Anim.chipAppear) { wordsEntered.append(word) }
         currentWord = ""
     }

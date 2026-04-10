@@ -154,7 +154,7 @@ struct AvatarAssessmentCanvas: View {
         case .storyRecall:
             StoryRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .wordRecall:
-            WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState, onComplete: onComplete)
+            WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .completion:
             CompletionPhaseView(onComplete: onComplete)
         }

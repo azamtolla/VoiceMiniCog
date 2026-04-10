@@ -45,7 +45,7 @@ struct SessionStatusView: View {
                 Spacer().frame(height: 8)
 
                 // MARK: Clock Instruction
-                Text("Draw a clock. Include all 12 numbers.\nSet the hands to 11:10.")
+                Text("Draw a clock. Include all 12 numbers.\nSet the hands to ten past eleven.")
                     .font(.system(size: 17, weight: .regular))
                     .multilineTextAlignment(.center)
                     .foregroundColor(AssessmentTheme.Content.textPrimary)

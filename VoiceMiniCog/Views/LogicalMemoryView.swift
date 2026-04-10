@@ -10,7 +10,7 @@
 import SwiftUI
 
 struct LogicalMemoryView: View {
-    @Bindable var qmciState: QmciState
+    @ObservedObject var qmciState: QmciState
     let onComplete: () -> Void
 
     @State private var phase: StoryPhase = .listen
