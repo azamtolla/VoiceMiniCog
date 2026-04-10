@@ -118,7 +118,7 @@ final class ProtocolOrchestrator {
             """
         case .delayedRecall:
             return """
-            A scripted audio clip will ask the patient to recall the 3 words. \
+            A scripted audio clip will ask the patient to recall the 5 words. \
             Stay completely silent during clip playback. \
             After the clip plays, listen to the patient's response. \
             Do NOT say any of the words yourself. Do NOT provide hints or cues. \

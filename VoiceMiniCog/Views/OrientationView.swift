@@ -98,49 +98,15 @@ struct OrientationView: View {
                         .submitLabel(.done)
                         .onSubmit { checkAnswer() }
 
-                    // Result indicator
+                    // Result indicator (legacy view — avatar flow uses auto-advance)
                     if showResult, let answer = qmciState.orientationAnswers[currentIndex] {
                         HStack(spacing: 8) {
                             Image(systemName: answer ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .font(.system(size: 20))
-                            Text(answer ? "Correct (+2)" : "Incorrect")
-                                .font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundColor(answer ? MCDesign.Colors.success : MCDesign.Colors.error)
                         .transition(.scale.combined(with: .opacity))
                     }
-
-                    // Manual override buttons
-                    HStack(spacing: 16) {
-                        Button(action: { scoreManual(correct: true) }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 14, weight: .bold))
-                                Text("Correct")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(MCDesign.Colors.success)
-                            .cornerRadius(12)
-                        }
-
-                        Button(action: { scoreManual(correct: false) }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 14, weight: .bold))
-                                Text("Incorrect")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                            .background(MCDesign.Colors.error)
-                            .cornerRadius(12)
-                        }
-                    }
-                    .padding(.horizontal, 32)
                 }
             }
 

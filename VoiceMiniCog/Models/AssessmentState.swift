@@ -9,19 +9,10 @@ import Foundation
 import Observation
 import SwiftUI
 
-// Validated Mini-Cog word lists (from mini-cog.com)
-// Each session uses one list, selected randomly, never repeating the last used.
-let MINICOG_WORD_SETS: [[String]] = [
-    ["banana", "sunrise", "chair"],     // Set 1
-    ["leader", "season", "table"],      // Set 2
-    ["village", "kitchen", "baby"],     // Set 3
-    ["dollar", "ship", "garden"],       // Set 4
-    ["river", "nation", "finger"],      // Set 5
-    ["captain", "garden", "picture"],   // Set 6
-]
-
-// Legacy alias
-let WORD_LISTS = MINICOG_WORD_SETS
+// DEPRECATED: MiniCog 3-word lists replaced by QMCI 5-word lists in QmciModels.swift
+// Kept as empty alias to prevent compile errors in legacy views that reference it.
+let MINICOG_WORD_SETS: [[String]] = QMCI_WORD_LISTS
+let WORD_LISTS = QMCI_WORD_LISTS
 
 // MARK: - Repeat Tracking
 

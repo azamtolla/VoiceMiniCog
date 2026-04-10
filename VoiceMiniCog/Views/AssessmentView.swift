@@ -720,7 +720,7 @@ struct AssessmentView: View {
         let instructions = """
         You are conducting a Mini-Cog cognitive assessment. Your role is to:
         1. Greet the patient warmly and explain you'll do a short memory exercise
-        2. Say three words clearly and slowly: \(state.words.joined(separator: ", "))
+        2. Say five words clearly and slowly: \(state.words.joined(separator: ", "))
         3. Ask the patient to repeat the words
         4. After they repeat, tell them you'll ask for the words again later
         5. Say "Great, now we're going to do something different" to transition to clock drawing
@@ -745,9 +745,9 @@ struct AssessmentView: View {
         // Transition to word registration
         detailedStage = "register_words"
         state.currentPhase = .wordRegistration
-        state.currentPrompt = "I'm going to say three words. Please remember them."
+        state.currentPrompt = "I'm going to say five words. Please remember them."
 
-        realtimeManager.sendInstructionText("Now say the three words clearly and slowly, then ask the patient to repeat them.")
+        realtimeManager.sendInstructionText("Now say the five words clearly and slowly, then ask the patient to repeat them.")
 
         // Wait for registration
         try? await Task.sleep(nanoseconds: 15_000_000_000) // 15 seconds
@@ -956,12 +956,12 @@ struct AssessmentView: View {
         state.currentPhase = .recall
         state.addMessage(role: .system, content: "Word Recall Phase")
 
-        let recallPrompt = "Now, what were those three words I asked you to remember earlier?"
+        let recallPrompt = "Now, what were those five words I asked you to remember earlier?"
         state.currentPrompt = recallPrompt
         state.addMessage(role: .assistant, content: recallPrompt)
 
         if useRealtimeMode {
-            realtimeManager.sendInstructionText("Ask the patient: 'Now, what were those three words I asked you to remember earlier?' Listen for their response and be encouraging.")
+            realtimeManager.sendInstructionText("Ask the patient: 'Now, what were those five words I asked you to remember earlier?' Listen for their response and be encouraging.")
             try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds for recall
             // TODO: Parse transcript from realtime events
         } else {

@@ -13,7 +13,7 @@ struct ClockDrawingView: View {
 
     @State private var lines: [[CGPoint]] = []
     @State private var currentLine: [CGPoint] = []
-    @State private var timeLeft: Int = 180  // 3 minutes
+    @State private var timeLeft: Int = 60  // QMCI protocol: 1 minute
     @State private var startTime: Date = Date()
     @State private var strokeCount: Int = 0
     @State private var timer: Timer?

@@ -146,9 +146,6 @@ struct QAPhaseView: View {
                     .frame(width: 10, height: 10)
             }
             Spacer()
-            Text("\(assessmentState.qmciState.orientationScore)/10")
-                .font(AssessmentTheme.Fonts.timerSmall)
-                .foregroundStyle(AssessmentTheme.Content.textSecondary)
         }
     }
 
@@ -183,7 +180,7 @@ struct QAPhaseView: View {
         case .phq2:
             return ["Not at all", "Several days", "More than half the days", "Nearly every day"]
         case .orientation:
-            return ["Correct", "Incorrect"]
+            return [] // Orientation is auto-advancing — no buttons, patient answers verbally
         default:
             return []
         }

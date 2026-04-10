@@ -23,7 +23,7 @@ func isGreetingComplete(_ transcript: String) -> Bool {
     return false
 }
 
-// Word registration: patient listing ~3 words (or saying "I don't remember")
+// Word registration: patient listing ~5 words (QMCI protocol) or saying "I don't remember"
 func makeWordRegistrationChecker(wordList: [String]) -> (String) -> Bool {
     return { transcript in
         let s = transcript.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
