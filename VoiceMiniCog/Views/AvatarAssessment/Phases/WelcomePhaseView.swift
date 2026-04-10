@@ -14,6 +14,7 @@ import SwiftUI
 struct WelcomePhaseView: View {
 
     let layoutManager: AvatarLayoutManager
+    var onGoToMainMenu: (() -> Void)? = nil
 
     @State private var showBeginButton = false
     @State private var buttonBounce = false
@@ -124,6 +125,16 @@ struct WelcomePhaseView: View {
                 .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
+
+            // MARK: Go to Main Menu
+            Button {
+                onGoToMainMenu?()
+            } label: {
+                Text("Go to Main Menu")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(MCDesign.Colors.primary500)
+            }
+            .padding(.top, 12)
 
             Spacer().frame(height: 16)
         }

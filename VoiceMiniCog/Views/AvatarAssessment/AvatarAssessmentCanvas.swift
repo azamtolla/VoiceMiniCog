@@ -143,7 +143,7 @@ struct AvatarAssessmentCanvas: View {
     private var phaseContent: some View {
         switch layoutManager.currentPhase {
         case .welcome:
-            WelcomePhaseView(layoutManager: layoutManager)
+            WelcomePhaseView(layoutManager: layoutManager, onGoToMainMenu: onCancel)
         case .qdrs:
             QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .qdrs)
         case .phq2:
