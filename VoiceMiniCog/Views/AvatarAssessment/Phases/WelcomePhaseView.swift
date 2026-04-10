@@ -3,13 +3,15 @@
 //  VoiceMiniCog
 //
 //  Phase 1 — Welcome screen. Avatar introduces the assessment as a
-//  neuropsychologist. Each subtest row reveals as the avatar describes it.
-//  Begin Assessment button appears with a bounce after the avatar finishes.
+//  neuropsychologist. Each subtest row reveals AFTER the avatar finishes
+//  describing it. Begin Assessment button bounces in at the end.
+//
+//  Sync method: The intro is sent as sequential echo calls. After each
+//  echo completes (avatarDoneSpeaking), the corresponding subtest row
+//  reveals and the next echo fires. This guarantees visual-audio sync.
 //
 
 import SwiftUI
-
-// MARK: - WelcomePhaseView
 
 struct WelcomePhaseView: View {
 
@@ -20,27 +22,43 @@ struct WelcomePhaseView: View {
     @State private var buttonBounce = false
     @State private var revealedSubtests = 0
     @State private var headerVisible = false
+    @State private var currentIntroStep = 0
+    @State private var introStarted = false
 
-    // Timing: seconds after avatar starts speaking when each subtest is mentioned.
-    // Matches the neuropsychologist intro script structure.
-    private let subtestRevealDelays: [Double] = [
-        16,   // Orientation — "First, I will ask you a few orientation questions..."
-        26,   // Word Learning — "Second, I will read you five words..."
-        36,   // Clock Drawing — "Third, I will ask you to draw a clock face..."
-        46,   // Word Recall — "Fourth, I will ask you to recall those five words..."
-        54,   // Verbal Fluency — "Fifth, I will ask you to name as many animals..."
-        64,   // Story Recall — "And finally, I will read you a short story..."
+    // The intro is split into sequential segments. After each segment,
+    // the avatar pauses, the corresponding subtest reveals, then the next plays.
+    private let introSegments: [(text: String, revealsSubtest: Bool)] = [
+        // Segment 0: Opening (no subtest reveal)
+        ("Good morning. Thank you for coming in today. My name is Dr. Anna, and I am a clinical neuropsychologist. I will be guiding you through a brief cognitive assessment. This is a standardized screening tool that helps us understand how different areas of your brain are functioning right now. The assessment consists of six short activities. Let me walk you through what to expect.", false),
+
+        // Segment 1: Orientation → reveals row 1
+        ("First, I will ask you a few orientation questions — things like today's date and where we are. These questions help us assess your awareness of time and place.", true),
+
+        // Segment 2: Word Learning → reveals row 2
+        ("Second, I will read you five words and ask you to repeat them back to me. This measures your ability to register and hold new information in working memory.", true),
+
+        // Segment 3: Clock Drawing → reveals row 3
+        ("Third, I will ask you to draw a clock face and set it to a specific time. This is a well-established test of visuospatial ability and executive function — how your brain plans and organizes.", true),
+
+        // Segment 4: Word Recall → reveals row 4
+        ("Fourth, I will ask you to recall those five words from earlier. This measures your delayed memory — how well your brain retains information over a short period.", true),
+
+        // Segment 5: Verbal Fluency → reveals row 5
+        ("Fifth, I will ask you to name as many animals as you can in one minute. This assesses your verbal fluency — how quickly and flexibly your brain can search and retrieve information.", true),
+
+        // Segment 6: Story Recall → reveals row 6
+        ("And finally, I will read you a short story and ask you to repeat it back in as much detail as you can. This is the most sensitive part of the assessment. It measures your episodic memory — your ability to encode and recall meaningful information.", true),
+
+        // Segment 7: Closing (triggers Begin button)
+        ("The entire assessment takes approximately three to five minutes. There are no trick questions, and there is no pass or fail. I am simply gathering information to help your clinician understand your cognitive health. I will be here with you throughout. When you are ready to begin, please press the Begin Assessment button on the screen.", false),
     ]
-
-    // Begin button appears after avatar finishes (~85 seconds)
-    private let beginButtonDelay: Double = 80
 
     var body: some View {
         VStack(spacing: 0) {
 
             Spacer()
 
-            // MARK: Header (fades in immediately)
+            // MARK: Header
             Group {
                 Image(systemName: "brain.head.profile")
                     .resizable()
@@ -65,7 +83,7 @@ struct WelcomePhaseView: View {
             .opacity(headerVisible ? 1 : 0)
             .offset(y: headerVisible ? 0 : 10)
 
-            // MARK: Subtest List Card — rows reveal one by one
+            // MARK: Subtest List — rows reveal one by one as avatar describes each
             VStack(spacing: 0) {
                 ForEach(Array(QmciSubtest.allCases.enumerated()), id: \.element) { index, subtest in
                     if index < revealedSubtests {
@@ -75,7 +93,7 @@ struct WelcomePhaseView: View {
                                 removal: .opacity
                             ))
 
-                        if index < QmciSubtest.allCases.count - 1 && index < revealedSubtests - 1 {
+                        if index < min(revealedSubtests - 1, QmciSubtest.allCases.count - 1) {
                             Divider()
                                 .padding(.leading, 44)
                                 .transition(.opacity)
@@ -83,22 +101,21 @@ struct WelcomePhaseView: View {
                     }
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, revealedSubtests > 0 ? 8 : 0)
             .background(revealedSubtests > 0 ? AssessmentTheme.Content.surface : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(
                 color: revealedSubtests > 0
                     ? AssessmentTheme.Content.shadowColor.opacity(0.08)
                     : Color.clear,
-                radius: 12,
-                y: 2
+                radius: 12, y: 2
             )
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-            .animation(.easeOut(duration: 0.4), value: revealedSubtests)
+            .animation(.spring(response: 0.5, dampingFraction: 0.75), value: revealedSubtests)
 
             Spacer()
 
-            // MARK: Begin Assessment Button — bouncy entrance after avatar finishes
+            // MARK: Begin Assessment Button — bouncy entrance
             if showBeginButton {
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -114,11 +131,7 @@ struct WelcomePhaseView: View {
                     .frame(height: 56)
                     .background(layoutManager.accentColor)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(
-                        color: layoutManager.accentColor.opacity(0.35),
-                        radius: 8,
-                        y: 4
-                    )
+                    .shadow(color: layoutManager.accentColor.opacity(0.35), radius: 8, y: 4)
                     .scaleEffect(buttonBounce ? 1.0 : 0.85)
                 }
                 .buttonStyle(AssessmentPrimaryButtonStyle())
@@ -127,9 +140,7 @@ struct WelcomePhaseView: View {
             }
 
             // MARK: Go to Main Menu
-            Button {
-                onGoToMainMenu?()
-            } label: {
+            Button { onGoToMainMenu?() } label: {
                 Text("Go to Main Menu")
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(MCDesign.Colors.primary500)
@@ -139,75 +150,64 @@ struct WelcomePhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
-            // 1. Show header immediately
-            withAnimation(.easeOut(duration: 0.4)) {
-                headerVisible = true
+            withAnimation(.easeOut(duration: 0.4)) { headerVisible = true }
+
+            avatarSetContext("You are a board-certified clinical neuropsychologist introducing a standardized cognitive assessment. Speak with a calm, measured, professional tone. Warm but clinical. Clear enunciation, moderate pace. No slang, no exclamation marks, no performance feedback.")
+
+            // Start the first segment
+            speakNextSegment()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            guard introStarted else { return }
+            advanceIntro()
+        }
+    }
+
+    // MARK: - Sequential Intro Playback
+
+    private func speakNextSegment() {
+        guard currentIntroStep < introSegments.count else { return }
+        introStarted = true
+        let segment = introSegments[currentIntroStep]
+        avatarSpeak(segment.text)
+    }
+
+    private func advanceIntro() {
+        let justFinished = currentIntroStep
+        guard justFinished < introSegments.count else { return }
+
+        let segment = introSegments[justFinished]
+
+        // Reveal subtest row if this segment maps to one
+        if segment.revealsSubtest {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                revealedSubtests += 1
             }
+        }
 
-            // 2. Set neuropsychologist context
-            avatarSetContext("You are a board-certified clinical neuropsychologist introducing a standardized cognitive assessment. Speak with a calm, measured, professional tone. Warm but clinical. Clear enunciation, moderate pace. No slang, no exclamation marks, no performance feedback. After the introduction, instruct the patient to press the Begin Assessment button.")
+        // Move to next segment
+        currentIntroStep = justFinished + 1
 
-            // 3. Avatar speaks the full intro
-            avatarSpeak(welcomeIntroScript)
-
-            // 4. Reveal each subtest row timed to the avatar's speech
-            for (index, delay) in subtestRevealDelays.enumerated() {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                        revealedSubtests = index + 1
-                    }
-                }
+        if currentIntroStep < introSegments.count {
+            // Brief pause between segments for natural pacing
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                speakNextSegment()
             }
-
-            // 5. Show Begin button with bounce after avatar finishes
-            DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonDelay) {
+        } else {
+            // All segments done — show Begin button with bounce
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
                     showBeginButton = true
                     buttonBounce = true
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
-            // Backup: if avatar finishes before timer, show button immediately
-            if !showBeginButton {
-                // Reveal any remaining subtests
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    revealedSubtests = QmciSubtest.allCases.count
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
-                        showBeginButton = true
-                        buttonBounce = true
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Welcome Intro Script (Neuropsychologist Voice)
-
-    private var welcomeIntroScript: String {
-        """
-        Good morning. Thank you for coming in today. My name is Dr. Anna, and I am a clinical neuropsychologist. \
-        I will be guiding you through a brief cognitive assessment. This is a standardized screening tool that helps us understand how different areas of your brain are functioning right now. \
-        The assessment consists of six short activities. Each one looks at a different aspect of cognitive function. Let me walk you through what to expect. \
-        First, I will ask you a few orientation questions — things like today's date and where we are. These questions help us assess your awareness of time and place. \
-        Second, I will read you five words and ask you to repeat them back to me. This measures your ability to register and hold new information in working memory. \
-        Third, I will ask you to draw a clock face and set it to a specific time. This is a well-established test of visuospatial ability and executive function — how your brain plans and organizes. \
-        Fourth, I will ask you to recall those five words from earlier. This measures your delayed memory — how well your brain retains information over a short period. \
-        Fifth, I will ask you to name as many animals as you can in one minute. This assesses your verbal fluency — how quickly and flexibly your brain can search and retrieve information. \
-        And finally, I will read you a short story and ask you to repeat it back in as much detail as you can. This is the most sensitive part of the assessment. It measures your episodic memory — your ability to encode and recall meaningful information. \
-        The entire assessment takes approximately three to five minutes. There are no trick questions, and there is no pass or fail. I am simply gathering information to help your clinician understand your cognitive health. \
-        I will be here with you throughout. If you have any questions during the assessment, please feel free to ask. \
-        When you are ready to begin, please press the Begin Assessment button on the screen.
-        """
     }
 }
 
 // MARK: - SubtestRow
 
 private struct SubtestRow: View {
-
     let subtest: QmciSubtest
     let accentColor: Color
 
@@ -233,11 +233,7 @@ private struct SubtestRow: View {
     }
 }
 
-// MARK: - Preview
-
 #Preview {
-    WelcomePhaseView(
-        layoutManager: AvatarLayoutManager()
-    )
-    .background(AssessmentTheme.Content.background)
+    WelcomePhaseView(layoutManager: AvatarLayoutManager())
+        .background(AssessmentTheme.Content.background)
 }
