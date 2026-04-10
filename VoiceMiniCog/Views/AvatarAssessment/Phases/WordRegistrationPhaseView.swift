@@ -102,7 +102,7 @@ struct WordRegistrationPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetContext("You are on the Word Registration phase. You will read 5 words via echo commands. The patient will repeat them back. Do NOT say any words on your own — only speak what is sent to you via echo. If the patient talks to you, briefly acknowledge and redirect focus to remembering the words.")
+            avatarSetContext("You are a clinical neuropsychologist administering the Word Registration subtest. Read the five words slowly and clearly, one per second, exactly as provided via echo commands. Do not add any words of your own. Do not provide feedback on the patient's recall. If the patient speaks between words, respond briefly: 'Let us continue.' Maintain a calm, professional tone throughout.")
             if words.isEmpty {
                 qmciState.selectWordList()
             }

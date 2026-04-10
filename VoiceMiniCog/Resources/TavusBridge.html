@@ -149,9 +149,9 @@ async function joinRoom(roomUrl) {
     callObject.setLocalAudio(false);
     log('Mic muted on join (waiting for assessment start)');
 
-    // 4. Set global context as backup
-    sendContextUpdate('You are a clinical assessment avatar. Do NOT speak until you receive an echo command from the app. Stay completely silent. The assessment has not started yet.');
-    log('Set global clinical context');
+    // 4. Set global persona: neuropsychologist examiner
+    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between questions, respond briefly and professionally: "Let us continue with the next part of the assessment." 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
+    log('Set neuropsychologist persona context');
 
     // 5. Mark as joined and flush any pending echo requests
     isJoined = true;

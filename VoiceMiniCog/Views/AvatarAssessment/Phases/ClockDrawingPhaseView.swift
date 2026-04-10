@@ -111,7 +111,7 @@ struct ClockDrawingPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetContext("You are on the Clock Drawing phase. The patient is drawing a clock. Stay quiet and wait. Do NOT give hints, do NOT comment on their drawing, do NOT advance to the next phase. Only speak when sent echo commands. If the patient asks for help, say 'Just do your best.'")
+            avatarSetContext("You are a clinical neuropsychologist administering the Clock Drawing subtest. The patient is drawing. Remain silent and observe. Do not provide hints, corrections, or commentary on the drawing. Do not tell the patient how much time remains. If the patient asks for help, say calmly: 'Please do your best.' Speak only when sent echo commands.")
             avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
         }

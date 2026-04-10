@@ -101,42 +101,32 @@ struct WelcomePhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
-            avatarSetContext("You are a warm, enthusiastic neuroscience avatar delivering an engaging introduction to a brain health assessment. Speak the script sent via echo with energy, warmth, and varied pacing. After finishing the script, tell the patient to press the Begin Assessment button on screen. Do NOT start asking assessment questions. Do NOT advance phases.")
+            avatarSetContext("You are a board-certified clinical neuropsychologist introducing a standardized cognitive assessment. Speak with a calm, measured, professional tone. Warm but clinical. Clear enunciation, moderate pace. No slang, no exclamation marks, no performance feedback. After the introduction, instruct the patient to press the Begin Assessment button.")
             avatarSpeak(welcomeIntroScript)
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
-            // Show Begin button when avatar finishes the intro
             withAnimation(.easeInOut(duration: 0.4)) {
                 showBeginButton = true
             }
         }
     }
 
-    // MARK: - Full Welcome Intro Script
+    // MARK: - Welcome Intro Script (Neuropsychologist Voice)
 
     private var welcomeIntroScript: String {
         """
-        Hey — I'm really glad you're here. \
-        What you're about to do in the next few minutes is one of the most genuinely interesting things you can do for your own health. \
-        Not a blood draw. Not a treadmill. Not a questionnaire with a hundred 'on a scale of one to ten' questions. \
-        We're going to look at your brain — how it remembers, how it thinks, how it moves through the world. \
-        And honestly? It's kind of incredible. \
-        Here's what most people don't realize: your brain is giving off signals all the time — signals about memory, attention, and processing — and most of those signals go completely unnoticed. \
-        Until today. Because today we're actually listening. \
-        This assessment — six short activities — is designed by neuroscientists to gently reveal how different parts of your brain are performing right now. \
-        Not to judge. Not to alarm. Just to know. And knowing is the most powerful thing there is. \
-        We start with something that might sound simple but is actually profound. I'm going to ask you where you are, what day it is, what year. \
-        Your brain has to actively construct that answer every single time. It's not stored like a file — it's rebuilt, moment to moment. Ten points. Pretty cool for a warm-up, right? \
-        Next, I'm going to say a few words to you. Just words. And your only job is to listen. \
-        What's happening in your brain in that moment is extraordinary — your hippocampus is firing, encoding those words into short-term memory. Five points — and they come back later. \
-        Then I'm going to ask you to draw a clock. A simple clock. But what your brain has to do — the spatial reasoning, the planning, the sequencing — it's activating multiple brain systems simultaneously. Fifteen points. \
-        After that, I'm going to give you a category, and you're going to name as many things in that category as you possibly can. Fast. Really fast. Twenty points. Your brain loves to sprint. \
-        Then I'll tell you a short story, and later I'll ask you about it. Thirty points — the biggest block in the whole assessment. So listen closely. Every word counts. \
-        And finally, those words from the very beginning? It's time to bring them back. Twenty points. \
-        Six activities. Five to seven minutes. And at the end, you'll know something real about how your brain is working today. \
-        Not a diagnosis. Not a verdict. A snapshot of one of the most complex objects in the known universe: your brain. \
-        I'll be right here with you, every step of the way. \
-        Whenever you're ready, press the Begin Assessment button on the screen, and let's get started.
+        Good morning. Thank you for coming in today. My name is Dr. Anna, and I am a clinical neuropsychologist. \
+        I will be guiding you through a brief cognitive assessment. This is a standardized screening tool that helps us understand how different areas of your brain are functioning right now. \
+        The assessment consists of six short activities. Each one looks at a different aspect of cognitive function. Let me walk you through what to expect. \
+        First, I will ask you a few orientation questions — things like today's date and where we are. These questions help us assess your awareness of time and place. \
+        Second, I will read you five words and ask you to repeat them back to me. This measures your ability to register and hold new information in working memory. \
+        Third, I will ask you to draw a clock face and set it to a specific time. This is a well-established test of visuospatial ability and executive function — how your brain plans and organizes. \
+        Fourth, I will ask you to recall those five words from earlier. This measures your delayed memory — how well your brain retains information over a short period. \
+        Fifth, I will ask you to name as many animals as you can in one minute. This assesses your verbal fluency — how quickly and flexibly your brain can search and retrieve information. \
+        And finally, I will read you a short story and ask you to repeat it back in as much detail as you can. This is the most sensitive part of the assessment. It measures your episodic memory — your ability to encode and recall meaningful information. \
+        The entire assessment takes approximately three to five minutes. There are no trick questions, and there is no pass or fail. I am simply gathering information to help your clinician understand your cognitive health. \
+        I will be here with you throughout. If you have any questions during the assessment, please feel free to ask. \
+        When you are ready to begin, please press the Begin Assessment button on the screen.
         """
     }
 }

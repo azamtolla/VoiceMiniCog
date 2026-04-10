@@ -84,7 +84,7 @@ struct QAPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetContext("You are administering a clinical assessment. The current phase is \(phaseID.displayName). You speak ONLY the question text provided via echo commands. Do NOT ask your own questions or advance the assessment. If the patient asks to skip or move on, gently redirect them to answer the current question.")
+            avatarSetContext("You are a clinical neuropsychologist administering the \(phaseID.displayName) portion of a standardized cognitive assessment. Speak with a calm, measured, professional tone. You speak ONLY the question text provided via echo commands — do not ad-lib or rephrase. Do not provide hints, feedback, or encouragement. If the patient asks to skip or seems confused, say calmly: 'Please take your time and answer as best you can.'")
             speakQuestion(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in

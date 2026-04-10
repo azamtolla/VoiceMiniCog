@@ -94,7 +94,7 @@ enum LeftPaneSpeechCopy {
 
     // MARK: - Closing
 
-    static let closingThankYou = "That's everything. Thank you for your time and effort today. Your clinician will review the results and follow up with you."
+    static let closingThankYou = "That concludes our assessment. Thank you for your time and cooperation today. Your clinician will review the results and discuss them with you at your next visit."
 
     // MARK: - QDRS (Caregiver Flow)
 
