@@ -238,8 +238,27 @@ class QmciState: Codable {
     }
     var logicalMemoryScore: Int { min(logicalMemoryRecalledUnits.count * 2, 30) }
     var delayedRecallScore: Int { min(delayedRecallWords.count * 4, 20) }
+
+    /// True if any detailed clock-drawing field has been touched by the clinician.
+    /// Used to decide whether to trust the computed cdt score vs. a legacy stored value.
+    private var hasCDTFieldsSet: Bool {
+        cdtNumbersPlaced.contains(true) ||
+        cdtMinuteHandCorrect || cdtHourHandCorrect || cdtPivotCorrect ||
+        cdtInvalidNumbersCount > 0
+    }
+
+    /// Effective clock-drawing score used in totals. Prefers the freshly-
+    /// computed value when the detailed fields have been populated, so the
+    /// total is never stale if the clinician forgets to call
+    /// `recomputeClockDrawingScore()` after editing. Falls back to the stored
+    /// `clockDrawingScore` for legacy assessments saved before the 15-point
+    /// rubric existed.
+    var effectiveClockDrawingScore: Int {
+        hasCDTFieldsSet ? cdtComputedScore : clockDrawingScore
+    }
+
     var totalScore: Int {
-        orientationScore + registrationScore + clockDrawingScore +
+        orientationScore + registrationScore + effectiveClockDrawingScore +
         verbalFluencyScore + logicalMemoryScore + delayedRecallScore
     }
     var maxScore: Int { 100 }
@@ -249,10 +268,11 @@ class QmciState: Codable {
         return .dementiaRange
     }
 
-    /// Age/education-adjusted classification per QMCI normative guidance.
+    /// Age/education-adjusted classification per QMCI normative guidance
+    /// (O'Caoimh et al., 2012).
     ///
-    /// - Patients >75 years old: add 3 points to raw score
-    /// - Patients with <12 years of education: add 4 points to raw score
+    /// - Patients aged 75 or older: add 3 points to raw score
+    /// - Patients with fewer than 12 years of education: add 4 points to raw score
     /// - Both adjustments combine additively.
     ///
     /// The adjusted score is then compared against the standard QMCI cutoffs
@@ -267,7 +287,7 @@ class QmciState: Codable {
     /// Returns the effective score used for normative classification.
     func adjustedScore(age: Int, educationYears: Int) -> Int {
         var score = totalScore
-        if age > 75 { score += 3 }
+        if age >= 75 { score += 3 }
         if educationYears < 12 { score += 4 }
         return score
     }
@@ -275,7 +295,7 @@ class QmciState: Codable {
     /// Human-readable list of adjustments applied for display in reports.
     func adjustmentReasons(age: Int, educationYears: Int) -> [String] {
         var reasons: [String] = []
-        if age > 75 { reasons.append("Age-adjusted: +3 for age >75") }
+        if age >= 75 { reasons.append("Age-adjusted: +3 for age ≥75") }
         if educationYears < 12 { reasons.append("Education-adjusted: +4 for <12 years") }
         return reasons
     }

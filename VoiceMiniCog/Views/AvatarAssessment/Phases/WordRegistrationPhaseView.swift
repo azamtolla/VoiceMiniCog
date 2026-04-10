@@ -2,8 +2,21 @@
 //  WordRegistrationPhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 5 — Word Registration. The avatar reads 5 words aloud while
-//  word chips appear progressively on screen (one every 1.5 s).
+//  Phase 5 — Word Registration. The avatar reads 5 words aloud across up to
+//  3 trials. Per QMCI protocol, only Trial 1 counts toward the 5-point score;
+//  Trials 2 and 3 exist to help the patient learn the words for the Delayed
+//  Recall subtest later. The flow is fully hands-free and timed:
+//
+//    Trial N (N = 1…3):
+//      1. Avatar reads the 5 words (intro speech for Trial 1, retry speech
+//         for Trials 2 & 3) while the chips reveal progressively (1.5 s each).
+//      2. After the reveal finishes, a ~8 s "Listening for your response…"
+//         pause gives the patient time to repeat the words back.
+//      3. If more trials remain, advance to the next trial (resetting chips).
+//         Otherwise, speak the "Remember these words" prompt and let the
+//         parent layout manager advance to the next phase.
+//
+//  Total duration is approximately 45–60 s depending on TTS cadence.
 //
 
 import SwiftUI
@@ -17,9 +30,20 @@ struct WordRegistrationPhaseView: View {
     let layoutManager: AvatarLayoutManager
     @Bindable var qmciState: QmciState
 
-    @State private var revealedCount = 0
-    @State private var isRevealing = false
-    @State private var contentVisible = false
+    // Trial bookkeeping
+    @State private var currentTrial: Int = 0           // 1...totalTrials once running
+    @State private var revealedCount: Int = 0
+    @State private var isListeningPause: Bool = false  // Shows "Listening for your response…"
+    @State private var isFinalRemember: Bool = false   // Shows final "Remember these words"
+    @State private var hasStarted: Bool = false
+    @State private var contentVisible: Bool = false
+
+    // Timing constants (seconds)
+    private let totalTrials: Int = 3
+    private let wordRevealInterval: Double = 1.5       // seconds between chip reveals
+    private let postSpeechSettle: Double = 1.0         // small buffer after last chip before listening pause
+    private let listeningPauseDuration: Double = 8.0   // patient-response window
+    private let retryLeadIn: Double = 0.4              // brief gap before next trial's speech
 
     private var words: [String] { qmciState.registrationWords }
 
@@ -48,14 +72,17 @@ struct WordRegistrationPhaseView: View {
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            // MARK: Subtitle
-            Text(LeftPaneSpeechCopy.wordRegistrationSubtitle)
+            // MARK: Trial Counter / Status
+            Text(statusText)
                 .font(AssessmentTheme.Fonts.helper)
-                .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                .foregroundStyle(statusColor)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 28)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
+                .animation(.easeInOut(duration: 0.25), value: isListeningPause)
+                .animation(.easeInOut(duration: 0.25), value: currentTrial)
+                .animation(.easeInOut(duration: 0.25), value: isFinalRemember)
 
             // MARK: Word Chips
             if !words.isEmpty {
@@ -75,26 +102,6 @@ struct WordRegistrationPhaseView: View {
 
             Spacer()
 
-            // MARK: Continue Button
-            Button {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
-                layoutManager.advanceToNextPhase()
-            } label: {
-                Text("Continue to Clock Drawing")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(layoutManager.accentColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: layoutManager.accentColor.opacity(0.3), radius: 10, y: 4)
-            }
-            .buttonStyle(AssessmentPrimaryButtonStyle())
-            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
-            .animation(AssessmentTheme.Anim.contentEnter.delay(0.22), value: contentVisible)
-
             // MARK: Bottom Padding
             Spacer().frame(height: 16)
         }
@@ -102,29 +109,128 @@ struct WordRegistrationPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetContext("You are a clinical neuropsychologist administering the Word Registration subtest. Read the five words slowly and clearly, one per second, exactly as provided via echo commands. Do not add any words of your own. Do not provide feedback on the patient's recall. If the patient speaks between words, respond briefly: 'Let us continue.' Maintain a calm, professional tone throughout.")
+            avatarSetContext("You are a clinical neuropsychologist administering the QMCI Word Registration subtest. This test has up to 3 trials of the same 5 words to help the patient learn them. Read the five words slowly and clearly, one per second, exactly as provided via echo commands. Do not add any words of your own. Do not provide feedback on the patient's recall. If the patient speaks between words, respond briefly: 'Let us continue.' Maintain a calm, professional tone throughout.")
             if words.isEmpty {
                 qmciState.selectWordList()
             }
-            startWordReveal()
-            avatarSpeak(LeftPaneSpeechCopy.wordRegistrationNarration(words: qmciState.registrationWords))
+            startTrialSequence()
         }
     }
 
-    // MARK: Progressive Reveal
+    // MARK: - Status / UI Helpers
 
-    private func startWordReveal() {
-        guard !isRevealing else { return }
-        isRevealing = true
+    private var statusText: String {
+        if isFinalRemember {
+            return "Remember these words"
+        }
+        if isListeningPause {
+            return "Listening for your response..."
+        }
+        if currentTrial >= 1 && currentTrial <= totalTrials {
+            return "Trial \(currentTrial) of \(totalTrials)"
+        }
+        return LeftPaneSpeechCopy.wordRegistrationSubtitle
+    }
+
+    private var statusColor: Color {
+        if isListeningPause {
+            return layoutManager.accentColor
+        }
+        return AssessmentTheme.Content.textSecondary
+    }
+
+    // MARK: - Trial Sequencing
+
+    /// Kicks off the 3-trial sequence. Guarded so it only runs once per phase
+    /// appearance (SwiftUI may call onAppear multiple times).
+    private func startTrialSequence() {
+        guard !hasStarted else { return }
+        hasStarted = true
+        runTrial(1)
+    }
+
+    /// Runs a single trial: resets chips, increments attempt counter, speaks
+    /// the appropriate prompt, reveals chips progressively, then schedules the
+    /// listening pause. When the trial count is exhausted, speaks the final
+    /// "remember" prompt and advances to the next phase.
+    private func runTrial(_ trial: Int) {
+        guard trial <= totalTrials else {
+            finishRegistration()
+            return
+        }
+
+        // Reset UI for this trial
+        withAnimation(.easeOut(duration: 0.2)) {
+            revealedCount = 0
+            isListeningPause = false
+            currentTrial = trial
+        }
+
+        // Track QMCI attempts — only Trial 1 affects scoring, but the model
+        // records the total number of trials administered.
+        qmciState.registrationAttempts = trial
+
+        // Avatar speaks: intro narration for Trial 1, retry phrasing otherwise.
+        let speech: String
+        if trial == 1 {
+            speech = LeftPaneSpeechCopy.wordRegistrationNarration(words: words)
+        } else {
+            speech = LeftPaneSpeechCopy.wordRegistrationRetry(words: words)
+        }
+        avatarSpeak(speech)
+
+        // Progressive chip reveal — one chip per `wordRevealInterval` seconds.
         for i in 0..<words.count {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 1.5) {
-                withAnimation(AssessmentTheme.Anim.chipAppear) { revealedCount = i + 1 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * wordRevealInterval) {
+                // Ignore stale reveals if the user somehow re-entered the phase.
+                guard self.currentTrial == trial else { return }
+                withAnimation(AssessmentTheme.Anim.chipAppear) {
+                    self.revealedCount = i + 1
+                }
             }
         }
-        // After all words revealed, avatar says "Remember these words..."
-        let totalRevealTime = Double(words.count) * 1.5 + 1.0
-        DispatchQueue.main.asyncAfter(deadline: .now() + totalRevealTime) {
-            avatarSpeak(LeftPaneSpeechCopy.wordRegistrationRemember)
+
+        // Schedule the listening pause after the last chip is revealed.
+        let speechDuration = Double(words.count) * wordRevealInterval + postSpeechSettle
+        DispatchQueue.main.asyncAfter(deadline: .now() + speechDuration) {
+            guard self.currentTrial == trial else { return }
+            self.beginListeningPause(after: trial)
+        }
+    }
+
+    /// Shows "Listening for your response…" then either advances to the next
+    /// trial or finishes the subtest.
+    private func beginListeningPause(after trial: Int) {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isListeningPause = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + listeningPauseDuration) {
+            guard self.currentTrial == trial else { return }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                self.isListeningPause = false
+            }
+            if trial < self.totalTrials {
+                DispatchQueue.main.asyncAfter(deadline: .now() + self.retryLeadIn) {
+                    self.runTrial(trial + 1)
+                }
+            } else {
+                self.finishRegistration()
+            }
+        }
+    }
+
+    /// Final step — avatar reminds the patient to remember the words, then the
+    /// layout manager advances to the next phase after the prompt finishes.
+    private func finishRegistration() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isFinalRemember = true
+        }
+        avatarSpeak(LeftPaneSpeechCopy.wordRegistrationRemember)
+
+        // Give TTS a moment to deliver the remember prompt before advancing.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            layoutManager.advanceToNextPhase()
         }
     }
 }

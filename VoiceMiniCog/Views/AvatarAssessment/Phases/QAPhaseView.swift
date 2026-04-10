@@ -204,19 +204,22 @@ struct QAPhaseView: View {
             // QMCI protocol: max 10 seconds per orientation answer
             try? await Task.sleep(nanoseconds: 10_000_000_000)
             guard !Task.isCancelled else { return }
-            advanceOrientationQuestion()
+            // Timeout path: patient was silent — do NOT default to full credit.
+            advanceOrientationQuestion(patientResponded: false)
         }
     }
 
-    private func advanceOrientationQuestion() {
+    private func advanceOrientationQuestion(patientResponded: Bool = true) {
         guard waitingForPatientResponse else { return }
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
 
-        // Avatar cannot judge correctness — default to full credit (2 pts).
-        // The clinician will adjust to 0/1/2 in the PCP report.
+        // Avatar cannot judge correctness. If the patient spoke, default to full
+        // credit (2 pts) and let the clinician adjust in the PCP report. If the
+        // patient was silent (timeout), leave the score nil so the clinician is
+        // forced to review — a silent answer should never silently earn 2 pts.
         if currentIndex < assessmentState.qmciState.orientationScores.count {
-            assessmentState.qmciState.orientationScores[currentIndex] = 2
+            assessmentState.qmciState.orientationScores[currentIndex] = patientResponded ? 2 : nil
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

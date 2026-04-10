@@ -157,8 +157,6 @@ struct AvatarAssessmentCanvas: View {
             WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState, onComplete: onComplete)
         case .completion:
             CompletionPhaseView(onComplete: onComplete)
-        case .phq2:
-            EmptyView() // PHQ-2 removed from all flows
         }
     }
 

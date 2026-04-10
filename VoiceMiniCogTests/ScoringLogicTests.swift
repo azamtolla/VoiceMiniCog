@@ -417,6 +417,309 @@ class QmciScoringTests: XCTestCase {
         XCTAssertTrue(QmciClassification.dementiaRange.isPositive)
     }
 
+    // MARK: Orientation 3-Level Scoring (QMCI)
+
+    func testOrientationAllFullCredit() {
+        let state = QmciState()
+        state.orientationScores = [2, 2, 2, 2, 2]
+        XCTAssertEqual(state.orientationScore, 10, "5 × 2 = 10 (full credit)")
+    }
+
+    func testOrientationAllZero() {
+        let state = QmciState()
+        state.orientationScores = [0, 0, 0, 0, 0]
+        XCTAssertEqual(state.orientationScore, 0)
+    }
+
+    func testOrientationMixedCredit() {
+        let state = QmciState()
+        // 2 + 1 + 2 + 1 + 0 = 6
+        state.orientationScores = [2, 1, 2, 1, 0]
+        XCTAssertEqual(state.orientationScore, 6, "Mixed 3-level credits sum directly")
+    }
+
+    func testOrientationPartialAnswered() {
+        let state = QmciState()
+        // 2 + 2 + nil + nil + nil = 4 (nils filtered out)
+        state.orientationScores = [2, 2, nil, nil, nil]
+        XCTAssertEqual(state.orientationScore, 4,
+                       "Unanswered (nil) items filtered; 2 + 2 = 4")
+    }
+
+    func testOrientationHypotheticalOverflowCapped() {
+        let state = QmciState()
+        // Defensive: 6 × 2 = 12 should clamp to 10
+        state.orientationScores = [2, 2, 2, 2, 2, 2]
+        XCTAssertEqual(state.orientationScore, 10,
+                       "Computed property clamps raw sum to 10 max")
+    }
+
+    // MARK: QMCI 15-point Clock Drawing Scoring
+
+    func testClockPerfectScore() {
+        let state = QmciState()
+        state.cdtNumbersPlaced = Array(repeating: true, count: 12)
+        state.cdtMinuteHandCorrect = true
+        state.cdtHourHandCorrect = true
+        state.cdtPivotCorrect = true
+        state.cdtInvalidNumbersCount = 0
+        XCTAssertEqual(state.cdtComputedScore, 15,
+                       "12 numbers + 3 hand/pivot points = 15")
+    }
+
+    func testClockAllNumbers() {
+        let state = QmciState()
+        state.cdtNumbersPlaced = Array(repeating: true, count: 12)
+        state.cdtMinuteHandCorrect = false
+        state.cdtHourHandCorrect = false
+        state.cdtPivotCorrect = false
+        XCTAssertEqual(state.cdtComputedScore, 12,
+                       "12 numbers only = 12")
+    }
+
+    func testClockAllHandsNoNumbers() {
+        let state = QmciState()
+        state.cdtNumbersPlaced = Array(repeating: false, count: 12)
+        state.cdtMinuteHandCorrect = true
+        state.cdtHourHandCorrect = true
+        state.cdtPivotCorrect = true
+        XCTAssertEqual(state.cdtComputedScore, 3,
+                       "Minute + hour + pivot = 3")
+    }
+
+    func testClockWithPenalty() {
+        let state = QmciState()
+        state.cdtNumbersPlaced = Array(repeating: true, count: 12)
+        state.cdtMinuteHandCorrect = true
+        state.cdtHourHandCorrect = true
+        state.cdtPivotCorrect = true
+        state.cdtInvalidNumbersCount = 2
+        XCTAssertEqual(state.cdtComputedScore, 13,
+                       "15 - 2 invalid numbers = 13")
+    }
+
+    func testClockClampedAtZero() {
+        let state = QmciState()
+        state.cdtNumbersPlaced = Array(repeating: false, count: 12)
+        state.cdtMinuteHandCorrect = false
+        state.cdtHourHandCorrect = false
+        state.cdtPivotCorrect = false
+        state.cdtInvalidNumbersCount = 5
+        XCTAssertEqual(state.cdtComputedScore, 0,
+                       "Negative raw score clamped to 0")
+    }
+
+    func testClockClampedAt15() {
+        let state = QmciState()
+        // This scenario can't naturally exceed 15, but ensure clamp works.
+        state.cdtNumbersPlaced = Array(repeating: true, count: 12)
+        state.cdtMinuteHandCorrect = true
+        state.cdtHourHandCorrect = true
+        state.cdtPivotCorrect = true
+        state.cdtInvalidNumbersCount = 0
+        XCTAssertLessThanOrEqual(state.cdtComputedScore, 15,
+                                 "Computed score never exceeds 15")
+        XCTAssertEqual(state.cdtComputedScore, 15)
+    }
+
+    func testRecomputeClockDrawingScore() {
+        let state = QmciState()
+        XCTAssertEqual(state.clockDrawingScore, 0, "Starts at 0")
+        state.cdtNumbersPlaced = Array(repeating: true, count: 12)
+        state.cdtMinuteHandCorrect = true
+        state.cdtHourHandCorrect = true
+        state.cdtPivotCorrect = true
+        // Before recompute, stored field is still stale
+        XCTAssertEqual(state.clockDrawingScore, 0,
+                       "Stored field not yet refreshed")
+        state.recomputeClockDrawingScore()
+        XCTAssertEqual(state.clockDrawingScore, 15,
+                       "recomputeClockDrawingScore() writes computed value back")
+    }
+
+    func testTotalScoreUsesFreshClockValueIfCDTFieldsSet() {
+        // Regression: if the clinician edits cdt* fields but forgets to call
+        // recomputeClockDrawingScore(), totalScore should still reflect the
+        // fresh value, not a stale stored clockDrawingScore.
+        let state = QmciState()
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u", "u"]            // 4
+        state.delayedRecallWords = ["a", "b"]                    // 8
+        // Stale stored value
+        state.clockDrawingScore = 15
+        // Fresh cdt state says only 5 numbers placed = 5 points
+        state.cdtNumbersPlaced = [true, true, true, true, true,
+                                  false, false, false, false, false, false, false]
+        // Do NOT call recomputeClockDrawingScore() — simulating the bug
+        XCTAssertEqual(state.cdtComputedScore, 5)
+        XCTAssertEqual(state.effectiveClockDrawingScore, 5,
+                       "Prefers fresh value when cdt* fields are set")
+        XCTAssertEqual(state.totalScore, 10 + 5 + 5 + 20 + 4 + 8,
+                       "totalScore uses fresh cdt score, not stale stored value")
+    }
+
+    func testLegacyClockScoreFallback() {
+        // Legacy path: cdt* fields untouched, stored clockDrawingScore should
+        // remain authoritative for backward compatibility with older saves.
+        let state = QmciState()
+        state.clockDrawingScore = 12
+        XCTAssertEqual(state.effectiveClockDrawingScore, 12,
+                       "Falls back to stored value when cdt* fields untouched")
+    }
+
+    // MARK: Age/Education Normative Adjustment
+
+    func testNoAdjustmentNeeded() {
+        let state = QmciState()
+        // Build raw 65 → MCI, no adjustment for age 60 / education 16.
+        // 10 + 5 + 14 + 20 + 4 + 12 = 65
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.clockDrawingScore = 14                             // 14
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u", "u"]            // 4
+        state.delayedRecallWords = ["a", "b", "c"]               // 12
+        XCTAssertEqual(state.totalScore, 65)
+        XCTAssertEqual(state.adjustedScore(age: 60, educationYears: 16), 65,
+                       "No adjustment for age 60, education 16")
+        XCTAssertEqual(state.adjustedClassification(age: 60, educationYears: 16),
+                       .mciProbable, "65 < 67 → MCI")
+    }
+
+    func testAgeAdjustmentOnly() {
+        let state = QmciState()
+        // Raw 64 → +3 for age ≥75 → adjusted 67 → normal
+        // 10+5+15+20+2+12 = 64.
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.clockDrawingScore = 15                             // 15
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u"]                 // 2
+        state.delayedRecallWords = ["a", "b", "c"]               // 12
+        XCTAssertEqual(state.totalScore, 64)
+        XCTAssertEqual(state.adjustedScore(age: 80, educationYears: 16), 67,
+                       "Age ≥75 adds +3: 64 + 3 = 67")
+        XCTAssertEqual(state.adjustedClassification(age: 80, educationYears: 16),
+                       .normal, "Adjusted 67 meets normal threshold")
+    }
+
+    func testAgeAdjustmentBoundary75() {
+        // Exactly 75 should qualify for the age bonus (inclusive per QMCI paper).
+        let state = QmciState()
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.clockDrawingScore = 15                             // 15
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u"]                 // 2
+        state.delayedRecallWords = ["a", "b", "c"]               // 12
+        XCTAssertEqual(state.totalScore, 64)
+        XCTAssertEqual(state.adjustedScore(age: 75, educationYears: 16), 67,
+                       "Age 75 qualifies for +3 bonus")
+        XCTAssertEqual(state.adjustedScore(age: 74, educationYears: 16), 64,
+                       "Age 74 does NOT qualify for bonus")
+    }
+
+    func testEducationAdjustmentOnly() {
+        let state = QmciState()
+        // Raw 63 → +4 for edu<12 → adjusted 67 → normal
+        // 10+5+15+20+1+12 = 63? logical 1 not possible (2 per unit).
+        // 10+5+15+20+0+12 = 62; 10+5+15+20+2+12 = 64. 63 unreachable.
+        // Use 10+5+14+20+2+12 = 63 (clockDrawingScore = 14)
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.clockDrawingScore = 14                             // 14
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u"]                 // 2
+        state.delayedRecallWords = ["a", "b", "c"]               // 12
+        XCTAssertEqual(state.totalScore, 63)
+        XCTAssertEqual(state.adjustedScore(age: 60, educationYears: 8), 67,
+                       "Education <12 adds +4: 63 + 4 = 67")
+        XCTAssertEqual(state.adjustedClassification(age: 60, educationYears: 8),
+                       .normal, "Adjusted 67 meets normal threshold")
+    }
+
+    func testBothAdjustments() {
+        let state = QmciState()
+        // Raw 60 → +3 age +4 edu → adjusted 67 → normal
+        // 10+5+15+20+0+ delayed = 60 → delayed = 10 invalid.
+        // 10+5+11+20+2+12 = 60 (clockDrawingScore = 11)
+        state.orientationScores = [2, 2, 2, 2, 2]               // 10
+        state.registrationRecalledWords = ["a", "b", "c", "d", "e"] // 5
+        state.clockDrawingScore = 11                             // 11
+        state.verbalFluencyWords = (0..<40).map { "a\($0)" }     // 20
+        state.logicalMemoryRecalledUnits = ["u"]                 // 2
+        state.delayedRecallWords = ["a", "b", "c"]               // 12
+        XCTAssertEqual(state.totalScore, 60)
+        XCTAssertEqual(state.adjustedScore(age: 80, educationYears: 8), 67,
+                       "Both adjustments: 60 + 3 + 4 = 67")
+        XCTAssertEqual(state.adjustedClassification(age: 80, educationYears: 8),
+                       .normal, "Adjusted 67 meets normal threshold")
+    }
+
+    func testAdjustmentReasonsEmpty() {
+        let state = QmciState()
+        let reasons = state.adjustmentReasons(age: 60, educationYears: 16)
+        XCTAssertEqual(reasons, [], "No reasons for non-adjusted demographics")
+    }
+
+    func testAdjustmentReasonsBoth() {
+        let state = QmciState()
+        let reasons = state.adjustmentReasons(age: 80, educationYears: 8)
+        XCTAssertEqual(reasons.count, 2, "Both age and education adjustments listed")
+        XCTAssertTrue(reasons.contains { $0.contains("Age") })
+        XCTAssertTrue(reasons.contains { $0.contains("Education") })
+    }
+
+    // MARK: Verbal Fluency Scoring (0.5 pts per animal, max 40, rounded up)
+
+    func testVerbalFluencyEmptyScore() {
+        let state = QmciState()
+        state.verbalFluencyWords = []
+        XCTAssertEqual(state.verbalFluencyScore, 0)
+    }
+
+    func testVerbalFluencySingleWord() {
+        let state = QmciState()
+        state.verbalFluencyWords = ["dog"]
+        // 1 × 0.5 = 0.5 → rounded up = 1
+        XCTAssertEqual(state.verbalFluencyScore, 1,
+                       "1 unique animal → 0.5 rounded up → 1")
+    }
+
+    func testVerbalFluencyRoundingUp() {
+        let state = QmciState()
+        state.verbalFluencyWords = (0..<15).map { "animal\($0)" }
+        // 15 × 0.5 = 7.5 → rounded up = 8
+        XCTAssertEqual(state.verbalFluencyScore, 8,
+                       "15 unique animals → 7.5 rounded up → 8")
+    }
+
+    func testVerbalFluencyMaxCap() {
+        let state = QmciState()
+        state.verbalFluencyWords = (0..<50).map { "animal\($0)" }
+        // Capped at 40 → 40 × 0.5 = 20
+        XCTAssertEqual(state.verbalFluencyScore, 20,
+                       "Capped at 40 animals → 20 points")
+    }
+
+    func testVerbalFluencyDuplicatesDeduplicated() {
+        let state = QmciState()
+        state.verbalFluencyWords = ["dog", "dog", "cat"]
+        // 2 unique × 0.5 = 1.0 → rounded up = 1
+        XCTAssertEqual(state.verbalFluencyScore, 1,
+                       "2 unique animals → 1.0 → 1")
+    }
+
+    func testVerbalFluencyCaseInsensitiveDedup() {
+        let state = QmciState()
+        state.verbalFluencyWords = ["Dog", "DOG", "dog"]
+        // 1 unique (case-insensitive) × 0.5 = 0.5 → rounded up = 1
+        XCTAssertEqual(state.verbalFluencyScore, 1,
+                       "Case-insensitive dedup: 1 unique → 1")
+    }
+
     // MARK: Subtest Max Scores
 
     func testSubtestMaxScores() {
