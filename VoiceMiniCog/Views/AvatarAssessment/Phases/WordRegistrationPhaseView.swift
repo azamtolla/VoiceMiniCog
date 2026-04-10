@@ -121,6 +121,11 @@ struct WordRegistrationPhaseView: View {
                 withAnimation(AssessmentTheme.Anim.chipAppear) { revealedCount = i + 1 }
             }
         }
+        // After all words revealed, avatar says "Remember these words..."
+        let totalRevealTime = Double(words.count) * 1.5 + 1.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalRevealTime) {
+            avatarSpeak(LeftPaneSpeechCopy.wordRegistrationRemember)
+        }
     }
 }
 

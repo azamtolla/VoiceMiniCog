@@ -19,6 +19,7 @@ struct StoryRecallPhaseView: View {
 
     @State private var phase: StoryPhase = .listening
     @State private var contentVisible = false
+    @State private var followupAsked = false
 
     enum StoryPhase { case listening, recalling }
 
@@ -123,6 +124,14 @@ struct StoryRecallPhaseView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                     layoutManager.setAvatarListening()
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
+            // QMCI protocol: one follow-up "Anything else?" after patient stops
+            guard phase == .recalling, !followupAsked else { return }
+            followupAsked = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                avatarSpeak(LeftPaneSpeechCopy.storyRecallFollowup)
             }
         }
     }

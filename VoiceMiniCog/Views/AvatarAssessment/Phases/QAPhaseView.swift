@@ -201,8 +201,8 @@ struct QAPhaseView: View {
         waitingForPatientResponse = true
         orientationAutoAdvanceTask?.cancel()
         orientationAutoAdvanceTask = Task { @MainActor in
-            // Fallback: 15 seconds if patient doesn't respond
-            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            // QMCI protocol: max 10 seconds per orientation answer
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
             guard !Task.isCancelled else { return }
             advanceOrientationQuestion()
         }

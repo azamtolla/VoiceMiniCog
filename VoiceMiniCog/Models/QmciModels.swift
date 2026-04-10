@@ -4,7 +4,8 @@
 //
 //  Quick Mild Cognitive Impairment screen (Qmci)
 //  O'Caoimh et al. (2012). AUC 0.90 for MCI detection.
-//  6 subtests, 100 points total. Cut-off <63 = MCI probable, <54 = dementia range.
+//  6 subtests, 100 points total.
+//  QMCI validated cutoffs: >=67 = normal, <67 = MCI, <54 = dementia range.
 //
 
 import Foundation
@@ -42,14 +43,15 @@ enum QmciSubtest: String, CaseIterable, Codable {
         }
     }
 
+    /// QMCI protocol durations
     var durationSeconds: Int {
         switch self {
-        case .orientation: return 30
-        case .registration: return 30
-        case .clockDrawing: return 90
-        case .verbalFluency: return 60
-        case .logicalMemory: return 90
-        case .delayedRecall: return 60
+        case .orientation: return 30      // ~6s per question
+        case .registration: return 30     // reading + initial recall
+        case .clockDrawing: return 60     // exactly 1 minute per QMCI
+        case .verbalFluency: return 60    // exactly 1 minute
+        case .logicalMemory: return 60    // ~30s read + 30s recall
+        case .delayedRecall: return 30    // 30 seconds, no hints
         }
     }
 
@@ -187,8 +189,13 @@ class QmciState: Codable {
         orientationAnswers.compactMap { $0 }.filter { $0 }.count * 2
     }
     var registrationScore: Int { min(registrationRecalledWords.count, 5) }
+
+    /// QMCI verbal fluency: 0.5 pts per unique animal, max 40 animals = 20 pts.
+    /// Rounds up (e.g., 15 animals → 7.5 pts → 8).
     var verbalFluencyScore: Int {
-        min(Set(verbalFluencyWords.map { $0.lowercased() }).count, 20)
+        let uniqueCount = min(Set(verbalFluencyWords.map { $0.lowercased() }).count, 40)
+        let raw = Double(uniqueCount) * 0.5
+        return Int(raw.rounded(.up))
     }
     var logicalMemoryScore: Int { min(logicalMemoryRecalledUnits.count * 2, 30) }
     var delayedRecallScore: Int { min(delayedRecallWords.count * 4, 20) }
