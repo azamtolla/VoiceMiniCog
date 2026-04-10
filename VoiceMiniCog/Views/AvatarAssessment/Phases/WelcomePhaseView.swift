@@ -2,13 +2,10 @@
 //  WelcomePhaseView.swift
 //  VoiceMiniCog
 //
-//  Phase 1 — Welcome screen. Avatar introduces the assessment as a
-//  neuropsychologist. Each subtest row reveals AFTER the avatar finishes
-//  describing it. Begin Assessment button bounces in at the end.
-//
-//  Sync method: The intro is sent as sequential echo calls. After each
-//  echo completes (avatarDoneSpeaking), the corresponding subtest row
-//  reveals and the next echo fires. This guarantees visual-audio sync.
+//  Phase 1 — Welcome screen. The entire intro is sent as ONE echo call.
+//  Subtest rows reveal at pre-calculated times based on word count
+//  at ~2.5 words/second (calm neuropsychologist pace). No chaining,
+//  no sequential echo calls, no avatarDoneSpeaking dependency.
 //
 
 import SwiftUI
@@ -22,36 +19,51 @@ struct WelcomePhaseView: View {
     @State private var buttonBounce = false
     @State private var revealedSubtests = 0
     @State private var headerVisible = false
-    @State private var currentIntroStep = 0
-    @State private var introStarted = false
 
-    // The intro is split into sequential segments. After each segment,
-    // the avatar pauses, the corresponding subtest reveals, then the next plays.
-    private let introSegments: [(text: String, revealsSubtest: Bool)] = [
-        // Segment 0: Opening (no subtest reveal)
-        ("Good morning. Thank you for coming in today. My name is Dr. Anna, and I am a clinical neuropsychologist. I will be guiding you through a brief cognitive assessment. This is a standardized screening tool that helps us understand how different areas of your brain are functioning right now. The assessment consists of six short activities. Let me walk you through what to expect.", false),
+    // MARK: - Intro Script Segments
 
-        // Segment 1: Orientation → reveals row 1
-        ("First, I will ask you a few orientation questions — things like today's date and where we are. These questions help us assess your awareness of time and place.", true),
+    // Each segment: (text, cumulative word count up to end of this segment)
+    // Used to calculate when the avatar reaches each section.
+    // At ~2.5 words/second (calm clinical pace), we can predict reveal times.
+    private static let segments: [(text: String, revealsSubtest: Bool)] = [
+        // Opening — 68 words ≈ 27s
+        ("Hello, and welcome to your Brain Health Assessment. On the left side of the screen, you will see an overview of the activities we will complete together. This is a brief, standardized cognitive screening. It will take approximately three to five minutes, and it will help your clinician understand how different areas of your brain are functioning today. There are six short activities. Let me explain each one.", false),
 
-        // Segment 2: Word Learning → reveals row 2
-        ("Second, I will read you five words and ask you to repeat them back to me. This measures your ability to register and hold new information in working memory.", true),
+        // Orientation — 25 words ≈ 10s
+        ("First, orientation. I will ask you a few simple questions, such as today's date and what country we are in.", true),
 
-        // Segment 3: Clock Drawing → reveals row 3
-        ("Third, I will ask you to draw a clock face and set it to a specific time. This is a well-established test of visuospatial ability and executive function — how your brain plans and organizes.", true),
+        // Word Learning — 28 words ≈ 11s
+        ("Second, word registration. I will read you five words and ask you to repeat them back. This measures how well you take in new information.", true),
 
-        // Segment 4: Word Recall → reveals row 4
-        ("Fourth, I will ask you to recall those five words from earlier. This measures your delayed memory — how well your brain retains information over a short period.", true),
+        // Clock Drawing — 30 words ≈ 12s
+        ("Third, clock drawing. I will ask you to draw a clock and set it to a specific time. This tests how your brain plans and organizes visually.", true),
 
-        // Segment 5: Verbal Fluency → reveals row 5
-        ("Fifth, I will ask you to name as many animals as you can in one minute. This assesses your verbal fluency — how quickly and flexibly your brain can search and retrieve information.", true),
+        // Word Recall — 27 words ≈ 11s
+        ("Fourth, delayed recall. After a short break, I will ask you to remember those five words from earlier. This measures how well your memory holds over time.", true),
 
-        // Segment 6: Story Recall → reveals row 6
-        ("And finally, I will read you a short story and ask you to repeat it back in as much detail as you can. This is the most sensitive part of the assessment. It measures your episodic memory — your ability to encode and recall meaningful information.", true),
+        // Verbal Fluency — 24 words ≈ 10s
+        ("Fifth, verbal fluency. I will ask you to name as many animals as you can in one minute. This measures how quickly your brain retrieves information.", true),
 
-        // Segment 7: Closing (triggers Begin button)
-        ("The entire assessment takes approximately three to five minutes. There are no trick questions, and there is no pass or fail. I am simply gathering information to help your clinician understand your cognitive health. I will be here with you throughout. When you are ready to begin, please press the Begin Assessment button on the screen.", false),
+        // Story Recall — 32 words ≈ 13s
+        ("And finally, logical memory. I will read you a short story, and then ask you to repeat back as much as you can remember. This is the most sensitive part of the assessment.", true),
+
+        // Closing — 30 words ≈ 12s
+        ("There are no trick questions and there is no pass or fail. When you are ready, press the Begin Assessment button on the screen.", false),
     ]
+
+    // Pre-calculated reveal times (seconds from start) based on cumulative word count at 2.5 words/sec
+    // Segment word counts: 68, 25, 28, 30, 27, 24, 32, 30
+    // Cumulative: 68, 93, 121, 151, 178, 202, 234, 264
+    // At 2.5 w/s: 27.2, 37.2, 48.4, 60.4, 71.2, 80.8, 93.6, 105.6
+    private let revealTimes: [Double] = [
+        28,   // Orientation appears (after opening finishes)
+        38,   // Word Learning
+        50,   // Clock Drawing
+        62,   // Word Recall (delayed recall)
+        73,   // Verbal Fluency
+        87,   // Story Recall
+    ]
+    private let beginButtonTime: Double = 100  // Begin button appears
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,7 +95,7 @@ struct WelcomePhaseView: View {
             .opacity(headerVisible ? 1 : 0)
             .offset(y: headerVisible ? 0 : 10)
 
-            // MARK: Subtest List — rows reveal one by one as avatar describes each
+            // MARK: Subtest List — rows reveal timed to avatar speech
             VStack(spacing: 0) {
                 ForEach(Array(QmciSubtest.allCases.enumerated()), id: \.element) { index, subtest in
                     if index < revealedSubtests {
@@ -115,7 +127,7 @@ struct WelcomePhaseView: View {
 
             Spacer()
 
-            // MARK: Begin Assessment Button — bouncy entrance
+            // MARK: Begin Assessment Button
             if showBeginButton {
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -150,55 +162,44 @@ struct WelcomePhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
+            // Show header
             withAnimation(.easeOut(duration: 0.4)) { headerVisible = true }
 
-            avatarSetContext("You are a board-certified clinical neuropsychologist introducing a standardized cognitive assessment. Speak with a calm, measured, professional tone. Warm but clinical. Clear enunciation, moderate pace. No slang, no exclamation marks, no performance feedback.")
+            // Set persona
+            avatarSetContext("You are a board-certified clinical neuropsychologist. Speak with a calm, measured, professional tone. Clear enunciation, moderate pace. No slang, no exclamation marks. Speak the text exactly as provided.")
 
-            // Start the first segment
-            speakNextSegment()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
-            guard introStarted else { return }
-            advanceIntro()
-        }
-    }
+            // Send the ENTIRE intro as one echo — avatar speaks it continuously
+            let fullScript = Self.segments.map(\.text).joined(separator: " ")
+            avatarSpeak(fullScript)
 
-    // MARK: - Sequential Intro Playback
-
-    private func speakNextSegment() {
-        guard currentIntroStep < introSegments.count else { return }
-        introStarted = true
-        let segment = introSegments[currentIntroStep]
-        avatarSpeak(segment.text)
-    }
-
-    private func advanceIntro() {
-        let justFinished = currentIntroStep
-        guard justFinished < introSegments.count else { return }
-
-        let segment = introSegments[justFinished]
-
-        // Reveal subtest row if this segment maps to one
-        if segment.revealsSubtest {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
-                revealedSubtests += 1
+            // Reveal subtests at pre-calculated times
+            for (index, time) in revealTimes.enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + time) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                        revealedSubtests = index + 1
+                    }
+                }
             }
-        }
 
-        // Move to next segment
-        currentIntroStep = justFinished + 1
-
-        if currentIntroStep < introSegments.count {
-            // Brief pause between segments for natural pacing
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                speakNextSegment()
-            }
-        } else {
-            // All segments done — show Begin button with bounce
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Begin button with bounce
+            DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonTime) {
                 withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
                     showBeginButton = true
                     buttonBounce = true
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            // Backup: if avatar finishes before timers, reveal everything
+            if !showBeginButton {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    revealedSubtests = QmciSubtest.allCases.count
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+                        showBeginButton = true
+                        buttonBounce = true
+                    }
                 }
             }
         }
