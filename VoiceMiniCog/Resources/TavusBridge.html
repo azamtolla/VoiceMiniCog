@@ -40,7 +40,6 @@ video {
 let callObject = null;
 let conversationId = null;
 let isJoined = false;
-let isMuted = true;      // Start muted — unmute on first sendEcho from app
 let pendingEchos = [];   // Queue for echo requests that arrive before room join
 
 const status = document.getElementById('status');
@@ -290,11 +289,14 @@ function sendEcho(text) {
     return false;
   }
 
-  // First echo = assessment has started. Unmute mic so avatar can hear patient.
-  if (isMuted) {
-    isMuted = false;
-    callObject.setLocalAudio(true);
-    log('Mic unmuted — assessment started');
+  // Mute patient mic before every echo. Otherwise (especially after welcome's
+  // replica.stopped_speaking left the mic hot) room noise reaches Tavus before
+  // replica.started_speaking and can register as speech / cut off the question.
+  try {
+    callObject.setLocalAudio(false);
+    log('Mic muted before echo (block pre-speech noise)');
+  } catch (e) {
+    log('Pre-echo mute failed: ' + e.message);
   }
 
   log('Echo sending: ' + text.substring(0, 60) + '...');
