@@ -1,0 +1,39 @@
+{
+  "model_name": "CDTScorer",
+  "model_version": "1.0",
+  "task": "clock_drawing_test_classification",
+  "scoring_system": "Shulman",
+  "num_classes": 3,
+  "input_size": [256, 256, 3],
+  "input_color_layout": "RGB",
+  "input_scale": 0.00392156862745098,
+  "classes": [
+    {
+      "index": 0,
+      "label": "severe_0_1",
+      "shulman_range": "0-1",
+      "severity": "Severe",
+      "minicog_score": 0,
+      "interpretation": "Clock drawing shows significant impairment - Shulman score 0-1",
+      "clinical_action": "Recommend comprehensive cognitive evaluation"
+    },
+    {
+      "index": 1,
+      "label": "moderate_2_3",
+      "shulman_range": "2-3",
+      "severity": "Moderate",
+      "minicog_score": 0,
+      "interpretation": "Clock drawing shows moderate impairment - Shulman score 2-3",
+      "clinical_action": "Consider further cognitive assessment"
+    },
+    {
+      "index": 2,
+      "label": "normal_4_5",
+      "shulman_range": "4-5",
+      "severity": "Normal/Mild",
+      "minicog_score": 2,
+      "interpretation": "Clock drawing is normal or shows mild impairment - Shulman score 4-5",
+      "clinical_action": "No immediate cognitive concerns from clock drawing"
+    }
+  ]
+}

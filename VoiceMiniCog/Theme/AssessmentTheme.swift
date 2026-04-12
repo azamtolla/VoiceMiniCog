@@ -124,6 +124,22 @@ enum AssessmentTheme {
         endPoint: .leading
     )
 
+    // MARK: Phase Named Accents
+
+    /// Named phase accent colors for direct use in views.
+    enum Phase {
+        static let welcome          = Color(hex: "#2563EB") // blue
+        static let qdrs             = Color(hex: "#D97706") // amber
+        static let phq2             = Color(hex: "#7C3AED") // violet
+        static let orientation      = Color(hex: "#059669") // emerald
+        static let wordRegistration = Color(hex: "#DB2777") // pink
+        static let clock            = Color(hex: "#DC2626") // red
+        static let verbalFluency    = Color(hex: "#0891B2") // cyan
+        static let storyRecall      = Color(hex: "#4F46E5") // indigo
+        static let wordRecall       = Color(hex: "#16A34A") // green
+        static let results          = Color(hex: "#16A34A") // green (same as wordRecall / completion)
+    }
+
     // MARK: Phase Accent Colors
 
     /// Accent color dictionary keyed by AssessmentPhaseID.rawValue (1-9).
@@ -235,6 +251,13 @@ enum AssessmentTheme {
         static let phaseTransition = SwiftUI.Animation.spring(
             response: 0.55,
             dampingFraction: 1.0 - 0.15,
+            blendDuration: 0
+        )
+
+        /// Content enter — spring, 0.4 s, fade + slide-up entrance
+        static let contentEnter = SwiftUI.Animation.spring(
+            response: 0.4,
+            dampingFraction: 0.85,
             blendDuration: 0
         )
 

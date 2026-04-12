@@ -109,6 +109,16 @@
 		F04B422DA9D44E9E223B9478 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
 		F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
+		BB11223344556677000010F1 /* AssessmentFlowType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000010F0 /* AssessmentFlowType.swift */; };
+		BB11223344556677000001B1 /* AssessmentPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000001A1 /* AssessmentPersistence.swift */; };
+		BB11223344556677000002B2 /* PDFReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000002A2 /* PDFReportGenerator.swift */; };
+		BB11223344556677000003B3 /* QMCIScoringEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000003A3 /* QMCIScoringEngine.swift */; };
+		BB11223344556677000004B4 /* AssessmentViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000004A4 /* AssessmentViewModifiers.swift */; };
+		BB11223344556677000005B5 /* LeftPaneSpeechCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */; };
+		BB11223344556677000006B6 /* AssessmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000006A6 /* AssessmentCard.swift */; };
+		BB11223344556677000007B7 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000007A7 /* CompletionPhaseView.swift */; };
+		BB11223344556677000008B8 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000008A8 /* SessionStatusView.swift */; };
+		BB11223344556677000009B9 /* CaregiverAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000009A9 /* CaregiverAssessmentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -202,6 +212,16 @@
 		FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusAssessmentView.swift; path = VoiceMiniCog/Views/TavusAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 		FD67457A85ACD917974962D3 /* PauseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PauseButtonView.swift; path = VoiceMiniCog/Views/AvatarAssessment/PauseButtonView.swift; sourceTree = SOURCE_ROOT; };
 		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
+		AA11223344556677000010F0 /* AssessmentFlowType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentFlowType.swift; sourceTree = "<group>"; };
+		AA11223344556677000001A1 /* AssessmentPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPersistence.swift; sourceTree = "<group>"; };
+		AA11223344556677000002A2 /* PDFReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportGenerator.swift; sourceTree = "<group>"; };
+		AA11223344556677000003A3 /* QMCIScoringEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIScoringEngine.swift; sourceTree = "<group>"; };
+		AA11223344556677000004A4 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentViewModifiers.swift; sourceTree = "<group>"; };
+		AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeftPaneSpeechCopy.swift; sourceTree = "<group>"; };
+		AA11223344556677000006A6 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentCard.swift; sourceTree = "<group>"; };
+		AA11223344556677000007A7 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
+		AA11223344556677000008A8 /* SessionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStatusView.swift; path = VoiceMiniCog/Views/AvatarAssessment/SessionStatusView.swift; sourceTree = SOURCE_ROOT; };
+		AA11223344556677000009A9 /* CaregiverAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverAssessmentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -260,6 +280,8 @@
 				EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */,
 				FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */,
 				B231486BB1A1E56864D34FC4 /* TavusBridge.html */,
+				AA11223344556677000007A7 /* CompletionPhaseView.swift */,
+				AA11223344556677000008A8 /* SessionStatusView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -288,6 +310,7 @@
 				8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */,
 				96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */,
 				9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */,
+				AA11223344556677000010F0 /* AssessmentFlowType.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -310,6 +333,9 @@
 				0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */,
 				BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */,
 				B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */,
+				AA11223344556677000001A1 /* AssessmentPersistence.swift */,
+				AA11223344556677000002A2 /* PDFReportGenerator.swift */,
+				AA11223344556677000003A3 /* QMCIScoringEngine.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -320,6 +346,8 @@
 				9246E5DF2F63A68D00743FA8 /* MercyColors.swift */,
 				0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */,
 				B26A970DB16F141ACD2E048D /* MCComponents.swift */,
+				AA11223344556677000004A4 /* AssessmentViewModifiers.swift */,
+				AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -345,6 +373,8 @@
 				D565942281E547B8CA33AEAF /* PCPReportView.swift */,
 				7980C074148F7BF401F6D35F /* SpeechListenerView.swift */,
 				38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */,
+				AA11223344556677000006A6 /* AssessmentCard.swift */,
+				AA11223344556677000009A9 /* CaregiverAssessmentView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -570,6 +600,16 @@
 				CC11223344556677889900BB /* VerbalFluencyPhaseView.swift in Sources */,
 				036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */,
 				41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */,
+				BB11223344556677000010F1 /* AssessmentFlowType.swift in Sources */,
+				BB11223344556677000001B1 /* AssessmentPersistence.swift in Sources */,
+				BB11223344556677000002B2 /* PDFReportGenerator.swift in Sources */,
+				BB11223344556677000003B3 /* QMCIScoringEngine.swift in Sources */,
+				BB11223344556677000004B4 /* AssessmentViewModifiers.swift in Sources */,
+				BB11223344556677000005B5 /* LeftPaneSpeechCopy.swift in Sources */,
+				BB11223344556677000006B6 /* AssessmentCard.swift in Sources */,
+				BB11223344556677000007B7 /* CompletionPhaseView.swift in Sources */,
+				BB11223344556677000008B8 /* SessionStatusView.swift in Sources */,
+				BB11223344556677000009B9 /* CaregiverAssessmentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

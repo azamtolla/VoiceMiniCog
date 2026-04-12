@@ -101,6 +101,18 @@ class AvatarLayoutManager {
         avatarBehavior != .waiting
     }
 
+    // MARK: Phase Sequence
+
+    /// Ordered list of phases in the current assessment flow.
+    var phaseSequence: [AssessmentPhaseID] {
+        AssessmentPhaseID.allCases
+    }
+
+    /// Index of the current phase within the phase sequence.
+    var currentPhaseIndex: Int {
+        phaseSequence.firstIndex(of: currentPhase) ?? 0
+    }
+
     // MARK: Counts
 
     var completedPhaseCount: Int {

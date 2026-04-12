@@ -112,7 +112,7 @@ struct AvatarAssessmentCanvas: View {
     private var phaseContent: some View {
         switch layoutManager.currentPhase {
         case .welcome:
-            WelcomePhaseView(layoutManager: layoutManager, onStandard: onFallback)
+            WelcomePhaseView(layoutManager: layoutManager, onGoToMainMenu: onFallback)
         case .qdrs:
             QAPhaseView(layoutManager: layoutManager, assessmentState: assessmentState, phaseID: .qdrs)
         case .phq2:
@@ -128,7 +128,7 @@ struct AvatarAssessmentCanvas: View {
         case .storyRecall:
             StoryRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         case .wordRecall:
-            WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState, onComplete: onComplete)
+            WordRecallPhaseView(layoutManager: layoutManager, qmciState: assessmentState.qmciState)
         }
     }
 
@@ -287,11 +287,8 @@ struct AvatarAssessmentCanvas: View {
 }
 
 // MARK: - Notification for context updates
-
-extension Notification.Name {
-    static let tavusContextUpdate = Notification.Name("tavusContextUpdate")
-    static let tavusEchoRequest = Notification.Name("tavusEchoRequest")
-}
+// Notification.Name extensions for tavusContextUpdate and tavusEchoRequest
+// are defined in TavusCVIView.swift — no duplicate declaration here.
 
 // MARK: - Pause Sheet View Modifier
 

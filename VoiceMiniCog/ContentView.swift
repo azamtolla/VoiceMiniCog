@@ -38,16 +38,17 @@ struct ContentView: View {
         ZStack {
             // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
             AvatarAssessmentCanvas(
-                flowType: flowType,
-                sessionID: sessionID,
                 assessmentState: assessmentState,
-                tavusService: TavusService.shared,
                 onComplete: {
                     assessmentState.currentPhase = .scoring
                     computeAllScores()
                     assessmentState.currentPhase = .report
                     currentScreen = .report
                     AssessmentPersistence.clear()
+                },
+                onFallback: {
+                    AssessmentPersistence.clear()
+                    currentScreen = .home
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
