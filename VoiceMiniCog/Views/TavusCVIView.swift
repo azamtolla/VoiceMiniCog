@@ -22,6 +22,10 @@ extension Notification.Name {
     static let avatarDoneSpeaking = Notification.Name("avatarDoneSpeaking")
     /// Fired when the patient finishes speaking (user stopped)
     static let patientDoneSpeaking = Notification.Name("patientDoneSpeaking")
+    /// Fired when the patient starts speaking (user started) — used to ignore orphan `stopped` events
+    static let patientStartedSpeaking = Notification.Name("patientStartedSpeaking")
+    /// Daily room joined — WebView bridge can now deliver echos; welcome may replay if the first echo was missed.
+    static let tavusDailyRoomJoined = Notification.Name("tavusDailyRoomJoined")
 }
 
 // MARK: - CLINICAL-UI
@@ -166,6 +170,7 @@ struct TavusCVIView: UIViewRepresentable {
             case "joined":
                 print("[TavusCVI] ✅ Joined Daily room")
                 onAvatarEvent?(.joined)
+                NotificationCenter.default.post(name: .tavusDailyRoomJoined, object: nil)
 
             case "left":
                 print("[TavusCVI] Left Daily room")
@@ -189,6 +194,7 @@ struct TavusCVIView: UIViewRepresentable {
                         NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)
                     case "conversation.user.started_speaking":
                         onAvatarEvent?(.userStartedSpeaking)
+                        NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
                     case "conversation.user.stopped_speaking":
                         onAvatarEvent?(.userStoppedSpeaking)
                         NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)

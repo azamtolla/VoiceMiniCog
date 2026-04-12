@@ -32,6 +32,9 @@ struct QAPhaseView: View {
     @State private var orientationAutoAdvanceTask: Task<Void, Never>?
     /// Bumped on each `speakQuestion` so late `avatarDoneSpeaking` events cannot unlock the wrong question.
     @State private var questionSpeechEpoch = 0
+    /// Orientation: Tavus can emit `user.stopped_speaking` right after mic unmutes without a matching
+    /// `user.started_speaking`, which was auto-advancing past questions (e.g. skipping "What month is this?").
+    @State private var heardPatientSpeechDuringAnswerWait = false
 
     // MARK: Body
 
@@ -99,10 +102,16 @@ struct QAPhaseView: View {
             }
             speakQuestion(currentVoicePrompt)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
-            if phaseID == .orientation && waitingForPatientResponse {
-                advanceOrientationQuestion()
+        .onReceive(NotificationCenter.default.publisher(for: .patientStartedSpeaking)) { _ in
+            if phaseID == .orientation, waitingForPatientResponse {
+                heardPatientSpeechDuringAnswerWait = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
+            guard phaseID == .orientation, waitingForPatientResponse else { return }
+            // Ignore orphan "stopped" without a "started" (noise / AGC right after replica stops).
+            guard heardPatientSpeechDuringAnswerWait else { return }
+            advanceOrientationQuestion()
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             finishQuestionSpeechIfNeeded(epoch: questionSpeechEpoch)
@@ -216,6 +225,7 @@ struct QAPhaseView: View {
 
     private func waitForPatientResponse() {
         waitingForPatientResponse = true
+        heardPatientSpeechDuringAnswerWait = false
         orientationAutoAdvanceTask?.cancel()
         orientationAutoAdvanceTask = Task { @MainActor in
             // QMCI protocol: max 10 seconds per orientation answer

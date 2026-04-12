@@ -104,6 +104,8 @@ struct WelcomePhaseView: View {
     @State private var revealSequenceScheduled = false
     /// First `avatarStartedSpeaking` for this view — used to ignore duplicate Tavus events.
     @State private var didAnchorRevealsToSpeaking = false
+    /// True once replica has started speaking on welcome (confirms intro echo reached Tavus).
+    @State private var welcomeIntroReplicaStarted = false
 
     // MARK: - Intro Script (single echo)
 
@@ -266,9 +268,26 @@ struct WelcomePhaseView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarStartedSpeaking)) { _ in
+            if layoutManager.currentPhase == .welcome {
+                welcomeIntroReplicaStarted = true
+            }
             guard !didAnchorRevealsToSpeaking else { return }
             didAnchorRevealsToSpeaking = true
             startRevealSequence()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tavusDailyRoomJoined)) { _ in
+            // First `avatarSpeak` often fires before `TavusCVIView` exists (conversation still connecting).
+            // `sendEcho` is then a no-op; replay once Daily has joined so the section list is actually spoken.
+            guard layoutManager.currentPhase == .welcome else { return }
+            guard !reduceMotion else { return }
+            guard !welcomeIntroReplicaStarted else { return }
+            // Brief delay so a successful first echo can emit `replica.started_speaking` before we duplicate.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                guard layoutManager.currentPhase == .welcome else { return }
+                guard !welcomeIntroReplicaStarted else { return }
+                avatarSetContext("You are a calm, professional clinical neuropsychologist. Speak exactly the text sent via echo. Do not add your own introduction, do not paraphrase. Speak at a moderate pace with natural pauses.")
+                avatarSpeak(introScript)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             // If speech ends before timers finish, catch up with a short stagger instead of one pop.
