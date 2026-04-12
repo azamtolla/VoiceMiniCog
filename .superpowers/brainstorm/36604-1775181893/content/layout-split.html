@@ -1,0 +1,40 @@
+<h2>Split-Screen Layout: How should the left panel change during the assessment?</h2>
+<p class="subtitle">The avatar stays on the right side throughout. The left panel changes as the patient progresses through each phase. Which layout approach feels right?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Minimal Left Panel — Avatar Leads</h3>
+      <p>Left panel shows only: phase name, progress dots, and a small timer. The avatar does all the talking and guiding. Left panel is a thin sidebar (~30% width) so the avatar dominates. Clean, patient-focused.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Patient focuses on avatar, not screen</li><li>Feels like a real conversation</li><li>Less visual clutter for elderly patients</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Clinician has less visibility into progress</li><li>No on-screen prompts if avatar audio is unclear</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Rich Left Panel — Phase-Specific Content</h3>
+      <p>Left panel (~45% width) shows different content per phase: orientation questions with checkmarks, word list for registration, clock drawing canvas, animal word chips for fluency, story text for logical memory. Each phase has a unique UI. Avatar still guides vocally.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Clinician can follow along and score</li><li>Visual reinforcement for hearing-impaired patients</li><li>Clock drawing canvas needs screen space anyway</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More complex to build</li><li>Patient may look at screen instead of listening to avatar</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — Adaptive Panel</h3>
+      <p>Left panel is minimal by default (phase name + progress), but expands with interactive content only when the phase requires it: clock drawing gets a canvas, verbal fluency gets a word counter, orientation gets answer buttons. Other phases stay minimal so the avatar leads.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Best of both — minimal when possible, rich when needed</li><li>Clock drawing and fluency NEED screen interaction</li><li>Keeps patient focused on avatar during listening phases</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Inconsistent experience (panel changes size/content)</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,193 @@
+<h2>Avatar Zone — Council-Informed Design</h2>
+<p class="subtitle">Synthesized from 5 advisors. Full-bleed avatar, glass overlays, breathing presence, phase-colored accents. Click to approve or request changes.</p>
+
+<div class="cards" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1100px; margin: 0 auto;">
+
+  <!-- STATE: Welcome (65% width, large avatar) -->
+  <div class="card" data-choice="welcome" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="card-image" style="background:#080811; min-height:480px; border-radius:12px 12px 0 0; position:relative; overflow:hidden;">
+
+      <!-- Animated gradient base -->
+      <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 50% 40%, #121226 0%, #080811 100%); animation: gradShift 8s ease-in-out infinite alternate;"></div>
+
+      <!-- Phase accent glow (blue for welcome) -->
+      <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 50% 50%, rgba(37,99,235,0.06) 0%, transparent 60%);"></div>
+
+      <!-- Video container with glass material effect -->
+      <div style="position:absolute; inset:20px; border-radius:16px; background: rgba(255,255,255,0.03); backdrop-filter:blur(1px); -webkit-backdrop-filter:blur(1px); border: 0.75px solid; border-image: linear-gradient(135deg, rgba(37,99,235,0.4), rgba(37,99,235,0.1), rgba(37,99,235,0.3)) 1; overflow:hidden;">
+
+        <!-- Avatar video (simulated full-bleed) -->
+        <div style="position:absolute; inset:0; background: linear-gradient(180deg, #1a1b3a 0%, #252660 30%, #1e1f4a 70%, #141430 100%); display:flex; align-items:center; justify-content:center;">
+          <div style="font-size:120px; opacity:0.5; animation: breathe 4s ease-in-out infinite;">&#x1F469;&#x200D;&#x2695;&#xFE0F;</div>
+        </div>
+
+        <!-- Accent ring border (0.75pt, phase-colored) -->
+        <div style="position:absolute; inset:0; border-radius:12px; border: 0.75px solid rgba(37,99,235,0.35); pointer-events:none;"></div>
+      </div>
+
+      <!-- Clinical shadow / lighting effect (top-left light source) -->
+      <div style="position:absolute; inset:20px; border-radius:16px; background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 40%); pointer-events:none;"></div>
+
+      <!-- Overlay: Status dot (top-right, inside frame) -->
+      <div style="position:absolute; top:32px; right:32px; display:flex; align-items:center; gap:6px;">
+        <div style="width:8px; height:8px; border-radius:50%; background:#2563EB; box-shadow: 0 0 8px rgba(37,99,235,0.5); animation: statusPulse 2s ease-in-out infinite;"></div>
+      </div>
+
+      <!-- Overlay: Mercy Clinical badge (bottom-left, glass capsule) -->
+      <div style="position:absolute; bottom:32px; left:32px;">
+        <div style="display:flex; align-items:center; gap:6px; background:rgba(0,0,0,0.35); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:0.5px solid rgba(255,255,255,0.08); border-radius:20px; padding:5px 14px 5px 10px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="opacity:0.7;">
+            <path d="M12 2L14.5 7.5L20.5 8L16 12.5L17.5 18.5L12 15.5L6.5 18.5L8 12.5L3.5 8L9.5 7.5L12 2Z" fill="#2563EB"/>
+          </svg>
+          <span style="color:rgba(255,255,255,0.6); font-size:11px; font-weight:500; letter-spacing:0.3px;">Mercy Clinical Team</span>
+        </div>
+      </div>
+
+      <!-- Overlay: Speaking waveform (bottom-center) -->
+      <div style="position:absolute; bottom:32px; left:50%; transform:translateX(-50%); display:flex; gap:2.5px; align-items:center; height:20px;">
+        <div style="width:2.5px; height:6px; background:rgba(37,99,235,0.6); border-radius:2px; animation: wave1 1.4s ease-in-out infinite;"></div>
+        <div style="width:2.5px; height:12px; background:rgba(37,99,235,0.7); border-radius:2px; animation: wave2 1.4s ease-in-out 0.1s infinite;"></div>
+        <div style="width:2.5px; height:8px; background:rgba(37,99,235,0.6); border-radius:2px; animation: wave3 1.4s ease-in-out 0.2s infinite;"></div>
+        <div style="width:2.5px; height:16px; background:rgba(37,99,235,0.8); border-radius:2px; animation: wave1 1.4s ease-in-out 0.15s infinite;"></div>
+        <div style="width:2.5px; height:10px; background:rgba(37,99,235,0.65); border-radius:2px; animation: wave2 1.4s ease-in-out 0.25s infinite;"></div>
+        <div style="width:2.5px; height:14px; background:rgba(37,99,235,0.75); border-radius:2px; animation: wave3 1.4s ease-in-out 0.05s infinite;"></div>
+        <div style="width:2.5px; height:7px; background:rgba(37,99,235,0.55); border-radius:2px; animation: wave1 1.4s ease-in-out 0.3s infinite;"></div>
+      </div>
+
+    </div>
+    <div class="card-body">
+      <h3>Welcome Phase (65% width)</h3>
+      <p>Large avatar, breathing animation, blue accent glow, glass-material frame, waveform when speaking, Mercy badge, status dot. Full-bleed video fills the container.</p>
+    </div>
+  </div>
+
+  <!-- STATE: Clock Drawing (30% width, compact avatar) -->
+  <div class="card" data-choice="compact" onclick="toggleSelect(this)" style="cursor:pointer;">
+    <div class="card-image" style="background:#080811; min-height:480px; border-radius:12px 12px 0 0; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+
+      <!-- Subtle gradient -->
+      <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 50% 40%, #0f1020 0%, #080811 100%);"></div>
+
+      <!-- Compact video container (narrower, centered) -->
+      <div style="width:75%; height:70%; border-radius:14px; background:rgba(255,255,255,0.02); border:0.75px solid rgba(220,38,38,0.3); position:relative; overflow:hidden; box-shadow: 0 0 30px rgba(220,38,38,0.05);">
+
+        <!-- Avatar video -->
+        <div style="position:absolute; inset:0; background: linear-gradient(180deg, #1a1b3a 0%, #252660 30%, #1e1f4a 70%, #141430 100%); display:flex; align-items:center; justify-content:center;">
+          <div style="font-size:80px; opacity:0.5; animation: breathe 4s ease-in-out infinite;">&#x1F469;&#x200D;&#x2695;&#xFE0F;</div>
+        </div>
+
+        <!-- Red accent glow for clock drawing phase -->
+        <div style="position:absolute; inset:0; background: radial-gradient(ellipse at 50% 50%, rgba(220,38,38,0.04) 0%, transparent 60%); pointer-events:none;"></div>
+
+        <!-- Status dot -->
+        <div style="position:absolute; top:12px; right:12px;">
+          <div style="width:6px; height:6px; border-radius:50%; background:rgba(220,38,38,0.5);"></div>
+        </div>
+
+        <!-- Minimal badge -->
+        <div style="position:absolute; bottom:12px; left:12px;">
+          <div style="display:flex; align-items:center; gap:4px; background:rgba(0,0,0,0.4); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-radius:12px; padding:3px 10px;">
+            <span style="color:rgba(255,255,255,0.45); font-size:9px; font-weight:500;">Dr. Claire</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-body">
+      <h3>Clock Drawing Phase (30% width)</h3>
+      <p>Compact mode: avatar shrinks gracefully, accent shifts to red, badge minimizes to just "Dr. Claire", waveform hidden. Patient focuses on drawing canvas on the left.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Animation behavior states -->
+<div style="margin-top:32px;">
+  <h3>Animation States</h3>
+  <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; max-width:1100px; margin:0 auto;">
+
+    <div style="background:#0d0d1a; border-radius:12px; padding:20px; text-align:center; border:0.5px solid rgba(255,255,255,0.06);">
+      <div style="width:50px; height:50px; margin:0 auto 12px; border-radius:50%; background:rgba(37,99,235,0.1); display:flex; align-items:center; justify-content:center;">
+        <div style="width:12px; height:12px; border-radius:50%; background:rgba(107,114,128,0.6);"></div>
+      </div>
+      <div style="color:white; font-size:13px; font-weight:600;">Idle</div>
+      <div style="color:rgba(255,255,255,0.4); font-size:11px; margin-top:4px;">Breathing 1-2%<br>Ring at 40% opacity<br>Gray status dot</div>
+    </div>
+
+    <div style="background:#0d0d1a; border-radius:12px; padding:20px; text-align:center; border:0.5px solid rgba(37,99,235,0.2);">
+      <div style="width:50px; height:50px; margin:0 auto 12px; border-radius:50%; background:rgba(37,99,235,0.15); display:flex; align-items:center; justify-content:center; animation: speakRing 1.5s ease-in-out infinite;">
+        <div style="width:12px; height:12px; border-radius:50%; background:#2563EB; box-shadow:0 0 8px rgba(37,99,235,0.6);"></div>
+      </div>
+      <div style="color:white; font-size:13px; font-weight:600;">Speaking</div>
+      <div style="color:rgba(255,255,255,0.4); font-size:11px; margin-top:4px;">Waveform active<br>Ring pulses 3%<br>Accent dot glows</div>
+    </div>
+
+    <div style="background:#0d0d1a; border-radius:12px; padding:20px; text-align:center; border:0.5px solid rgba(34,197,94,0.2);">
+      <div style="width:50px; height:50px; margin:0 auto 12px; border-radius:50%; background:rgba(34,197,94,0.1); display:flex; align-items:center; justify-content:center;">
+        <div style="width:12px; height:12px; border-radius:50%; background:#22c55e; animation: listenPulse 1.8s ease-in-out infinite;"></div>
+      </div>
+      <div style="color:white; font-size:13px; font-weight:600;">Listening</div>
+      <div style="color:rgba(255,255,255,0.4); font-size:11px; margin-top:4px;">Ring expands 5%<br>Green status dot<br>Waveform reacts to input</div>
+    </div>
+
+    <div style="background:#0d0d1a; border-radius:12px; padding:20px; text-align:center; border:0.5px solid rgba(255,255,255,0.04);">
+      <div style="width:50px; height:50px; margin:0 auto 12px; border-radius:50%; background:rgba(255,255,255,0.03); display:flex; align-items:center; justify-content:center;">
+        <div style="width:12px; height:12px; border-radius:50%; background:rgba(107,114,128,0.3);"></div>
+      </div>
+      <div style="color:white; font-size:13px; font-weight:600;">Waiting</div>
+      <div style="color:rgba(255,255,255,0.4); font-size:11px; margin-top:4px;">Ring fades out<br>No waveform<br>Patient draws/types</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Phase accent color strip -->
+<div style="margin-top:32px; max-width:1100px; margin-left:auto; margin-right:auto;">
+  <h3>Phase Accent Colors (Ring + Glow + Status Dot)</h3>
+  <div style="display:flex; gap:4px; margin-top:12px;">
+    <div style="flex:1; height:40px; border-radius:8px; background:#2563EB; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Welcome</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#D97706; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">QDRS</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#7C3AED; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">PHQ-2</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#059669; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Orient</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#DB2777; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Words</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#DC2626; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Clock</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#0891B2; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Fluency</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#4F46E5; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Story</span></div>
+    <div style="flex:1; height:40px; border-radius:8px; background:#16A34A; display:flex; align-items:center; justify-content:center;"><span style="color:white; font-size:10px; font-weight:600;">Recall</span></div>
+  </div>
+</div>
+
+<style>
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+@keyframes gradShift {
+  0% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(37,99,235,0.5); }
+  50% { opacity: 0.6; box-shadow: 0 0 4px rgba(37,99,235,0.3); }
+}
+@keyframes wave1 {
+  0%, 100% { height: 6px; }
+  50% { height: 16px; }
+}
+@keyframes wave2 {
+  0%, 100% { height: 10px; }
+  50% { height: 18px; }
+}
+@keyframes wave3 {
+  0%, 100% { height: 8px; }
+  50% { height: 14px; }
+}
+@keyframes speakRing {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+@keyframes listenPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

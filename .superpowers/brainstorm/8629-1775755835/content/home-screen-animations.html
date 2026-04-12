@@ -1,0 +1,182 @@
+<h2>Home Screen Animations</h2>
+<p class="subtitle">Staggered entrance + press feedback. Click "Replay" to see the entrance again. Click any card to see press animation.</p>
+
+<div class="mockup">
+  <div class="mockup-header">iPad Landscape — Animation Demo</div>
+  <div class="mockup-body" style="background: #F1F5F9; padding: 40px; border-radius: 12px; overflow: hidden;">
+
+    <style>
+      @keyframes cardEntrance {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes cardPress {
+        0% { transform: scale(1); }
+        40% { transform: scale(0.96); }
+        100% { transform: scale(1); }
+      }
+
+      @keyframes headerFade {
+        0% { opacity: 0; transform: translateY(-10px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+
+      .demo-header {
+        text-align: center;
+        margin-bottom: 40px;
+        opacity: 0;
+        animation: headerFade 0.4s ease-out 0.1s forwards;
+      }
+
+      .demo-card {
+        flex: 1;
+        background: white;
+        border-radius: 16px;
+        padding: 32px 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 16px;
+        opacity: 0;
+        transition: box-shadow 0.2s ease;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .demo-card.entered {
+        opacity: 1;
+      }
+
+      .demo-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.16);
+      }
+
+      .demo-card.pressing {
+        animation: cardPress 0.3s cubic-bezier(0.2, 0, 0, 1) forwards;
+      }
+
+      .demo-card:nth-child(1) { animation: cardEntrance 0.45s ease-out 0.2s forwards; }
+      .demo-card:nth-child(2) { animation: cardEntrance 0.45s ease-out 0.32s forwards; }
+      .demo-card:nth-child(3) { animation: cardEntrance 0.45s ease-out 0.44s forwards; }
+
+      .demo-icon {
+        width: 56px; height: 56px; border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 26px;
+      }
+
+      .demo-card h3 {
+        margin: 0; font-size: 20px; font-weight: 600; color: #1C1C1E;
+      }
+
+      .replay-btn {
+        display: block; margin: 20px auto 0; padding: 10px 24px;
+        background: #1a5276; color: white; border: none; border-radius: 10px;
+        font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .replay-btn:hover { background: #0e2b3d; }
+
+      .demo-flash {
+        position: absolute; inset: 0; border-radius: 16px;
+        background: currentColor; opacity: 0; pointer-events: none;
+        transition: opacity 0.15s;
+      }
+    </style>
+
+    <!-- Header -->
+    <div class="demo-header">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, rgba(26,82,118,0.12), rgba(26,82,118,0.06)); margin-bottom: 12px;">
+        <span style="font-size: 28px;">🧠</span>
+      </div>
+      <h2 style="margin: 0; font-size: 28px; font-weight: 700; color: #1a5276;">Brain Health Screen</h2>
+      <p style="margin: 6px 0 0; font-size: 16px; color: #94A3B8;">Select an assessment type to begin</p>
+    </div>
+
+    <!-- Cards -->
+    <div id="cardRow" style="display: flex; gap: 20px; max-width: 880px; margin: 0 auto;">
+
+      <div class="demo-card" onclick="pressCard(this)" style="position: relative; color: #007AFF;">
+        <div class="demo-flash"></div>
+        <div class="demo-icon" style="background: linear-gradient(135deg, #007AFF22, #007AFF11);">⚡</div>
+        <h3>Quick Assessment</h3>
+      </div>
+
+      <div class="demo-card" onclick="pressCard(this)" style="position: relative; color: #5E5CE6;">
+        <div class="demo-flash"></div>
+        <div class="demo-icon" style="background: linear-gradient(135deg, #5E5CE622, #5E5CE611);">👥</div>
+        <h3>Family / Caregiver<br>Questionnaire</h3>
+      </div>
+
+      <div class="demo-card" onclick="pressCard(this)" style="position: relative; color: #30D158;">
+        <div class="demo-flash"></div>
+        <div class="demo-icon" style="background: linear-gradient(135deg, #30D15822, #30D15811);">📋</div>
+        <h3>Extended<br>Assessment</h3>
+      </div>
+
+    </div>
+
+    <button class="replay-btn" onclick="replayEntrance()">↻ Replay Entrance Animation</button>
+
+  </div>
+</div>
+
+<script>
+function pressCard(el) {
+  // Flash overlay
+  const flash = el.querySelector('.demo-flash');
+  flash.style.opacity = '0.06';
+  setTimeout(() => { flash.style.opacity = '0'; }, 200);
+
+  // Scale press
+  el.classList.remove('pressing');
+  void el.offsetWidth; // force reflow
+  el.classList.add('pressing');
+  el.addEventListener('animationend', () => {
+    el.classList.remove('pressing');
+  }, { once: true });
+}
+
+function replayEntrance() {
+  const header = document.querySelector('.demo-header');
+  const cards = document.querySelectorAll('.demo-card');
+
+  // Reset
+  header.style.animation = 'none';
+  cards.forEach(c => c.style.animation = 'none');
+  void header.offsetWidth;
+
+  // Re-trigger
+  header.style.animation = 'headerFade 0.4s ease-out 0.1s forwards';
+  header.style.opacity = '0';
+  cards.forEach((c, i) => {
+    c.style.opacity = '0';
+    c.style.animation = `cardEntrance 0.45s ease-out ${0.2 + i * 0.12}s forwards`;
+  });
+}
+</script>
+
+<div style="margin-top: 24px;">
+  <h3>Animation Specs (SwiftUI)</h3>
+  <table style="width: 100%; font-size: 13px; color: #aaa; border-collapse: collapse;">
+    <tr style="border-bottom: 1px solid #333;">
+      <td style="padding: 8px 0; font-weight: 600; color: #ccc;">Entrance</td>
+      <td style="padding: 8px 0;">Header fades in first (0.1s delay). Cards stagger in with fade + 20pt upward slide, 0.45s easeOut, 0.12s delay between each.</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #333;">
+      <td style="padding: 8px 0; font-weight: 600; color: #ccc;">Press</td>
+      <td style="padding: 8px 0;">Scale 1.0 → 0.96 → 1.0 over 0.3s using Material 3 standard easing. Light haptic (UIImpactFeedbackGenerator .light).</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #333;">
+      <td style="padding: 8px 0; font-weight: 600; color: #ccc;">Shadow lift</td>
+      <td style="padding: 8px 0;">On press, shadow stays constant (no elevation change) — keeps it calm.</td>
+    </tr>
+    <tr>
+      <td style="padding: 8px 0; font-weight: 600; color: #ccc;">SwiftUI impl</td>
+      <td style="padding: 8px 0;"><code>.opacity(appeared ? 1 : 0)</code> + <code>.offset(y: appeared ? 0 : 20)</code> with <code>.animation(.easeOut(duration: 0.45).delay(index * 0.12))</code>. Press via <code>.scaleEffect(isPressed ? 0.96 : 1.0)</code> with spring(0.15s, 0.85 damping).</td>
+    </tr>
+  </table>
+</div>
