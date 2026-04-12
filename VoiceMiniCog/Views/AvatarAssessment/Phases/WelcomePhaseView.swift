@@ -3,12 +3,90 @@
 //  VoiceMiniCog
 //
 //  Phase 1 — Welcome screen. The avatar speaks a short, tight intro.
-//  Subtest rows reveal in sync with each activity name (timed from
-//  conversation.replica.started_speaking, with a delayed fallback if needed).
+//  Subtest rows reveal in sync with each activity name, timed dynamically
+//  from the script text using a speech-rate model anchored to
+//  conversation.replica.started_speaking (with a delayed fallback).
 //  Begin button appears as she says "press Begin Assessment".
 //
 
 import SwiftUI
+
+// MARK: - Speech Timing Model
+
+/// Computes reveal delays dynamically from the intro script so timings
+/// stay in sync if the wording ever changes. Uses measured Tavus echo
+/// speech rate (~2.5 words/sec = 0.40s/word) plus ~0.30s pause at each
+/// sentence boundary (period/question mark). Each reveal fires ~0.15s
+/// before the avatar says the activity name so the row is already visible
+/// as she pronounces it.
+private struct SpeechTimingModel {
+
+    /// Seconds per spoken word (Tavus echo at moderate clinical pace).
+    static let secsPerWord: Double = 0.40
+    /// Extra pause inserted at sentence boundaries (periods, question marks).
+    static let sentencePause: Double = 0.30
+    /// How far ahead of the activity name to reveal the row (seconds).
+    static let revealLeadTime: Double = 0.15
+
+    /// Given the full intro script and a list of landmark phrases (the
+    /// activity names and the "Begin Assessment" cue), returns the
+    /// estimated time offset (seconds from speech start) for each landmark.
+    /// Pass `applyLeadTime: true` for subtest reveals, `false` for the
+    /// Begin button (which should appear exactly as she says it).
+    static func landmarkOffsets(
+        script: String,
+        landmarks: [String],
+        applyLeadTime: Bool = true
+    ) -> [Double] {
+        // Split script into sentences, then into words, tracking cumulative time.
+        let sentences = script.components(separatedBy: ". ")
+            .flatMap { $0.components(separatedBy: "? ") }
+        var cumulative: Double = 0
+        // Build a flat list of (word, cumulativeTimeAtWordStart) tuples.
+        var wordTimings: [(word: String, time: Double)] = []
+
+        for (sIdx, sentence) in sentences.enumerated() {
+            let words = sentence.split(separator: " ").map(String.init)
+            for word in words {
+                wordTimings.append((word: word, time: cumulative))
+                cumulative += secsPerWord
+            }
+            // Add sentence-boundary pause (except after the last sentence).
+            if sIdx < sentences.count - 1 {
+                cumulative += sentencePause
+            }
+        }
+
+        // For each landmark phrase, find where it starts in the word stream.
+        let lead = applyLeadTime ? revealLeadTime : 0
+        return landmarks.map { landmark in
+            let target = landmark.lowercased()
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: "")
+            let targetWords = target.split(separator: " ").map(String.init)
+            guard let firstTarget = targetWords.first else { return cumulative }
+
+            for (i, entry) in wordTimings.enumerated() {
+                let clean = entry.word.lowercased()
+                    .replacingOccurrences(of: ".", with: "")
+                    .replacingOccurrences(of: ",", with: "")
+                if clean == firstTarget {
+                    // Verify the full phrase matches.
+                    let slice = wordTimings[i..<min(i + targetWords.count, wordTimings.count)]
+                    let sliceWords = slice.map {
+                        $0.word.lowercased()
+                            .replacingOccurrences(of: ".", with: "")
+                            .replacingOccurrences(of: ",", with: "")
+                    }
+                    if sliceWords == targetWords {
+                        return max(0, entry.time - lead)
+                    }
+                }
+            }
+            return cumulative // fallback: end of script
+        }
+    }
+}
 
 struct WelcomePhaseView: View {
 
@@ -31,25 +109,30 @@ struct WelcomePhaseView: View {
 
     private let introScript = "Welcome to your Brain Health Check. We'll go through six quick activities together. First, Orientation. Then, Word Learning. Next, Clock Drawing. After that, Verbal Fluency. Then Story Recall. And finally, Word Recall. When you're ready, press Begin Assessment."
 
-    // MARK: - Reveal Timings (seconds after replica.started_speaking or fallback anchor)
-    // Calibrated so each row appears as she begins each activity name (Tavus echo pacing).
-    // Script reference (approximate):
-    //   ~5.0s  "First, Orientation."
-    //   ~6.6s  "Then, Word Learning."
-    //   ~8.1s  "Next, Clock Drawing."
-    //   ~9.6s  "After that, Verbal Fluency."
-    //  ~11.1s  "Then Story Recall."
-    //  ~12.6s  "And finally, Word Recall."
-    //  ~14.2s  "When you're ready, press Begin Assessment."
-    private let revealDelays: [Double] = [
-        5.05,  // Orientation
-        6.55,  // Word Learning
-        8.05,  // Clock Drawing
-        9.55,  // Verbal Fluency
-        11.05, // Story Recall
-        12.55, // Word Recall
-    ]
-    private let beginButtonDelay: Double = 14.65
+    // MARK: - Computed Reveal Timings
+    //
+    // Derived from the intro script using the speech-rate model so they
+    // stay accurate even if the script wording changes. Each delay is
+    // the estimated seconds-from-speech-start to the moment just before
+    // the avatar says the corresponding activity name.
+
+    private var revealDelays: [Double] {
+        let subtestNames = QmciSubtest.allCases.map(\.displayName)
+        return SpeechTimingModel.landmarkOffsets(
+            script: introScript,
+            landmarks: subtestNames,
+            applyLeadTime: true
+        )
+    }
+
+    private var beginButtonDelay: Double {
+        SpeechTimingModel.landmarkOffsets(
+            script: introScript,
+            landmarks: ["Begin Assessment"],
+            applyLeadTime: false
+        ).first ?? 15.0
+    }
+
     /// If the bridge never posts `avatarStartedSpeaking`, still run the timed sequence.
     private let revealFallbackDelay: Double = 4.0
 
