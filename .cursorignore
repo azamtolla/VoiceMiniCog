@@ -1,0 +1,6 @@
+# Claude Code metadata and worktrees
+.claude/
+
+# Other non-source directories
+.remember/
+.superpowers/
