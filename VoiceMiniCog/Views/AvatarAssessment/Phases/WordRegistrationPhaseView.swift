@@ -44,6 +44,12 @@ struct WordRegistrationPhaseView: View {
     @State private var speech = SpeechService()
     @State private var didRequestAuth: Bool = false
 
+    /// Trial whose word-list echo must finish before the listening pause (with chip reveal).
+    @State private var listeningGateTrial: Int = 0
+    @State private var chipsRevealCompleteForGate = false
+    @State private var avatarPlaybackCompleteForGate = false
+    @State private var trialSpeechEpoch = 0
+
     // Timing constants (seconds)
     private let totalTrials: Int = 3
     private let wordRevealInterval: Double = 1.5       // seconds between chip reveals
@@ -130,6 +136,14 @@ struct WordRegistrationPhaseView: View {
             }
             startTrialSequence()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            guard !isFinalRemember else { return }
+            guard currentTrial == listeningGateTrial, currentTrial >= 1 else { return }
+            if !avatarPlaybackCompleteForGate {
+                avatarPlaybackCompleteForGate = true
+                maybeBeginListeningPauseForCurrentTrial()
+            }
+        }
     }
 
     // MARK: - Status / UI Helpers
@@ -175,6 +189,12 @@ struct WordRegistrationPhaseView: View {
         }
 
         // Reset UI for this trial
+        listeningGateTrial = trial
+        chipsRevealCompleteForGate = false
+        avatarPlaybackCompleteForGate = false
+        trialSpeechEpoch += 1
+        let speechEpoch = trialSpeechEpoch
+
         withAnimation(.easeOut(duration: 0.2)) {
             revealedCount = 0
             isListeningPause = false
@@ -212,6 +232,18 @@ struct WordRegistrationPhaseView: View {
         }
         avatarSpeak(speechText)
 
+        // If Tavus never sends `avatarDoneSpeaking`, still allow the listening gate to open.
+        let wc = speechText.split(separator: " ").count
+        let avatarFallback = max(22.0, Double(wc) * 0.32 + 12.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + avatarFallback) {
+            guard self.trialSpeechEpoch == speechEpoch else { return }
+            guard self.currentTrial == trial else { return }
+            if !self.avatarPlaybackCompleteForGate {
+                self.avatarPlaybackCompleteForGate = true
+                self.maybeBeginListeningPauseForCurrentTrial()
+            }
+        }
+
         // Progressive chip reveal — one chip per `wordRevealInterval` seconds.
         for i in 0..<words.count {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * wordRevealInterval) {
@@ -227,8 +259,18 @@ struct WordRegistrationPhaseView: View {
         let speechDuration = Double(words.count) * wordRevealInterval + postSpeechSettle
         DispatchQueue.main.asyncAfter(deadline: .now() + speechDuration) {
             guard self.currentTrial == trial else { return }
-            self.beginListeningPause(after: trial)
+            self.chipsRevealCompleteForGate = true
+            self.maybeBeginListeningPauseForCurrentTrial()
         }
+    }
+
+    /// Opens the patient-response window only after chip reveal AND avatar audio have finished.
+    private func maybeBeginListeningPauseForCurrentTrial() {
+        let trial = listeningGateTrial
+        guard trial >= 1, currentTrial == trial else { return }
+        guard chipsRevealCompleteForGate, avatarPlaybackCompleteForGate else { return }
+        guard !isListeningPause else { return }
+        beginListeningPause(after: trial)
     }
 
     /// Shows "Listening for your response…" then either advances to the next

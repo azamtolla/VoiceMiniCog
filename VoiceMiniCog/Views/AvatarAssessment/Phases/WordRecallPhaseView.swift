@@ -25,6 +25,8 @@ struct WordRecallPhaseView: View {
 
     @State private var recallResults: [Bool?]
     @State private var contentVisible = false
+    @State private var recallPromptSpeechEpoch = 0
+    @State private var recallPromptListeningUnlocked = false
 
     // MARK: Init
 
@@ -156,13 +158,27 @@ struct WordRecallPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
+            recallPromptSpeechEpoch += 1
+            let epoch = recallPromptSpeechEpoch
+            recallPromptListeningUnlocked = false
             layoutManager.setAvatarSpeaking()
             avatarSpeak(LeftPaneSpeechCopy.delayedRecallPrompt)
-            // Switch to listening after avatar finishes speaking (~3s)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
-                layoutManager.setAvatarListening()
+            let wc = LeftPaneSpeechCopy.delayedRecallPrompt.split(separator: " ").count
+            let fallback = max(10.0, Double(wc) * 0.35 + 5.0)
+            DispatchQueue.main.asyncAfter(deadline: .now() + fallback) {
+                unlockRecallListeningIfNeeded(epoch: epoch)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            unlockRecallListeningIfNeeded(epoch: recallPromptSpeechEpoch)
+        }
+    }
+
+    private func unlockRecallListeningIfNeeded(epoch: Int) {
+        guard epoch == recallPromptSpeechEpoch else { return }
+        guard !recallPromptListeningUnlocked else { return }
+        recallPromptListeningUnlocked = true
+        layoutManager.setAvatarListening()
     }
 
     // MARK: - Word Row

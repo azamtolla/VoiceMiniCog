@@ -32,6 +32,8 @@ struct StoryRecallPhaseView: View {
     @State private var contentVisible = false
     @State private var followupAsked = false
     @State private var recalledFlags: [Bool] = []
+    @State private var recallPromptSpeechEpoch = 0
+    @State private var recallPromptListeningUnlocked = false
 
     enum StoryPhase { case listening, recalling, scoring }
 
@@ -72,13 +74,20 @@ struct StoryRecallPhaseView: View {
         }
         .onChange(of: phase) { _, newPhase in
             if newPhase == .recalling {
+                recallPromptSpeechEpoch += 1
+                let epoch = recallPromptSpeechEpoch
+                recallPromptListeningUnlocked = false
                 layoutManager.avatarBehavior = .speaking
                 avatarSpeak(LeftPaneSpeechCopy.storyRecallPrompt)
-                // Switch to listening after the prompt (~4s)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-                    layoutManager.setAvatarListening()
+                let wc = LeftPaneSpeechCopy.storyRecallPrompt.split(separator: " ").count
+                let fallback = max(12.0, Double(wc) * 0.35 + 5.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + fallback) {
+                    unlockStoryRecallListeningIfNeeded(epoch: epoch)
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            unlockStoryRecallListeningIfNeeded(epoch: recallPromptSpeechEpoch)
         }
         .onReceive(NotificationCenter.default.publisher(for: .patientDoneSpeaking)) { _ in
             // QMCI protocol: one follow-up "Anything else?" after patient stops
@@ -141,7 +150,7 @@ struct StoryRecallPhaseView: View {
                 if phase == .listening {
                     contentVisible = false
                     withAnimation(AssessmentTheme.Anim.contentFade) { phase = .recalling }
-                    layoutManager.setAvatarListening()
+                    layoutManager.setAvatarSpeaking()
                     withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                         contentVisible = true
                     }
@@ -267,6 +276,14 @@ struct StoryRecallPhaseView: View {
     }
 
     // MARK: - Unit Chip (Tap To Toggle)
+
+    private func unlockStoryRecallListeningIfNeeded(epoch: Int) {
+        guard phase == .recalling else { return }
+        guard epoch == recallPromptSpeechEpoch else { return }
+        guard !recallPromptListeningUnlocked else { return }
+        recallPromptListeningUnlocked = true
+        layoutManager.setAvatarListening()
+    }
 
     private func unitChip(index: Int, unit: String) -> some View {
         let recalled = recalledFlags[safeIndex: index] ?? false

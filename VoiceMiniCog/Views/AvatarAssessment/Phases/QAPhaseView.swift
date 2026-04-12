@@ -26,9 +26,12 @@ struct QAPhaseView: View {
     @State private var currentIndex = 0
     @State private var selectedAnswer: Int? = nil
     @State private var contentVisible = false
-    @State private var avatarDoneSpeaking = false
+    /// True only after Tavus `replica.stopped_speaking` (or a generous fallback) for the current question.
+    @State private var questionPlaybackFinished = false
     @State private var waitingForPatientResponse = false
     @State private var orientationAutoAdvanceTask: Task<Void, Never>?
+    /// Bumped on each `speakQuestion` so late `avatarDoneSpeaking` events cannot unlock the wrong question.
+    @State private var questionSpeechEpoch = 0
 
     // MARK: Body
 
@@ -54,7 +57,7 @@ struct QAPhaseView: View {
                     .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
                 if phaseID == .orientation {
-                    // Orientation: listening indicator (no buttons)
+                    // Orientation: listening indicator (no buttons) — only after question audio completes
                     orientationListeningArea
                         .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
                         .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
@@ -89,7 +92,7 @@ struct QAPhaseView: View {
         }
         .onChange(of: currentIndex) { _, _ in
             contentVisible = false
-            avatarDoneSpeaking = false
+            questionPlaybackFinished = false
             selectedAnswer = nil
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
@@ -101,13 +104,16 @@ struct QAPhaseView: View {
                 advanceOrientationQuestion()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            finishQuestionSpeechIfNeeded(epoch: questionSpeechEpoch)
+        }
     }
 
     // MARK: - Orientation Listening Area
 
     @ViewBuilder
     private var orientationListeningArea: some View {
-        if avatarDoneSpeaking {
+        if questionPlaybackFinished {
             HStack(spacing: 8) {
                 Image(systemName: "waveform")
                     .font(.system(size: 16))
@@ -179,19 +185,30 @@ struct QAPhaseView: View {
     // MARK: - Speak Question + Avatar Sync
 
     private func speakQuestion(_ text: String) {
-        avatarDoneSpeaking = false
+        questionSpeechEpoch += 1
+        let epoch = questionSpeechEpoch
+        questionPlaybackFinished = false
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
         layoutManager.setAvatarSpeaking()
         avatarSpeak(text)
+
+        // Fallback if the Tavus bridge never posts `avatarDoneSpeaking`
         let wordCount = text.split(separator: " ").count
-        let speakDuration = max(2.0, Double(wordCount) * 0.08 + 1.5)
-        DispatchQueue.main.asyncAfter(deadline: .now() + speakDuration) {
-            layoutManager.setAvatarListening()
-            avatarDoneSpeaking = true
-            if phaseID == .orientation {
-                waitForPatientResponse()
-            }
+        let fallbackSeconds = max(14.0, Double(wordCount) * 0.38 + 6.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + fallbackSeconds) {
+            finishQuestionSpeechIfNeeded(epoch: epoch)
+        }
+    }
+
+    /// Unlocks listening / orientation wait only after the replica finishes this question’s echo.
+    private func finishQuestionSpeechIfNeeded(epoch: Int) {
+        guard epoch == questionSpeechEpoch else { return }
+        guard !questionPlaybackFinished else { return }
+        questionPlaybackFinished = true
+        layoutManager.setAvatarListening()
+        if phaseID == .orientation {
+            waitForPatientResponse()
         }
     }
 
