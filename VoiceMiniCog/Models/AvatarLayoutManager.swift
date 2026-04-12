@@ -125,9 +125,16 @@ class AvatarLayoutManager {
 
     // MARK: - Phase Transition
 
-    /// Advance to the next phase in sequence (no-op if already on last phase)
+    /// Phases to skip in the assessment flow
+    private static let skippedPhases: Set<AssessmentPhaseID> = [.qdrs, .phq2]
+
+    /// Advance to the next phase in sequence, skipping removed phases
     func advanceToNextPhase() {
-        let nextRaw = currentPhase.rawValue + 1
+        var nextRaw = currentPhase.rawValue + 1
+        while let candidate = AssessmentPhaseID(rawValue: nextRaw),
+              Self.skippedPhases.contains(candidate) {
+            nextRaw += 1
+        }
         guard let nextPhase = AssessmentPhaseID(rawValue: nextRaw) else { return }
         transitionTo(nextPhase)
     }
