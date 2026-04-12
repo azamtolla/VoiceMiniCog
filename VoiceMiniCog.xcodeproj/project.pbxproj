@@ -10,26 +10,45 @@
 		02E0487592CC543560C532CC /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
 		036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */; };
+		086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */; };
+		091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
+		09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
+		0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
+		0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D565942281E547B8CA33AEAF /* PCPReportView.swift */; };
+		11CD4EA9ABE27C8E98820E70 /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
 		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
 		13F141A72CED1EBA15FD16B5 /* LogicalMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */; };
+		1C5346948A10D0A36CCC3ADD /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
 		211EBE0C05DAFAB525006AF3 /* PersonaBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29247956694B55B6DC153193 /* PersonaBridge.swift */; };
 		2600D7F94345E4911E2CA1BB /* ProtocolOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */; };
 		267C32D5F7B8194A9340AFDA /* PersonaPlexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */; };
+		35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
+		37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
+		3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC4D21A02D05C27DACDD9090 /* QDRSView.swift */; };
 		41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
+		43E8415B91255D41CB083B3A /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
+		473C49F083411C733E173CC1 /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
+		4CDA4D16B5A2197377935862 /* TavusBridge.html in Resources */ = {isa = PBXBuildFile; fileRef = B231486BB1A1E56864D34FC4 /* TavusBridge.html */; };
 		50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */; };
+		51444F06A34E98BDCC2902C5 /* TavusBridge.html in Resources */ = {isa = PBXBuildFile; fileRef = B231486BB1A1E56864D34FC4 /* TavusBridge.html */; };
+		529B42ECB53B8E5665F466EF /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
 		52AF46D1BC06D1406F6C47E3 /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
 		53932F3F0E07F33067B9944B /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */; };
 		5E294F07BC2C05D9B61F7A1C /* ProgressTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */; };
-		5W1LBOH2NXP4X81ZICX9JGRW /* AssessmentPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = FWCZSRG4FGI6FBAMQG43RIQ6 /* AssessmentPersistence.swift */; };
 		61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */; };
 		638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
+		68444A9984B3B363AFBE708F /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
 		688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
 		6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7980C074148F7BF401F6D35F /* SpeechListenerView.swift */; };
 		72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */; };
+		74B346CEB8F9A8B6ACA6DEB0 /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
+		79C34F579A1CA2F1DEBB913E /* ProgressTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */; };
+		7CBE4AB2B40A94F6F704E500 /* WelcomePhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */; };
 		7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
+		88034F92B49D28E55AE9A40D /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
 		89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */; };
 		90B4464396663EFA7F19795D /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
 		9246E5ED2F63A68D00743FA8 /* ElevenLabsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */; };
@@ -51,28 +70,42 @@
 		9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6062F63EB0200743FA8 /* RealtimeManager.swift */; };
 		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
 		9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */; };
+		954F4BFDA5717E20825FB575 /* TavusBridge.html in Resources */ = {isa = PBXBuildFile; fileRef = B231486BB1A1E56864D34FC4 /* TavusBridge.html */; };
 		980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */; };
+		9845407B8B0DE0440D44EFF4 /* TavusAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */; };
 		99B9883975AA22BB9733DDFE /* AudioLipSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */; };
 		9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
+		9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
+		A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */; };
 		A62B072BFF3D3F628FADA20D /* MiniCogLiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */; };
 		A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
-		AABB11223344556677889900 /* PDFReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB11223344556677889901 /* PDFReportGenerator.swift */; };
+		A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */; };
 		AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */; };
 		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
+		BB121FCE155B73B8F7967BEB /* QmciAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */; };
+		BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */; };
+		BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
+		BE6B440D9E546C8C29FF39B6 /* WelcomePhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */; };
+		BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		C066570A0DEE2C1DCB7A3FD1 /* AntiAmyloidTriage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */; };
+		C3AD40C38C918C7FA86C1E5F /* ProgressTrackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */; };
 		C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26A970DB16F141ACD2E048D /* MCComponents.swift */; };
-		CARD0002000000000002 /* AssessmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARD0001000000000001 /* AssessmentCard.swift */; };
-		CARE0002000000000002 /* CaregiverAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CARE0001000000000001 /* CaregiverAssessmentView.swift */; };
 		CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73A672F34C224AB23B665B74 /* TavusModels.swift */; };
 		CC11223344556677889900BB /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */; };
+		CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
 		CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
-		COMP0002000000000002 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = COMP0001000000000001 /* CompletionPhaseView.swift */; };
-		COPY0002000000000002 /* LeftPaneSpeechCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = COPY0001000000000001 /* LeftPaneSpeechCopy.swift */; };
+		AA11223344556677889900E1 /* PhaseClipShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900E0 /* PhaseClipShape.swift */; };
+		AA11223344556677889900E2 /* PhaseClipShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900E0 /* PhaseClipShape.swift */; };
+		AA11223344556677889900E3 /* PhaseClipShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677889900E0 /* PhaseClipShape.swift */; };
+		D31B4133BC8CCFB0E8262E52 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD2930E955EA8A06119C9 /* QmciModels.swift */; };
-		MODS0002000000000002 /* AssessmentViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODS0001000000000001 /* AssessmentViewModifiers.swift */; };
-		SESS0002000000000002 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESS0001000000000001 /* SessionStatusView.swift */; };
-		TAVBRIDGE001 /* TavusBridge.html in Resources */ = {isa = PBXBuildFile; fileRef = TAVBRIDGE002 /* TavusBridge.html */; };
+		DD8047AC8DD798BBEF4FF9FF /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
+		F04B422DA9D44E9E223B9478 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
+		F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
+		F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,12 +126,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHQ2View.swift; sourceTree = "<group>"; };
 		0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolOrchestrator.swift; sourceTree = "<group>"; };
 		1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
 		24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QAPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/QAPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		29247956694B55B6DC153193 /* PersonaBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaBridge.swift; sourceTree = "<group>"; };
 		2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClockDrawingPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/ClockDrawingPhaseView.swift; sourceTree = SOURCE_ROOT; };
+		38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogIntroView.swift; sourceTree = "<group>"; };
+		3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciAssessmentView.swift; sourceTree = "<group>"; };
 		45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRegistrationPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRegistrationPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioArbitrator.swift; sourceTree = "<group>"; };
 		69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentTheme.swift; path = VoiceMiniCog/Theme/AssessmentTheme.swift; sourceTree = SOURCE_ROOT; };
@@ -108,6 +144,7 @@
 		7980C074148F7BF401F6D35F /* SpeechListenerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechListenerView.swift; sourceTree = "<group>"; };
 		8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniCogLiveView.swift; sourceTree = "<group>"; };
 		8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarZoneView.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarZoneView.swift; sourceTree = SOURCE_ROOT; };
+		AA11223344556677889900E0 /* PhaseClipShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PhaseClipShape.swift; path = VoiceMiniCog/Views/AvatarAssessment/PhaseClipShape.swift; sourceTree = SOURCE_ROOT; };
 		8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHQ2Models.swift; sourceTree = "<group>"; };
 		9237E6DE984F471E08D0792C /* QDRSModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QDRSModels.swift; sourceTree = "<group>"; };
 		9246E5232F6390E700743FA8 /* VoiceMiniCog.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceMiniCog.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -138,23 +175,19 @@
 		9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CDTOnDeviceScorer.swift; sourceTree = "<group>"; };
 		9246E6062F63EB0200743FA8 /* RealtimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeManager.swift; sourceTree = "<group>"; };
 		9246E6092F63EB0200743FA8 /* TokenService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenService.swift; sourceTree = "<group>"; };
-		924A22802F89746B000AE7E1 /* VoiceMiniCog.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = VoiceMiniCog.xctestplan; sourceTree = "<group>"; };
 		96594F1C9872605DC0D3E0B5 /* TavusService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusService.swift; path = VoiceMiniCog/Services/TavusService.swift; sourceTree = SOURCE_ROOT; };
 		96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiAmyloidTriage.swift; sourceTree = "<group>"; };
 		97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProgressTrackView.swift; path = VoiceMiniCog/Views/AvatarAssessment/ProgressTrackView.swift; sourceTree = SOURCE_ROOT; };
 		9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReversibleCauseWorkup.swift; sourceTree = "<group>"; };
 		9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptClipPlayer.swift; sourceTree = "<group>"; };
 		A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusCVIView.swift; path = VoiceMiniCog/Views/TavusCVIView.swift; sourceTree = SOURCE_ROOT; };
-		AABB11223344556677889901 /* PDFReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportGenerator.swift; sourceTree = "<group>"; };
 		B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaPlexService.swift; sourceTree = "<group>"; };
+		B231486BB1A1E56864D34FC4 /* TavusBridge.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = TavusBridge.html; path = VoiceMiniCog/Resources/TavusBridge.html; sourceTree = SOURCE_ROOT; };
 		B26A970DB16F141ACD2E048D /* MCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCComponents.swift; sourceTree = "<group>"; };
 		BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLipSync.swift; sourceTree = "<group>"; };
+		BC4D21A02D05C27DACDD9090 /* QDRSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QDRSView.swift; sourceTree = "<group>"; };
 		BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarAssessmentCanvas.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarAssessmentCanvas.swift; sourceTree = SOURCE_ROOT; };
-		CARD0001000000000001 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCard.swift; path = VoiceMiniCog/Views/AssessmentCard.swift; sourceTree = SOURCE_ROOT; };
-		CARE0001000000000001 /* CaregiverAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CaregiverAssessmentView.swift; path = VoiceMiniCog/Views/CaregiverAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 		CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/VerbalFluencyPhaseView.swift; sourceTree = SOURCE_ROOT; };
-		COMP0001000000000001 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
-		COPY0001000000000001 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LeftPaneSpeechCopy.swift; path = VoiceMiniCog/Theme/LeftPaneSpeechCopy.swift; sourceTree = SOURCE_ROOT; };
 		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
 		DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerbalFluencyView.swift; sourceTree = "<group>"; };
 		E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WelcomePhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WelcomePhaseView.swift; sourceTree = SOURCE_ROOT; };
@@ -165,23 +198,11 @@
 		FA554C44B40C92D0D9612F89 /* TavusAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusAssessmentView.swift; path = VoiceMiniCog/Views/TavusAssessmentView.swift; sourceTree = SOURCE_ROOT; };
 		FD67457A85ACD917974962D3 /* PauseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PauseButtonView.swift; path = VoiceMiniCog/Views/AvatarAssessment/PauseButtonView.swift; sourceTree = SOURCE_ROOT; };
 		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
-		FWCZSRG4FGI6FBAMQG43RIQ6 /* AssessmentPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPersistence.swift; sourceTree = "<group>"; };
-		MODS0001000000000001 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentViewModifiers.swift; path = VoiceMiniCog/Theme/AssessmentViewModifiers.swift; sourceTree = SOURCE_ROOT; };
-		SESS0001000000000001 /* SessionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStatusView.swift; path = VoiceMiniCog/Views/AvatarAssessment/SessionStatusView.swift; sourceTree = SOURCE_ROOT; };
-		TAVBRIDGE002 /* TavusBridge.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = TavusBridge.html; path = VoiceMiniCog/Resources/TavusBridge.html; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		9246E5332F6390E900743FA8 /* VoiceMiniCogTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VoiceMiniCogTests;
-			sourceTree = "<group>";
-		};
-		9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = VoiceMiniCogUITests;
-			sourceTree = "<group>";
-		};
+		9246E5332F6390E900743FA8 /* VoiceMiniCogTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = VoiceMiniCogTests; sourceTree = "<group>"; };
+		9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = VoiceMiniCogUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -212,7 +233,6 @@
 		9246E51A2F6390E700743FA8 = {
 			isa = PBXGroup;
 			children = (
-				924A22802F89746B000AE7E1 /* VoiceMiniCog.xctestplan */,
 				9246E5EC2F63A68D00743FA8 /* VoiceMiniCog */,
 				9246E5332F6390E900743FA8 /* VoiceMiniCogTests */,
 				9246E53D2F6390E900743FA8 /* VoiceMiniCogUITests */,
@@ -224,17 +244,17 @@
 				F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */,
 				BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */,
 				8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */,
+				AA11223344556677889900E0 /* PhaseClipShape.swift */,
 				97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */,
 				FD67457A85ACD917974962D3 /* PauseButtonView.swift */,
 				E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */,
-				COMP0001000000000001 /* CompletionPhaseView.swift */,
 				45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */,
 				24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */,
 				2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */,
 				CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */,
 				EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */,
 				FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */,
-				924A22732F8871A1000AE7E1 /* Recovered References */,
+				B231486BB1A1E56864D34FC4 /* TavusBridge.html */,
 			);
 			sourceTree = "<group>";
 		};
@@ -281,12 +301,10 @@
 				F99E06600D77375641FF29E6 /* AvatarStreamServiceStub.swift */,
 				29247956694B55B6DC153193 /* PersonaBridge.swift */,
 				5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */,
-				FWCZSRG4FGI6FBAMQG43RIQ6 /* AssessmentPersistence.swift */,
 				9DBB62ABCD178A8DC045A664 /* ScriptClipPlayer.swift */,
 				0FB7ABEA2317C53B04DDDCEC /* ProtocolOrchestrator.swift */,
 				BB1C0F92A1317B32C89E950E /* AudioLipSync.swift */,
 				B0E02A6190A9CE0358DA301C /* PersonaPlexService.swift */,
-				AABB11223344556677889901 /* PDFReportGenerator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -313,11 +331,15 @@
 				9246E5E72F63A68D00743FA8 /* SummaryView.swift */,
 				1CE5F48D5EC8C26ED8A7C345 /* AvatarView.swift */,
 				8602C25FEFDDBC631FC53C0A /* MiniCogLiveView.swift */,
+				BC4D21A02D05C27DACDD9090 /* QDRSView.swift */,
+				03C6DD89C4F844CD764B3BF6 /* PHQ2View.swift */,
 				74DF1AE6C8C9C83FFBDC2B58 /* OrientationView.swift */,
 				DAF982C247D535EA928BB851 /* VerbalFluencyView.swift */,
 				F6DBE19E00FE40DF16EFE4D0 /* LogicalMemoryView.swift */,
+				3CD194CF8C62900F8CD97D84 /* QmciAssessmentView.swift */,
 				D565942281E547B8CA33AEAF /* PCPReportView.swift */,
 				7980C074148F7BF401F6D35F /* SpeechListenerView.swift */,
+				38CF0DDDD2280670BA728805 /* MiniCogIntroView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -336,19 +358,6 @@
 			path = VoiceMiniCog;
 			sourceTree = "<group>";
 		};
-		924A22732F8871A1000AE7E1 /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				MODS0001000000000001 /* AssessmentViewModifiers.swift */,
-				COPY0001000000000001 /* LeftPaneSpeechCopy.swift */,
-				SESS0001000000000001 /* SessionStatusView.swift */,
-				CARE0001000000000001 /* CaregiverAssessmentView.swift */,
-				CARD0001000000000001 /* AssessmentCard.swift */,
-				TAVBRIDGE002 /* TavusBridge.html */,
-			);
-			name = "Recovered References";
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -358,7 +367,7 @@
 			buildPhases = (
 				9246E51F2F6390E700743FA8 /* Sources */,
 				9246E5202F6390E700743FA8 /* Frameworks */,
-				TAVBRIDGE003 /* Resources */,
+				FE324CE1843C26C595099DE6 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -466,6 +475,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4CDA4D16B5A2197377935862 /* TavusBridge.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -473,14 +483,15 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				954F4BFDA5717E20825FB575 /* TavusBridge.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		TAVBRIDGE003 /* Resources */ = {
+		FE324CE1843C26C595099DE6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				TAVBRIDGE001 /* TavusBridge.html in Resources */,
+				51444F06A34E98BDCC2902C5 /* TavusBridge.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -513,7 +524,6 @@
 				05850BA43180DFAE35B7D585 /* AvatarStreamServiceStub.swift in Sources */,
 				211EBE0C05DAFAB525006AF3 /* PersonaBridge.swift in Sources */,
 				980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */,
-				5W1LBOH2NXP4X81ZICX9JGRW /* AssessmentPersistence.swift in Sources */,
 				50A761907240B283685DEA17 /* ScriptClipPlayer.swift in Sources */,
 				2600D7F94345E4911E2CA1BB /* ProtocolOrchestrator.swift in Sources */,
 				CB3AA585E9E642D132993A09 /* TavusModels.swift in Sources */,
@@ -526,36 +536,34 @@
 				3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */,
 				99B9883975AA22BB9733DDFE /* AudioLipSync.swift in Sources */,
 				267C32D5F7B8194A9340AFDA /* PersonaPlexService.swift in Sources */,
+				3D9F3B094445F56D34E85BF5 /* QDRSView.swift in Sources */,
+				BC9CA8970AED9F64A42351B9 /* PHQ2View.swift in Sources */,
 				AB2E81D748223F4F39B0D7C0 /* OrientationView.swift in Sources */,
 				380CA78913CFFD9E5B8F8EA3 /* VerbalFluencyView.swift in Sources */,
 				13F141A72CED1EBA15FD16B5 /* LogicalMemoryView.swift in Sources */,
+				BB121FCE155B73B8F7967BEB /* QmciAssessmentView.swift in Sources */,
 				10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */,
 				6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */,
+				086FDB18D0591BCCCFD6395B /* MiniCogIntroView.swift in Sources */,
 				B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */,
 				C78ABD27FAD40B924D8C60A5 /* MCComponents.swift in Sources */,
 				D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */,
 				9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */,
 				90B4464396663EFA7F19795D /* TavusAssessmentView.swift in Sources */,
 				688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */,
-				MODS0002000000000002 /* AssessmentViewModifiers.swift in Sources */,
-				COPY0002000000000002 /* LeftPaneSpeechCopy.swift in Sources */,
 				52AF46D1BC06D1406F6C47E3 /* AvatarLayoutManager.swift in Sources */,
 				02E0487592CC543560C532CC /* AvatarAssessmentCanvas.swift in Sources */,
 				CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */,
+				AA11223344556677889900E1 /* PhaseClipShape.swift in Sources */,
 				5E294F07BC2C05D9B61F7A1C /* ProgressTrackView.swift in Sources */,
 				638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */,
 				61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */,
-				SESS0002000000000002 /* SessionStatusView.swift in Sources */,
-				CARE0002000000000002 /* CaregiverAssessmentView.swift in Sources */,
-				CARD0002000000000002 /* AssessmentCard.swift in Sources */,
-				COMP0002000000000002 /* CompletionPhaseView.swift in Sources */,
 				89184C0EA4D2696A1A2C4CAB /* WordRegistrationPhaseView.swift in Sources */,
 				A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */,
 				7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */,
 				CC11223344556677889900BB /* VerbalFluencyPhaseView.swift in Sources */,
 				036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */,
 				41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */,
-				AABB11223344556677889900 /* PDFReportGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -563,6 +571,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */,
+				74B346CEB8F9A8B6ACA6DEB0 /* TavusCVIView.swift in Sources */,
+				88034F92B49D28E55AE9A40D /* TavusAssessmentView.swift in Sources */,
+				68444A9984B3B363AFBE708F /* AssessmentTheme.swift in Sources */,
+				DD8047AC8DD798BBEF4FF9FF /* AvatarLayoutManager.swift in Sources */,
+				11CD4EA9ABE27C8E98820E70 /* AvatarAssessmentCanvas.swift in Sources */,
+				D31B4133BC8CCFB0E8262E52 /* AvatarZoneView.swift in Sources */,
+				AA11223344556677889900E2 /* PhaseClipShape.swift in Sources */,
+				79C34F579A1CA2F1DEBB913E /* ProgressTrackView.swift in Sources */,
+				F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */,
+				BE6B440D9E546C8C29FF39B6 /* WelcomePhaseView.swift in Sources */,
+				A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */,
+				0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */,
+				F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */,
+				CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */,
+				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
+				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -570,6 +595,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				43E8415B91255D41CB083B3A /* TavusService.swift in Sources */,
+				529B42ECB53B8E5665F466EF /* TavusCVIView.swift in Sources */,
+				9845407B8B0DE0440D44EFF4 /* TavusAssessmentView.swift in Sources */,
+				BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */,
+				091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */,
+				473C49F083411C733E173CC1 /* AvatarAssessmentCanvas.swift in Sources */,
+				F04B422DA9D44E9E223B9478 /* AvatarZoneView.swift in Sources */,
+				AA11223344556677889900E3 /* PhaseClipShape.swift in Sources */,
+				C3AD40C38C918C7FA86C1E5F /* ProgressTrackView.swift in Sources */,
+				1C5346948A10D0A36CCC3ADD /* PauseButtonView.swift in Sources */,
+				7CBE4AB2B40A94F6F704E500 /* WelcomePhaseView.swift in Sources */,
+				A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */,
+				CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */,
+				09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */,
+				CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */,
+				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
+				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -715,6 +757,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "VoiceMiniCog needs camera access for the avatar video assessment";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VoiceMiniCog needs microphone access to listen to your responses";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "VoiceMiniCog uses speech recognition to transcribe your responses";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -765,6 +808,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "VoiceMiniCog needs camera access for the avatar video assessment";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VoiceMiniCog needs microphone access to listen to your responses";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "VoiceMiniCog uses speech recognition to transcribe your responses";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -809,7 +853,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5B932KH47W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LIBRARY_SEARCH_PATHS = (
@@ -839,7 +882,6 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5B932KH47W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LIBRARY_SEARCH_PATHS = (
@@ -868,7 +910,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5B932KH47W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LIBRARY_SEARCH_PATHS = (
@@ -897,7 +938,6 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 5B932KH47W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				LIBRARY_SEARCH_PATHS = (

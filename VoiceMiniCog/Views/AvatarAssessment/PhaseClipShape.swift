@@ -9,9 +9,17 @@
 
 import SwiftUI
 
-struct PhaseClipShape: Shape {
+struct PhaseClipShape: Shape, InsettableShape {
     /// 0.0 = rounded rectangle, 1.0 = circle
     var circleProgress: CGFloat
+
+    /// Inset amount for InsettableShape conformance (used by strokeBorder)
+    var insetAmount: CGFloat = 0
+
+    init(circleProgress: CGFloat) {
+        self.circleProgress = circleProgress
+        self.insetAmount = 0
+    }
 
     var animatableData: CGFloat {
         get { circleProgress }
@@ -19,10 +27,17 @@ struct PhaseClipShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        let maxRadius = min(rect.width, rect.height) / 2
-        let minRadius = AssessmentTheme.Avatar.videoCornerRadius - 2
+        let insetRect = rect.insetBy(dx: insetAmount, dy: insetAmount)
+        let maxRadius = min(insetRect.width, insetRect.height) / 2
+        let minRadius = max(AssessmentTheme.Avatar.videoCornerRadius - 2 - insetAmount, 0)
         let radius = minRadius + (maxRadius - minRadius) * circleProgress
         return RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .path(in: rect)
+            .path(in: insetRect)
+    }
+
+    func inset(by amount: CGFloat) -> PhaseClipShape {
+        var copy = self
+        copy.insetAmount += amount
+        return copy
     }
 }
