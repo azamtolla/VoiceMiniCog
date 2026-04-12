@@ -32,6 +32,9 @@ struct ClockDrawingPhaseView: View {
     @State private var currentLine: [CGPoint] = []
     @State private var timeRemaining = 180 // 3 minutes
     @State private var timer: Timer?
+    @State private var contentVisible = false
+    @State private var canvasStartTime = Date()
+    @State private var lastStrokeEndTime: Date?
 
     // MARK: Body
 
@@ -74,12 +77,20 @@ struct ClockDrawingPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
-            startTimer()
-            NotificationCenter.default.post(
-                name: .tavusEchoRequest,
-                object: nil,
-                userInfo: ["text": AssessmentTheme.PromptCopy.spoken(AssessmentTheme.PromptCopy.clockDrawingInstruction)]
+            withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                contentVisible = true
+            }
+            canvasStartTime = Date()
+            lastStrokeEndTime = nil
+            avatarSetContext(
+                "You are a clinical neuropsychologist administering the Clock Drawing subtest. The patient is drawing. Remain silent and observe. " +
+                "Do not provide hints, corrections, or commentary on the drawing or anything they say while drawing. " +
+                "Do not tell the patient how much time remains. If the patient asks for help, say calmly: 'Please do your best.' " +
+                "Speak only when sent echo commands. " +
+                LeftPaneSpeechCopy.examinerNeverCorrectPatient
             )
+            avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
+            startTimer()
         }
         .onDisappear {
             timer?.invalidate()

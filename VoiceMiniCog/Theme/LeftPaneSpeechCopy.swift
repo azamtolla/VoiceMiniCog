@@ -20,6 +20,27 @@ enum LeftPaneSpeechCopy {
 
     static let welcomeSubtitle = "6 cognitive activities, about 3-5 minutes"
 
+    /// Tavus overwrite_context for the **welcome screen only** — slower, calmer delivery than conversational TTS.
+    /// Echo text still carries SSML `<break/>` tags when supported; this steadies prosody if the engine ignores breaks.
+    static let welcomeTavusDeliveryContext = """
+    You are a board-certified clinical neuropsychologist welcoming a patient before a standardized cognitive battery. \
+    VOICE: warm, neutral, and measured — never performative or chatty. \
+    Speak noticeably slower than everyday conversation (roughly 130 to 140 words per minute, not 160+). \
+    Keep prosody steady and even — low style exaggeration, not animated or theatrical (think high stability TTS, not expressive). \
+    Use the pauses in the echo text; do not compress or run sentences together. \
+    Land each sentence as a complete thought with mild downward, declarative intonation at phrase boundaries — no upspeak. \
+    Speak ONLY the text sent via echo commands — do not add, omit, or paraphrase any words. \
+    Do not add a separate greeting beyond what is in the echo. \
+    Never correct, score, or coach the patient during this screen.
+    """
+
+    /// Shared Tavus `overwrite_context` fragment — examiner stays neutral; no implicit scoring or coaching.
+    static let examinerNeverCorrectPatient = """
+    Never correct the patient or judge their answers — do not say right, wrong, close, not quite, actually, or good try; \
+    do not repeat their words to evaluate them; do not fix pronunciation or word choice. Stay neutral while they respond; \
+    speak only the exact echo text the app sends.
+    """
+
     // MARK: - Subtest 1: Orientation (10 pts)
 
     static let orientationIntro = "I am going to ask you a few questions. Please answer as best you can."
@@ -30,12 +51,24 @@ enum LeftPaneSpeechCopy {
 
     static let wordRegistrationTitle = "Listen carefully"
 
-    static let wordRegistrationSubtitle = "I will say some words.\nRepeat them back when asked."
+    /// Shown on the left panel during registration (no target words — auditory-only presentation).
+    static let wordRegistrationSubtitle = "Listen to your examiner. Words are not shown until you repeat them."
 
     static let wordRegistrationIntro = "I am going to say some words. After I have said these words, repeat them back to me."
 
+    /// Trial 1 — full spoken intro (echo). No words from the list in this clip.
+    static let wordRegistrationSpokenIntro =
+        "I'm going to say five words. I want you to listen carefully and repeat them back to me. Try to remember them, because I'll ask you to recall them again later. Ready?"
+
+    /// Spoken immediately before the first target word (echo).
+    static let wordRegistrationWordsAre = "The words are…"
+
+    /// Trials 2–3 — shortened retry intro (echo), then pause, then `wordRegistrationWordsAre`.
+    static let wordRegistrationRetryIntro =
+        "Let's try again. Listen carefully."
+
     static func wordRegistrationNarration(words: [String]) -> String {
-        // Read words slowly, one per second — joined with pauses
+        // Legacy / AssessmentState — not used for Tavus multi-echo registration flow.
         let wordList = words.joined(separator: " ... ")
         return "\(wordList)."
     }
@@ -64,7 +97,15 @@ enum LeftPaneSpeechCopy {
 
     static let delayedRecallTitle = "Word Recall"
 
-    static let delayedRecallPrompt = "A few minutes ago I said some words. Please name as many words as you can remember."
+    /// Standardized recall prompt — verbatim QMCI protocol wording.
+    /// Avatar speaks this; it is NOT shown on the patient screen.
+    static let delayedRecallPrompt = "A few minutes ago I read you a list of words and asked you to remember them. Tell me as many of those words as you can remember, in any order."
+
+    /// Single follow-up after patient indicates completion or 60s silence
+    static let delayedRecallAnyOthers = "Any others?"
+
+    /// Patient-facing subtitle (calming, non-cueing)
+    static let delayedRecallPatientSubtitle = "Take your time."
 
     static let delayedRecallOnScreen = "Recall the 5 words from earlier."
 

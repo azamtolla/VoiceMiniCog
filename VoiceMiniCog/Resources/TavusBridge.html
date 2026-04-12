@@ -149,7 +149,7 @@ async function joinRoom(roomUrl) {
     log('Mic muted on join (waiting for assessment start)');
 
     // 4. Set global persona: neuropsychologist examiner
-    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between questions, respond briefly and professionally: "Let us continue with the next part of the assessment." 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
+    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between questions, respond briefly and professionally: "Let us continue with the next part of the assessment." 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
     log('Set neuropsychologist persona context');
 
     // 5. Mark as joined and flush any pending echo requests
@@ -225,34 +225,58 @@ async function joinRoom(roomUrl) {
 }
 
 // === VIDEO RENDERING ===
+// Important: `participant-updated` and `track-started` fire often (e.g. while the
+// patient mic is open). Creating a new MediaStream every time makes
+// `video.srcObject !== stream` always true, so WebKit rebinds the element and the
+// picture blinks black. Only replace srcObject when the underlying tracks change.
 function updateVideoElements() {
   if (!callObject) return;
 
   const participants = callObject.participants();
 
-  // Find remote participant (the Tavus replica)
   for (const [id, p] of Object.entries(participants)) {
     if (id === 'local') continue;
 
-    if (p.tracks?.video?.persistentTrack) {
-      let video = document.getElementById('remote-video');
-      if (!video) {
-        video = document.createElement('video');
-        video.id = 'remote-video';
-        video.autoplay = true;
-        video.playsInline = true;
-        // Remove status text when video appears
-        status.style.display = 'none';
-        container.appendChild(video);
-      }
-      const stream = new MediaStream([p.tracks.video.persistentTrack]);
-      if (p.tracks.audio?.persistentTrack) {
-        stream.addTrack(p.tracks.audio.persistentTrack);
-      }
-      if (video.srcObject !== stream) {
-        video.srcObject = stream;
-      }
+    const vidTrack = p.tracks?.video?.persistentTrack;
+    if (!vidTrack) continue;
+
+    let video = document.getElementById('remote-video');
+    if (!video) {
+      video = document.createElement('video');
+      video.id = 'remote-video';
+      video.autoplay = true;
+      video.playsInline = true;
+      status.style.display = 'none';
+      container.appendChild(video);
     }
+
+    const audioTrack = p.tracks?.audio?.persistentTrack;
+    const curStream = video.srcObject;
+    const curVideo = curStream?.getVideoTracks?.()[0];
+    const curAudio = curStream?.getAudioTracks?.()[0];
+
+    const sameVideo = curVideo && curVideo.id === vidTrack.id;
+    const sameAudio =
+      (!audioTrack && !curAudio) ||
+      (audioTrack && curAudio && curAudio.id === audioTrack.id);
+
+    if (sameVideo && sameAudio) {
+      break;
+    }
+
+    if (sameVideo && curStream) {
+      if (audioTrack && (!curAudio || curAudio.id !== audioTrack.id)) {
+        if (curAudio) curStream.removeTrack(curAudio);
+        curStream.addTrack(audioTrack);
+      }
+      break;
+    }
+
+    const stream = new MediaStream();
+    stream.addTrack(vidTrack);
+    if (audioTrack) stream.addTrack(audioTrack);
+    video.srcObject = stream;
+    break;
   }
 }
 

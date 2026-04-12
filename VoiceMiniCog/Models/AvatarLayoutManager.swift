@@ -90,7 +90,7 @@ class AvatarLayoutManager {
         case .verbalFluency:
             return 0.4
         case .wordRecall:
-            return 0.85
+            return 1.0
         default:
             return 1.0
         }

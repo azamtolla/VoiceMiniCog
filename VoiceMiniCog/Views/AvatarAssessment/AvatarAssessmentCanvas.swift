@@ -67,6 +67,8 @@ struct AvatarAssessmentCanvas: View {
                         .frame(width: contentWidth)
 
                     // MARK: Avatar Zone (right)
+                    // AvatarZoneView morphs its single TavusCVIView between
+                    // rectangular (standard) and circular (clock drawing).
                     avatarZone(width: avatarWidth, height: geo.size.height)
                 }
             }
@@ -99,8 +101,10 @@ struct AvatarAssessmentCanvas: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // Pause button
-            pauseButton
+            // End Session button — hidden during word recall (auto-advancing phase)
+            if layoutManager.currentPhase != .wordRecall {
+                endSessionButton
+            }
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .padding(.bottom, 24)
@@ -144,6 +148,24 @@ struct AvatarAssessmentCanvas: View {
         PauseButtonView {
             showPauseSheet = true
         }
+    }
+
+    // MARK: - End Session Button
+
+    private var endSessionButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            onCancel()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "xmark.circle")
+                    .font(.system(size: 14))
+                Text("End Session")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .foregroundStyle(Color(hex: "#DC2626"))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Avatar Zone

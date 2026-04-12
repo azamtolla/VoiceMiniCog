@@ -95,6 +95,10 @@ struct VerbalFluencyPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
+            avatarSetContext(
+                "You are administering the Verbal Fluency (animals) subtest. The patient names animals aloud; remain silent unless echo text is sent. " +
+                LeftPaneSpeechCopy.examinerNeverCorrectPatient
+            )
         }
     }
 

@@ -59,6 +59,10 @@ struct StoryRecallPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
+            avatarSetContext(
+                "You are administering story learning and recall. Speak only echo text from the app. " +
+                LeftPaneSpeechCopy.examinerNeverCorrectPatient
+            )
             // Initialize the scoring flags to match the current story's unit count.
             if recalledFlags.count != scoringUnits.count {
                 recalledFlags = Array(repeating: false, count: scoringUnits.count)

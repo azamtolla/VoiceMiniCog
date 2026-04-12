@@ -282,5 +282,8 @@ enum AssessmentTheme {
         static let ringPulseDuration: Double = 1.8
         static let ringPulse = SwiftUI.Animation.easeInOut(duration: ringPulseDuration)
             .repeatForever(autoreverses: true)
+
+        /// Reduced motion fallback — instant
+        static let reducedMotion = SwiftUI.Animation.easeInOut(duration: 0.01)
     }
 }

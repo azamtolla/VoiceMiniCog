@@ -13,20 +13,27 @@ import SwiftUI
 
 // MARK: - Speech Timing Model
 
-/// Computes reveal delays dynamically from the intro script so timings
-/// stay in sync if the wording ever changes. Uses measured Tavus echo
-/// speech rate (~2.5 words/sec = 0.40s/word) plus ~0.30s pause at each
-/// sentence boundary (period/question mark). Each reveal fires ~0.15s
-/// before the avatar says the activity name so the row is already visible
-/// as she pronounces it.
+/// Computes reveal delays from the **plain** intro script (no SSML) so row reveals
+/// stay aligned with slower, clinician-paced delivery on the welcome screen.
 private struct SpeechTimingModel {
 
-    /// Seconds per spoken word (Tavus echo at moderate clinical pace).
-    static let secsPerWord: Double = 0.40
-    /// Extra pause inserted at sentence boundaries (periods, question marks).
-    static let sentencePause: Double = 0.30
+    /// ~0.85× prior default — targets ~130–140 wpm for older adults / MCI-friendly pacing.
+    static let secsPerWord: Double = 0.47
+    /// Default gap when no per-boundary override applies.
+    static let sentencePause: Double = 0.50
     /// How far ahead of the activity name to reveal the row (seconds).
-    static let revealLeadTime: Double = 0.15
+    static let revealLeadTime: Double = 0.18
+
+    /// Pause (seconds) after sentence boundary `boundaryIndex` (after sentence `boundaryIndex`, before the next).
+    static func welcomeBoundaryPause(boundaryIndex: Int, sentenceCount: Int) -> Double {
+        let lastBoundary = sentenceCount - 2
+        switch boundaryIndex {
+        case 0: return 0.70 // greeting → overview
+        case 1: return 0.90 // overview → first subtest
+        case lastBoundary where lastBoundary >= 2: return 1.00 // after final subtest name → closing line
+        default: return 0.50 // between subtest lines
+        }
+    }
 
     /// Given the full intro script and a list of landmark phrases (the
     /// activity names and the "Begin Assessment" cue), returns the
@@ -36,7 +43,8 @@ private struct SpeechTimingModel {
     static func landmarkOffsets(
         script: String,
         landmarks: [String],
-        applyLeadTime: Bool = true
+        applyLeadTime: Bool = true,
+        useWelcomePacing: Bool = false
     ) -> [Double] {
         // Split script into sentences, then into words, tracking cumulative time.
         let sentences = script.components(separatedBy: ". ")
@@ -53,7 +61,10 @@ private struct SpeechTimingModel {
             }
             // Add sentence-boundary pause (except after the last sentence).
             if sIdx < sentences.count - 1 {
-                cumulative += sentencePause
+                let pause = useWelcomePacing
+                    ? welcomeBoundaryPause(boundaryIndex: sIdx, sentenceCount: sentences.count)
+                    : sentencePause
+                cumulative += pause
             }
         }
 
@@ -109,7 +120,13 @@ struct WelcomePhaseView: View {
 
     // MARK: - Intro Script (single echo)
 
-    private let introScript = "Welcome to your Brain Health Check. We'll go through six quick activities together. First, Orientation. Then, Word Learning. Next, Clock Drawing. After that, Verbal Fluency. Then Story Recall. And finally, Word Recall. When you're ready, press Begin Assessment."
+    /// Exact spoken wording (no SSML) — used for timing + reduce-motion path.
+    private let introScriptPlain = "Welcome to your Brain Health Check. We'll go through six quick activities together. First, Orientation. Then, Word Learning. Next, Clock Drawing. After that, Verbal Fluency. Then Story Recall. And finally, Word Recall. When you're ready, press Begin Assessment."
+
+    /// Same words as `introScriptPlain` with SSML breaks for Tavus/ElevenLabs-friendly pacing (welcome only).
+    private var introScriptForEcho: String {
+        "<speak>Welcome to your Brain Health Check.<break time=\"700ms\"/> We'll go through six quick activities together.<break time=\"900ms\"/> First, Orientation.<break time=\"500ms\"/> Then, Word Learning.<break time=\"500ms\"/> Next, Clock Drawing.<break time=\"500ms\"/> After that, Verbal Fluency.<break time=\"500ms\"/> Then Story Recall.<break time=\"500ms\"/> And finally, Word Recall.<break time=\"1000ms\"/> When you're ready, press Begin Assessment.</speak>"
+    }
 
     // MARK: - Computed Reveal Timings
     //
@@ -121,18 +138,20 @@ struct WelcomePhaseView: View {
     private var revealDelays: [Double] {
         let subtestNames = QmciSubtest.allCases.map(\.displayName)
         return SpeechTimingModel.landmarkOffsets(
-            script: introScript,
+            script: introScriptPlain,
             landmarks: subtestNames,
-            applyLeadTime: true
+            applyLeadTime: true,
+            useWelcomePacing: true
         )
     }
 
     private var beginButtonDelay: Double {
         SpeechTimingModel.landmarkOffsets(
-            script: introScript,
+            script: introScriptPlain,
             landmarks: ["Begin Assessment"],
-            applyLeadTime: false
-        ).first ?? 15.0
+            applyLeadTime: false,
+            useWelcomePacing: true
+        ).first ?? 18.0
     }
 
     /// If the bridge never posts `avatarStartedSpeaking`, still run the timed sequence.
@@ -237,12 +256,12 @@ struct WelcomePhaseView: View {
         .onAppear {
             withAnimation(.easeOut(duration: 0.4)) { headerVisible = true }
 
-            avatarSetContext("You are a calm, professional clinical neuropsychologist. Speak exactly the text sent via echo. Do not add your own introduction, do not paraphrase. Speak at a moderate pace with natural pauses.")
+            avatarSetContext(LeftPaneSpeechCopy.welcomeTavusDeliveryContext)
 
             if reduceMotion {
                 if !echoSent {
                     echoSent = true
-                    avatarSpeak(introScript)
+                    avatarSpeak(introScriptForEcho)
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     withAnimation(.easeOut(duration: 0.25)) {
@@ -257,7 +276,7 @@ struct WelcomePhaseView: View {
             // Send the single echo — reveals anchor to replica.started_speaking (or fallback)
             if !echoSent {
                 echoSent = true
-                avatarSpeak(introScript)
+                avatarSpeak(introScriptForEcho)
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + revealFallbackDelay) {
@@ -285,8 +304,8 @@ struct WelcomePhaseView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 guard layoutManager.currentPhase == .welcome else { return }
                 guard !welcomeIntroReplicaStarted else { return }
-                avatarSetContext("You are a calm, professional clinical neuropsychologist. Speak exactly the text sent via echo. Do not add your own introduction, do not paraphrase. Speak at a moderate pace with natural pauses.")
-                avatarSpeak(introScript)
+                avatarSetContext(LeftPaneSpeechCopy.welcomeTavusDeliveryContext)
+                avatarSpeak(introScriptForEcho)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in

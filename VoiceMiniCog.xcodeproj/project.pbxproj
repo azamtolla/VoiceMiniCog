@@ -119,6 +119,9 @@
 		BB11223344556677000007B7 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000007A7 /* CompletionPhaseView.swift */; };
 		BB11223344556677000008B8 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000008A8 /* SessionStatusView.swift */; };
 		BB11223344556677000009B9 /* CaregiverAssessmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000009A9 /* CaregiverAssessmentView.swift */; };
+		75D35C24A82C4B8686EE441A /* WordRecallScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */; };
+		75D35C24A82C4B8686EE441B /* WordRecallScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */; };
+		75D35C24A82C4B8686EE441C /* WordRecallScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -216,6 +219,7 @@
 		AA11223344556677000001A1 /* AssessmentPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPersistence.swift; sourceTree = "<group>"; };
 		AA11223344556677000002A2 /* PDFReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportGenerator.swift; sourceTree = "<group>"; };
 		AA11223344556677000003A3 /* QMCIScoringEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIScoringEngine.swift; sourceTree = "<group>"; };
+		7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordRecallScorer.swift; sourceTree = "<group>"; };
 		AA11223344556677000004A4 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentViewModifiers.swift; sourceTree = "<group>"; };
 		AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeftPaneSpeechCopy.swift; sourceTree = "<group>"; };
 		AA11223344556677000006A6 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentCard.swift; sourceTree = "<group>"; };
@@ -336,6 +340,7 @@
 				AA11223344556677000001A1 /* AssessmentPersistence.swift */,
 				AA11223344556677000002A2 /* PDFReportGenerator.swift */,
 				AA11223344556677000003A3 /* QMCIScoringEngine.swift */,
+				7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -610,6 +615,7 @@
 				BB11223344556677000007B7 /* CompletionPhaseView.swift in Sources */,
 				BB11223344556677000008B8 /* SessionStatusView.swift in Sources */,
 				BB11223344556677000009B9 /* CaregiverAssessmentView.swift in Sources */,
+				75D35C24A82C4B8686EE441A /* WordRecallScorer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -635,6 +641,7 @@
 				CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */,
 				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
 				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
+				75D35C24A82C4B8686EE441B /* WordRecallScorer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -660,6 +667,7 @@
 				CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */,
 				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
 				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
+				75D35C24A82C4B8686EE441C /* WordRecallScorer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

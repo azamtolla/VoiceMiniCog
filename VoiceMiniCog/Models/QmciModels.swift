@@ -256,6 +256,31 @@ final class QmciState: ObservableObject, Codable {
     @Published var clinicianDecisionRepeat: Bool? = nil
     @Published var clinicianDecisionTimestamp: Date? = nil
 
+    // MARK: - Delayed Recall Telemetry (biomarker research)
+
+    /// Milliseconds from prompt end to first correct word recall
+    @Published var recallFirstWordLatencyMs: Int? = nil
+    /// Millisecond intervals between successive correct word detections
+    @Published var recallInterWordIntervalsMs: [Int] = []
+    /// Number of non-target words spoken during recall
+    @Published var recallIntrusionCount: Int = 0
+    /// Non-target words spoken (for clinician review)
+    @Published var recallIntrusions: [String] = []
+    /// Semantic substitutions: [(target, said)]
+    @Published var recallSemanticSubstitutions: [(String, String)] = []
+    /// Number of semantic substitutions
+    @Published var recallSemanticSubstitutionCount: Int = 0
+    /// Total phase duration in milliseconds
+    @Published var recallTotalPhaseDurationMs: Int = 0
+    /// Silence in ms before "Any others?" prompt (0 if not used)
+    @Published var recallSilenceBeforePromptMs: Int = 0
+    /// Whether the "Any others?" follow-up was triggered
+    @Published var recallAnyOthersPromptUsed: Bool = false
+    /// ASR-detected recalled words (clinician can override in review)
+    @Published var recallASRDetectedWords: [String] = []
+    /// Clinician overrides on ASR results (word → override-correct)
+    @Published var recallClinicianOverrides: [String: Bool] = [:]
+
     // MARK: - QMCI 15-point Clock Drawing (manual clinician scoring)
     //
     // QMCI protocol rubric for clock drawing (max 15 points):
@@ -397,6 +422,13 @@ final class QmciState: ObservableObject, Codable {
         case clockDrawingImagePNG, clockStrokeEvents, clockPauseEvents
         case clockScoreOverrideBy, clockScoreOverrideTimestamp
         case clinicianDecisionWorkup, clinicianDecisionRepeat, clinicianDecisionTimestamp
+        // Delayed recall telemetry
+        case recallFirstWordLatencyMs, recallInterWordIntervalsMs
+        case recallIntrusionCount, recallIntrusions
+        case recallSemanticSubstitutionCount
+        case recallTotalPhaseDurationMs, recallSilenceBeforePromptMs
+        case recallAnyOthersPromptUsed
+        case recallASRDetectedWords, recallClinicianOverrides
     }
 
     required init(from decoder: Decoder) throws {
@@ -465,6 +497,17 @@ final class QmciState: ObservableObject, Codable {
         clinicianDecisionWorkup = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionWorkup)
         clinicianDecisionRepeat = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionRepeat)
         clinicianDecisionTimestamp = try c.decodeIfPresent(Date.self, forKey: .clinicianDecisionTimestamp)
+        // Delayed recall telemetry (optional for backward compat)
+        recallFirstWordLatencyMs = try c.decodeIfPresent(Int.self, forKey: .recallFirstWordLatencyMs)
+        recallInterWordIntervalsMs = try c.decodeIfPresent([Int].self, forKey: .recallInterWordIntervalsMs) ?? []
+        recallIntrusionCount = try c.decodeIfPresent(Int.self, forKey: .recallIntrusionCount) ?? 0
+        recallIntrusions = try c.decodeIfPresent([String].self, forKey: .recallIntrusions) ?? []
+        recallSemanticSubstitutionCount = try c.decodeIfPresent(Int.self, forKey: .recallSemanticSubstitutionCount) ?? 0
+        recallTotalPhaseDurationMs = try c.decodeIfPresent(Int.self, forKey: .recallTotalPhaseDurationMs) ?? 0
+        recallSilenceBeforePromptMs = try c.decodeIfPresent(Int.self, forKey: .recallSilenceBeforePromptMs) ?? 0
+        recallAnyOthersPromptUsed = try c.decodeIfPresent(Bool.self, forKey: .recallAnyOthersPromptUsed) ?? false
+        recallASRDetectedWords = try c.decodeIfPresent([String].self, forKey: .recallASRDetectedWords) ?? []
+        recallClinicianOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .recallClinicianOverrides) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -507,6 +550,17 @@ final class QmciState: ObservableObject, Codable {
         try c.encodeIfPresent(clinicianDecisionWorkup, forKey: .clinicianDecisionWorkup)
         try c.encodeIfPresent(clinicianDecisionRepeat, forKey: .clinicianDecisionRepeat)
         try c.encodeIfPresent(clinicianDecisionTimestamp, forKey: .clinicianDecisionTimestamp)
+        // Delayed recall telemetry
+        try c.encodeIfPresent(recallFirstWordLatencyMs, forKey: .recallFirstWordLatencyMs)
+        try c.encode(recallInterWordIntervalsMs, forKey: .recallInterWordIntervalsMs)
+        try c.encode(recallIntrusionCount, forKey: .recallIntrusionCount)
+        try c.encode(recallIntrusions, forKey: .recallIntrusions)
+        try c.encode(recallSemanticSubstitutionCount, forKey: .recallSemanticSubstitutionCount)
+        try c.encode(recallTotalPhaseDurationMs, forKey: .recallTotalPhaseDurationMs)
+        try c.encode(recallSilenceBeforePromptMs, forKey: .recallSilenceBeforePromptMs)
+        try c.encode(recallAnyOthersPromptUsed, forKey: .recallAnyOthersPromptUsed)
+        try c.encode(recallASRDetectedWords, forKey: .recallASRDetectedWords)
+        try c.encode(recallClinicianOverrides, forKey: .recallClinicianOverrides)
     }
 
     init() {}
@@ -585,6 +639,19 @@ final class QmciState: ObservableObject, Codable {
         clinicianDecisionWorkup = nil
         clinicianDecisionRepeat = nil
         clinicianDecisionTimestamp = nil
+
+        // Delayed recall telemetry
+        recallFirstWordLatencyMs = nil
+        recallInterWordIntervalsMs = []
+        recallIntrusionCount = 0
+        recallIntrusions = []
+        recallSemanticSubstitutions = []
+        recallSemanticSubstitutionCount = 0
+        recallTotalPhaseDurationMs = 0
+        recallSilenceBeforePromptMs = 0
+        recallAnyOthersPromptUsed = false
+        recallASRDetectedWords = []
+        recallClinicianOverrides = [:]
 
         selectWordList(); selectStory()
     }

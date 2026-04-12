@@ -199,6 +199,34 @@ class ScoreWordRecallTests: XCTestCase {
     }
 }
 
+// MARK: - Word registration (fuzzy)
+
+@MainActor
+class ScoreWordRegistrationRecallTests: XCTestCase {
+
+    private let targets = ["fear", "round", "bed", "chair", "fruit"]
+
+    func testExactTokens() {
+        let r = scoreWordRegistrationRecall(transcript: "fear round bed chair fruit", wordList: targets)
+        XCTAssertEqual(r.count, 5)
+    }
+
+    func testTypoRound() {
+        let r = scoreWordRegistrationRecall(transcript: "rount", wordList: targets)
+        XCTAssertTrue(r.recalled.contains("round"))
+    }
+
+    func testPrefixFear() {
+        let r = scoreWordRegistrationRecall(transcript: "feared", wordList: targets)
+        XCTAssertTrue(r.recalled.contains("fear"))
+    }
+
+    func testOrderIndependent() {
+        let r = scoreWordRegistrationRecall(transcript: "fruit then bed", wordList: targets)
+        XCTAssertEqual(r.count, 2)
+    }
+}
+
 // MARK: - Verbal Fluency Scoring
 
 @MainActor
@@ -466,5 +494,200 @@ class ScoreOrientationTests: XCTestCase {
         else { spoken = "twenty \(tens[suffix / 10]) \(units[suffix % 10])" }
         XCTAssertTrue(scoreOrientationAnswer(type: .year,
                                              transcript: "I think it's \(spoken)"))
+    }
+}
+
+// MARK: - WordRecallScorer Tests
+
+@MainActor
+class WordRecallScorerTests: XCTestCase {
+
+    private let standardWords = ["dog", "rain", "butter", "love", "door"]
+
+    // MARK: Exact Match
+
+    func testExactMatchAllFive() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.promptEndTime = Date()
+        scorer.processTranscript("dog rain butter love door")
+        XCTAssertEqual(scorer.recalledCount, 5)
+        XCTAssertEqual(scorer.recalledWords, Set(["dog", "rain", "butter", "love", "door"]))
+    }
+
+    func testExactMatchPartial() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dog and butter")
+        XCTAssertEqual(scorer.recalledCount, 2)
+        XCTAssertTrue(scorer.recalledWords.contains("dog"))
+        XCTAssertTrue(scorer.recalledWords.contains("butter"))
+    }
+
+    func testCaseInsensitive() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("DOG RAIN BUTTER")
+        XCTAssertEqual(scorer.recalledCount, 3)
+    }
+
+    // MARK: Plural/Singular Stemming
+
+    func testPluralToSingular() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dogs doors")
+        XCTAssertTrue(scorer.recalledWords.contains("dog"), "'dogs' should match 'dog'")
+        XCTAssertTrue(scorer.recalledWords.contains("door"), "'doors' should match 'door'")
+    }
+
+    func testPastTenseStemming() {
+        let scorer = WordRecallScorer(targetWords: ["love", "rain"])
+        scorer.processTranscript("loved rained")
+        XCTAssertTrue(scorer.recalledWords.contains("love"), "'loved' should match 'love'")
+        // "rained" → drop "ed" → "rain" (4 chars, drops 2)
+        XCTAssertTrue(scorer.recalledWords.contains("rain"), "'rained' should match 'rain'")
+    }
+
+    // MARK: Phonetic Allowlist
+
+    func testPhoneticAllowlistAccepted() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dawg")
+        XCTAssertTrue(scorer.recalledWords.contains("dog"), "'dawg' is in phonetic allowlist for 'dog'")
+    }
+
+    func testPhoneticAllowlistRejected() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("doe")
+        XCTAssertFalse(scorer.recalledWords.contains("dog"),
+                       "'doe' should NOT match 'dog' — too dissimilar")
+    }
+
+    // MARK: Duplicate Handling
+
+    func testDuplicatesCountedOnce() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dog dog dog butter butter")
+        XCTAssertEqual(scorer.recalledCount, 2, "Repeated words counted once")
+    }
+
+    // MARK: Intrusion Tracking
+
+    func testIntrusionsLogged() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dog chair table")
+        XCTAssertTrue(scorer.intrusions.contains("chair"))
+        XCTAssertTrue(scorer.intrusions.contains("table"))
+        XCTAssertEqual(scorer.recalledCount, 1)
+    }
+
+    func testFillerWordsNotIntrusions() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("I think the um dog and well butter")
+        // "I", "think", "the", "um", "and", "well" are filler — not intrusions
+        XCTAssertTrue(scorer.intrusions.isEmpty, "Filler words should not be logged as intrusions")
+        XCTAssertEqual(scorer.recalledCount, 2)
+    }
+
+    // MARK: Semantic Substitutions
+
+    func testSemanticSubstitutionFlagged() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("puppy")
+        XCTAssertFalse(scorer.recalledWords.contains("dog"),
+                       "Semantic substitute should NOT be auto-scored")
+        XCTAssertEqual(scorer.semanticSubstitutions.count, 1)
+        XCTAssertEqual(scorer.semanticSubstitutions.first?.target, "dog")
+        XCTAssertEqual(scorer.semanticSubstitutions.first?.said, "puppy")
+    }
+
+    // MARK: Completion Phrase Detection
+
+    func testCompletionPhrasesDetected() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        XCTAssertTrue(scorer.containsCompletionPhrase("I'm done"))
+        XCTAssertTrue(scorer.containsCompletionPhrase("that's all I can remember"))
+        XCTAssertTrue(scorer.containsCompletionPhrase("nothing else"))
+        XCTAssertTrue(scorer.containsCompletionPhrase("I can't remember any more"))
+    }
+
+    func testNonCompletionPhraseNotDetected() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        XCTAssertFalse(scorer.containsCompletionPhrase("dog rain butter"))
+    }
+
+    // MARK: First Word Latency
+
+    func testFirstWordLatencyRecorded() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.promptEndTime = Date().addingTimeInterval(-2.5)
+        scorer.processTranscript("dog")
+        XCTAssertNotNil(scorer.firstWordLatencySeconds)
+        // Should be approximately 2.5s (with some tolerance for test execution time)
+        if let latency = scorer.firstWordLatencySeconds {
+            XCTAssertGreaterThan(latency, 2.0)
+            XCTAssertLessThan(latency, 4.0)
+        }
+    }
+
+    // MARK: Inter-Word Intervals
+
+    func testInterWordIntervalsTracked() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.promptEndTime = Date()
+        scorer.processTranscript("dog")
+        // Small delay then next word
+        Thread.sleep(forTimeInterval: 0.1)
+        scorer.processTranscript("dog rain")
+        XCTAssertEqual(scorer.interWordIntervalsMs.count, 1)
+        XCTAssertGreaterThan(scorer.interWordIntervalsMs[0], 50)
+    }
+
+    // MARK: Alternate Word Sets
+
+    func testAlternateSet2() {
+        let set2 = ["cat", "dark", "rat", "heat", "bread"]
+        let scorer = WordRecallScorer(targetWords: set2)
+        scorer.processTranscript("cat dark rat heat bread")
+        XCTAssertEqual(scorer.recalledCount, 5)
+    }
+
+    func testAlternateSet3() {
+        let set3 = ["fear", "round", "bed", "chair", "fruit"]
+        let scorer = WordRecallScorer(targetWords: set3)
+        scorer.processTranscript("feared round bed chair fruit")
+        // "feared" → should match "fear" via -ed stemming
+        XCTAssertEqual(scorer.recalledCount, 5)
+    }
+
+    // MARK: Empty / Edge Cases
+
+    func testEmptyTranscript() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("")
+        XCTAssertEqual(scorer.recalledCount, 0)
+    }
+
+    func testNoTargetWords() {
+        let scorer = WordRecallScorer(targetWords: [])
+        scorer.processTranscript("dog rain butter")
+        XCTAssertEqual(scorer.recalledCount, 0)
+    }
+
+    func testIncrementalTranscript() {
+        // Simulates how SFSpeechRecognizer delivers partial results
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dog")
+        XCTAssertEqual(scorer.recalledCount, 1)
+        scorer.processTranscript("dog rain")
+        XCTAssertEqual(scorer.recalledCount, 2)
+        scorer.processTranscript("dog rain butter")
+        XCTAssertEqual(scorer.recalledCount, 3)
+    }
+
+    func testResetClearsAll() {
+        let scorer = WordRecallScorer(targetWords: standardWords)
+        scorer.processTranscript("dog rain butter")
+        scorer.reset()
+        XCTAssertEqual(scorer.recalledCount, 0)
+        XCTAssertTrue(scorer.recalledWords.isEmpty)
+        XCTAssertTrue(scorer.intrusions.isEmpty)
     }
 }
