@@ -129,10 +129,13 @@ struct AvatarZoneView: View {
         let avatarBottom = 60 + AssessmentTheme.ClockControls.avatarDiameter + 20
         return VStack(spacing: 0) {
             Spacer().frame(height: avatarBottom)
-            // TODO: Task 6 — ClockDrawingControlsView will be wired here
-            // if let done = onDoneDrawing, let end = onEndSession {
-            //     ClockDrawingControlsView(layoutManager: layoutManager, onDoneDrawing: done, onEndSession: end)
-            // }
+            if let done = onDoneDrawing, let end = onEndSession {
+                ClockDrawingControlsView(
+                    layoutManager: layoutManager,
+                    onDoneDrawing: done,
+                    onEndSession: end
+                )
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
