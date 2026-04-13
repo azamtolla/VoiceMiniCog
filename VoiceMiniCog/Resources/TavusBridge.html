@@ -210,6 +210,14 @@ async function joinRoom(roomUrl) {
       // Uses sendInteraction directly — NOT sendInterrupt() which would
       // clear the echo queue.
       if (data.event_type === 'conversation.user.stopped_speaking') {
+        // Never interrupt mid-echo: speaker-to-mic bleed or a cough can still
+        // surface as user.stopped after VAD; conversation.interrupt aborts the
+        // clinician echo and can desync echoInFlight / freeze the replica until
+        // the watchdog fires (especially during Word Registration chains).
+        if (echoInFlight) {
+          log('Auto-interrupt: skipped (echo in flight — do not cut scripted prompt)');
+          return;
+        }
         sendInteraction('conversation.interrupt', {});
         log('Auto-interrupt: suppressed LLM acknowledgment after patient speech');
       }
