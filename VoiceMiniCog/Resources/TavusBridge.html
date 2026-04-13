@@ -78,17 +78,10 @@ async function joinRoom(roomUrl) {
   callObject = Daily.createCallObject({
     url: roomUrl,
     userName: 'Patient',
-    videoSource: true,
-    audioSource: true,
+    videoSource: false,   // Patient camera not needed — Tavus is one-way
+    audioSource: true,    // (avatar → patient). Disabling video eliminates
+                          // camera capture pipeline, freeing ~100-200MB.
     inputSettings: {
-      video: {
-        settings: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 30 },
-          facingMode: 'user'
-        }
-      },
       audio: {
         settings: {
           echoCancellation: true,
@@ -130,24 +123,20 @@ async function joinRoom(roomUrl) {
     // 1b. Request highest receive quality from the avatar's video stream
     try {
       await callObject.updateReceiveSettings({
-        '*': { video: { layer: 2 } }
+        '*': { video: { layer: 0 } }
       });
-      log('Receive quality set to highest layer');
+      log('Receive quality set to lowest layer (memory conservation)');
     } catch(e) {
       log('Receive settings failed: ' + e.message);
     }
 
     // 1c. Optimize send settings (patient camera → Tavus)
     try {
-      await callObject.updateSendSettings({
-        video: {
-          preset: 'quality-optimized',
-          allowAdaptiveLayers: true
-        }
-      });
-      log('Send quality set to quality-optimized with adaptive layers');
+      // No send settings needed — videoSource is false (no patient camera).
+      // Audio send uses Daily defaults which are fine for VAD input.
+      log('Send settings: video disabled, audio default');
     } catch(e) {
-      log('Send settings failed: ' + e.message);
+      log('Send settings skipped: ' + e.message);
     }
 
     // 2. Reduce turn-taking sensitivity as a second layer
@@ -224,14 +213,29 @@ async function joinRoom(roomUrl) {
     }
   });
 
+  // === CONNECTION LIFECYCLE (diagnostic) ===
+
+  callObject.on('network-connection', (evt) => {
+    // Fires when Daily detects connection state changes — before left-meeting.
+    // evt.type: 'connected' | 'interrupted' | 'quality-low' etc.
+    // evt.reason: string describing the cause.
+    log('Network connection: ' + JSON.stringify(evt));
+    notifySwift('error', {message: 'network-connection: ' + JSON.stringify(evt)});
+  });
+
+  callObject.on('nonfatal-error', (evt) => {
+    log('Non-fatal error: ' + JSON.stringify(evt).substring(0, 200));
+  });
+
   callObject.on('error', (evt) => {
-    log('Error: ' + JSON.stringify(evt));
+    log('FATAL Error: ' + JSON.stringify(evt));
     status.textContent = 'Connection error';
     notifySwift('error', {message: JSON.stringify(evt)});
   });
 
   callObject.on('left-meeting', () => {
-    log('Left meeting');
+    log('Left meeting — isJoined was: ' + isJoined);
+    isJoined = false;
     notifySwift('left', {});
   });
 
