@@ -208,9 +208,14 @@ struct AvatarAssessmentCanvas: View {
 
     @ViewBuilder
     private func avatarZone(width: CGFloat, height: CGFloat) -> some View {
+        // Only hand the Daily URL to the WebView while this canvas is the active
+        // screen. Pre-warm may fill `activeConversation` on Home — if we passed
+        // the URL while `isActive` is false, TavusCVIView would join immediately
+        // and the replica often speaks before the user taps Start.
+        let roomURL = isActive ? tavusService.activeConversation?.conversation_url : nil
         AvatarZoneView(
             layoutManager: layoutManager,
-            conversationURL: avatarDismissed ? nil : tavusService.activeConversation?.conversation_url,
+            conversationURL: avatarDismissed ? nil : roomURL,
             isConnecting: avatarDismissed ? false : tavusService.isCreatingConversation,
             errorMessage: avatarDismissed ? nil : tavusService.lastError,
             width: width,
