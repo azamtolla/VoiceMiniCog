@@ -193,6 +193,19 @@ async function joinRoom(roomUrl) {
 
       // 3. Mic mute/unmute during avatar speech — prevents iPad speaker
       //    from feeding back into the mic and triggering the VAD.
+      // === CLINICAL ECHO-ONLY ENFORCEMENT ===
+      // Tavus's conversational AI generates automatic acknowledgments
+      // ("okay", "got it", etc.) after user speech regardless of persona
+      // instructions. In clinical assessment mode the avatar must speak
+      // ONLY echoed prompts. Fire conversation.interrupt immediately
+      // after user.stopped_speaking to preempt the LLM response.
+      // Uses sendInteraction directly — NOT sendInterrupt() which would
+      // clear the echo queue.
+      if (data.event_type === 'conversation.user.stopped_speaking') {
+        sendInteraction('conversation.interrupt', {});
+        log('Auto-interrupt: suppressed LLM acknowledgment after patient speech');
+      }
+
       if (data.event_type === 'conversation.replica.started_speaking') {
         callObject.setLocalAudio(false);
         log('Mic muted (avatar speaking)');
