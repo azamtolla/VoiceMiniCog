@@ -73,6 +73,8 @@ final class TavusService {
             activeConversation = nil
             Task { await endConversation(cid) }
         }
+        // Allow audio session to be reconfigured on next assessment start.
+        AudioSessionManager.shared.resetConfiguration()
     }
 
     // MARK: - Conversation Lifecycle

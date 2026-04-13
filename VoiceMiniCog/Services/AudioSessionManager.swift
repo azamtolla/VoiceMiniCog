@@ -13,11 +13,24 @@ import AVFoundation
 final class AudioSessionManager {
     static let shared = AudioSessionManager()
 
+    /// True once configureForRealtimeVoice() has run successfully.
+    /// Prevents repeated setCategory calls from triggering iOS
+    /// beginInterruption on the already-active WebRTC session.
+    /// Reset only on full session teardown (cancelPreWarm / app exit),
+    /// NOT between assessment phases.
+    private var isConfigured = false
+
     private init() {}
 
     /// Configure audio session for simultaneous recording and playback
     /// suitable for WebRTC (Tavus/Daily) + on-device ASR coexistence.
+    /// Idempotent — no-ops after the first successful call.
     func configureForRealtimeVoice() throws {
+        guard !isConfigured else {
+            print("[AudioSession] Already configured, skipping")
+            return
+        }
+
         let session = AVAudioSession.sharedInstance()
 
         // .voiceChat: bidirectional audio with built-in echo cancellation.
@@ -43,7 +56,15 @@ final class AudioSessionManager {
         // Activate the session
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
+        isConfigured = true
         print("[AudioSession] Configured for realtime voice: \(session.sampleRate)Hz")
+    }
+
+    /// Reset configuration state so the next configureForRealtimeVoice()
+    /// call will actually configure. Call only when tearing down the
+    /// entire WebRTC session (app exit, cancel pre-warm), not between phases.
+    func resetConfiguration() {
+        isConfigured = false
     }
 
     /// Configure for playback only (used when transitioning away from realtime)
