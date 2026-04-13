@@ -26,7 +26,6 @@ enum AppScreen {
 }
 
 struct ContentView: View {
-    @AppStorage("minicog.useAvatarLiveView") var useAvatarLiveView = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var currentScreen: AppScreen = .home
     @State private var flowType: AssessmentFlowType = .quick
@@ -38,17 +37,18 @@ struct ContentView: View {
         ZStack {
             // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
             AvatarAssessmentCanvas(
+                flowType: flowType,
+                sessionID: sessionID,
+                isActive: currentScreen == .avatarAssessment,
                 assessmentState: assessmentState,
+                tavusService: TavusService.shared,
                 onComplete: {
                     assessmentState.currentPhase = .scoring
                     computeAllScores()
                     assessmentState.currentPhase = .report
+                    AssessmentPersistence.clear()
+                    TavusService.shared.cancelPreWarm()
                     currentScreen = .report
-                    AssessmentPersistence.clear()
-                },
-                onFallback: {
-                    AssessmentPersistence.clear()
-                    currentScreen = .home
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
@@ -125,7 +125,8 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: currentScreen)
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .background, currentScreen != .home {
+            if (newPhase == .background || newPhase == .inactive),
+               currentScreen != .home, currentScreen != .report {
                 AssessmentPersistence.save(assessmentState, flowType: flowType)
             }
         }
@@ -149,8 +150,10 @@ struct ContentView: View {
             currentScreen = .avatarAssessment
         }
 
-        // Fallback: if pre-warm never ran or failed, start fresh conversation
-        if TavusService.shared.activeConversation == nil && !TavusService.shared.isCreatingConversation {
+        // Fallback: if pre-warm never ran or failed, start fresh conversation.
+        // Guard also checks isCreatingConversation to avoid racing with an
+        // in-flight preWarm Task.
+        if TavusService.shared.activeConversation == nil, !TavusService.shared.isCreatingConversation {
             Task {
                 do {
                     _ = try await TavusService.shared.createConversation(
@@ -188,28 +191,6 @@ struct ContentView: View {
 
     // MARK: - Settings
 
-    private func withCancelToolbar<V: View>(_ view: V) -> some View {
-        view
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        currentScreen = .home
-                    }
-                    .foregroundColor(MCDesign.Colors.error)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showSettings = true }) {
-                        Image(systemName: "gear")
-                            .foregroundColor(MCDesign.Colors.textSecondary)
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                settingsSheet
-            }
-    }
-
     @State private var tavusAPIKey: String = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
     @State private var tavusPersonaId: String = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
     @State private var tavusReplicaId: String = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
@@ -244,7 +225,7 @@ struct ContentView: View {
 
                 Section("About") {
                     LabeledContent("App", value: "MercyCognitive")
-                    LabeledContent("Version", value: "3.0")
+                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Assessment", value: "Qmci + QDRS + Tavus CVI")
                 }
             }
