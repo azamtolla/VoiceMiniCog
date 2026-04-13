@@ -89,9 +89,19 @@ class SpeechService {
         }
 
         do {
-            // Configure audio session for recording
+            // Configure audio session for recording — must coexist with WebRTC.
+            // .voiceChat mode is compatible with Daily's WebRTC audio session
+            // and enables built-in echo cancellation (filters avatar speaker
+            // output from the mic input). .mixWithOthers allows SpeechService
+            // and WebRTC to share the session without evicting each other.
+            // Previously used .measurement mode which silently interrupted
+            // WebRTC's playback, causing avatar audio to go silent.
             let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playAndRecord, mode: .measurement, options: [.defaultToSpeaker, .allowBluetoothHFP])
+            try audioSession.setCategory(
+                .playAndRecord,
+                mode: .voiceChat,
+                options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers]
+            )
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             print("[SpeechService] Audio session setup failed: \(error)")
@@ -185,14 +195,12 @@ class SpeechService {
 
         isListening = false
 
-        // Reset audio session for playback
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try audioSession.setActive(true)
-        } catch {
-            print("[SpeechService] Failed to reset audio session: \(error)")
-        }
+        // Do NOT reconfigure the audio session here. WebRTC (Daily SDK)
+        // owns the session for avatar playback. Switching to .playback mode
+        // would evict WebRTC and silence the avatar for all subsequent speech.
+        // The .playAndRecord + .voiceChat + .mixWithOthers configuration set
+        // in startListening() is already compatible with WebRTC — just leave
+        // the session as-is and let WebRTC continue using it.
     }
 
     // MARK: - Text-to-Speech (placeholder)

@@ -24,7 +24,7 @@ final class AudioSessionManager {
             mode: .voiceChat,
             options: [
                 .defaultToSpeaker,
-                .allowBluetooth,
+                .allowBluetoothHFP,
                 .allowBluetoothA2DP
             ]
         )
