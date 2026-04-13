@@ -42,6 +42,12 @@ let conversationId = null;
 let isJoined = false;
 let pendingEchos = [];   // Queue for echo requests that arrive before room join
 
+// Serialize conversation.echo — Word Registration (and any burst) can fire many
+// Swift echoes back-to-back; overlapping Tavus TTS freezes the replica video.
+let echoTextQueue = [];
+let echoInFlight = false;
+let echoWatchdog = null;
+
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
 
@@ -58,6 +64,12 @@ function notifySwift(eventType, data) {
 async function joinRoom(roomUrl) {
   log('Joining: ' + roomUrl);
   status.textContent = 'Connecting...';
+  echoTextQueue = [];
+  echoInFlight = false;
+  if (echoWatchdog) {
+    clearTimeout(echoWatchdog);
+    echoWatchdog = null;
+  }
 
   // Extract conversation ID from URL
   const parts = roomUrl.split('/');
@@ -149,17 +161,18 @@ async function joinRoom(roomUrl) {
     log('Mic muted on join (waiting for assessment start)');
 
     // 4. Set global persona: neuropsychologist examiner
-    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between questions, respond briefly and professionally: "Let us continue with the next part of the assessment." 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
+    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
     log('Set neuropsychologist persona context');
 
     // 5. Mark as joined and flush any pending echo requests
     isJoined = true;
     if (pendingEchos.length > 0) {
       log('Flushing ' + pendingEchos.length + ' pending echo(s)');
-      // Only send the most recent one — earlier ones are stale
-      const latest = pendingEchos[pendingEchos.length - 1];
+      const queued = pendingEchos;
       pendingEchos = [];
-      sendEcho(latest);
+      for (const text of queued) {
+        sendEcho(text);
+      }
     }
   });
 
@@ -195,8 +208,16 @@ async function joinRoom(roomUrl) {
         callObject.setLocalAudio(false);
         log('Mic muted (avatar speaking)');
       } else if (data.event_type === 'conversation.replica.stopped_speaking') {
-        callObject.setLocalAudio(true);
-        log('Mic unmuted (avatar stopped)');
+        releaseEchoSlot();
+        // Only unmute mic if no more echoes are queued — prevents
+        // inter-word mic bounce during registration's rapid echo chain
+        // from capturing avatar audio tail and contaminating ASR.
+        if (echoTextQueue.length === 0 && !echoInFlight) {
+            callObject.setLocalAudio(true);
+            log('Mic unmuted (avatar stopped, queue empty)');
+        } else {
+            log('Mic stays muted (more echoes queued)');
+        }
       }
     } catch(e) {
       log('App message (raw): ' + JSON.stringify(evt.data).substring(0, 100));
@@ -225,10 +246,9 @@ async function joinRoom(roomUrl) {
 }
 
 // === VIDEO RENDERING ===
-// Important: `participant-updated` and `track-started` fire often (e.g. while the
-// patient mic is open). Creating a new MediaStream every time makes
-// `video.srcObject !== stream` always true, so WebKit rebinds the element and the
-// picture blinks black. Only replace srcObject when the underlying tracks change.
+// `participant-updated` fires often (e.g. while the mic is open). Building a new
+// MediaStream each time makes `video.srcObject !== stream` always true, so WebKit
+// rebinds the element → black frames / dropped AV sync. Only replace when tracks change.
 function updateVideoElements() {
   if (!callObject) return;
 
@@ -252,8 +272,8 @@ function updateVideoElements() {
 
     const audioTrack = p.tracks?.audio?.persistentTrack;
     const curStream = video.srcObject;
-    const curVideo = curStream?.getVideoTracks?.()[0];
-    const curAudio = curStream?.getAudioTracks?.()[0];
+    const curVideo = curStream?.getVideoTracks?.()?.[0];
+    const curAudio = curStream?.getAudioTracks?.()?.[0];
 
     const sameVideo = curVideo && curVideo.id === vidTrack.id;
     const sameAudio =
@@ -261,6 +281,11 @@ function updateVideoElements() {
       (audioTrack && curAudio && curAudio.id === audioTrack.id);
 
     if (sameVideo && sameAudio) {
+      break;
+    }
+
+    // Participant snapshot sometimes omits audio briefly; keep existing audio track.
+    if (sameVideo && curStream && !audioTrack && curAudio) {
       break;
     }
 
@@ -276,6 +301,9 @@ function updateVideoElements() {
     stream.addTrack(vidTrack);
     if (audioTrack) stream.addTrack(audioTrack);
     video.srcObject = stream;
+    try {
+      video.play?.();
+    } catch (e) {}
     break;
   }
 }
@@ -305,31 +333,62 @@ function sendContextUpdate(contextText) {
   });
 }
 
-// Make the avatar speak exact text (bypasses LLM)
+function releaseEchoSlot() {
+  // Ignore duplicate / late stopped_speaking when nothing is awaiting (avoids
+  // clearing the next segment's slot and re-overlapping echoes).
+  if (!echoInFlight) {
+    return;
+  }
+  if (echoWatchdog) {
+    clearTimeout(echoWatchdog);
+    echoWatchdog = null;
+  }
+  echoInFlight = false;
+  pumpEchoQueue();
+}
+
+function pumpEchoQueue() {
+  if (!callObject || !conversationId || !isJoined) return;
+  if (echoInFlight) return;
+  if (echoTextQueue.length === 0) return;
+
+  const text = echoTextQueue.shift();
+  echoInFlight = true;
+
+  try {
+    callObject.setLocalAudio(false);
+    log('Mic muted before echo (serialized queue)');
+  } catch (e) {
+    log('Pre-echo mute failed: ' + e.message);
+  }
+
+  if (echoWatchdog) clearTimeout(echoWatchdog);
+  echoWatchdog = setTimeout(() => {
+    log('Echo watchdog: no stopped_speaking — releasing slot');
+    echoWatchdog = null;
+    releaseEchoSlot();
+  }, 15000);
+
+  log('Echo sending (serialized): ' + text.substring(0, 80) + '...');
+  sendInteraction('conversation.echo', {
+    modality: 'text',
+    text: text,
+    inference_id: 'echo_' + Date.now(),
+    done: true
+  });
+}
+
+// Make the avatar speak exact text (bypasses LLM). Queued so bursts never overlap.
 function sendEcho(text) {
   if (!isJoined) {
     log('Echo queued (not yet joined): ' + text.substring(0, 60) + '...');
     pendingEchos.push(text);
     return false;
   }
-
-  // Mute patient mic before every echo. Otherwise (especially after welcome's
-  // replica.stopped_speaking left the mic hot) room noise reaches Tavus before
-  // replica.started_speaking and can register as speech / cut off the question.
-  try {
-    callObject.setLocalAudio(false);
-    log('Mic muted before echo (block pre-speech noise)');
-  } catch (e) {
-    log('Pre-echo mute failed: ' + e.message);
-  }
-
-  log('Echo sending: ' + text.substring(0, 60) + '...');
-  return sendInteraction('conversation.echo', {
-    modality: 'text',
-    text: text,
-    inference_id: 'echo_' + Date.now(),
-    done: true
-  });
+  echoTextQueue.push(text);
+  log('Echo enqueued, depth=' + echoTextQueue.length);
+  pumpEchoQueue();
+  return true;
 }
 
 // Send a text response as if the LLM generated it
@@ -342,6 +401,13 @@ function sendRespond(text) {
 
 // Interrupt the avatar (stop speaking)
 function sendInterrupt() {
+  echoTextQueue = [];
+  echoInFlight = false;
+  if (echoWatchdog) {
+    clearTimeout(echoWatchdog);
+    echoWatchdog = null;
+  }
+  log('Interrupt: cleared echo queue and released echo slot');
   return sendInteraction('conversation.interrupt', {});
 }
 
@@ -362,6 +428,12 @@ function setMicMuted(muted) {
 
 // === CLEANUP ===
 function leaveRoom() {
+  echoTextQueue = [];
+  echoInFlight = false;
+  if (echoWatchdog) {
+    clearTimeout(echoWatchdog);
+    echoWatchdog = null;
+  }
   if (callObject) {
     callObject.leave();
     callObject.destroy();
