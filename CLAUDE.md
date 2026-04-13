@@ -49,35 +49,35 @@ Then re-run `test-without-building`. Subsequent runs reuse the cached build via 
 
 **Tech debt:** The project file contains mnemonic-style IDs (e.g., `COPY0001...`, `CARD0001...`, `SESS0001...`) from prior `pbxproj` library additions. These work but are non-standard. Normalizing to 24-char hex UUIDs is tracked for a future cleanup pass.
 
-## Multi-Agent File Ownership
+## Multi-agent editing (Claude Code and Cursor)
 
-This project uses multiple AI agents (Claude Code, Cowork, Cursor). Clinical-critical
-files require explicit clinical-impact reasoning before modification — a passing build
-does not validate clinical correctness.
+This project uses multiple AI agents (Claude Code, Cursor, and others). **Cursor and
+Claude Code are both authorized to edit any file in the project**, including clinical
+surfaces and Tavus bridge code. There is no utility-only allowlist; the same rules apply
+to every agent.
 
-### Cowork / other agents may freely edit
+**Shared discipline (all agents):**
 
-- `VoiceMiniCogTests/` — test files
-- `docs/` — documentation, handoffs, specs
-- `scripts/`, `*.py`, `*.sh` — build and utility scripts
-- `README.md`, `CLAUDE.md` (non-ownership sections only)
-- `Assets.xcassets/` — design assets
-- Build configuration files other than `project.pbxproj`
+- Diagnose root cause before applying fixes; do not revert clinically validated work
+  without understanding the reasoning behind it.
+- Do not bypass the published Qmci protocol assumptions encoded in scoring, scripts, and
+  examiner copy (O'Caoimh 2012, Appendix 1). A passing build does not validate clinical
+  correctness.
+- When two agents work on the same file in close succession, the later agent must verify
+  the earlier agent’s work is intact (e.g. grep for known markers, re-read critical paths)
+  before making further changes.
 
-### Claude Code exclusive — do not modify without clinical reasoning
+**Clinical-validity surface** — Phase views (`Views/AvatarAssessment/Phases/*.swift`),
+scorers (`Services/VerbalFluencyScorer.swift`, `Services/WordRecallScorer.swift`),
+`Models/QmciModels.swift`, `Theme/LeftPaneSpeechCopy.swift`, Tavus/session wiring
+(`Views/TavusCVIView.swift`, `ContentView.swift`), and any other code tied to administration
+or scoring: **any change must include explicit reasoning about clinical impact**, not only
+“build passes” validation. If a build issue appears to require touching these areas, the
+correct response is to diagnose root cause, not revert to a previous version without
+understanding why it was written that way.
 
-Files in this list contain clinically-validated implementations anchored to the
-published Qmci protocol (O'Caoimh 2012, Appendix 1). Reverting changes here without
-understanding the clinical reasoning produces silently-incorrect patient scores.
-Changes to these files require explicit clinical-impact reasoning, not just
-build-passes-and-looks-OK validation. If a build issue appears to require touching
-these files, the correct response is to diagnose root cause, not revert to a
-previous version.
-
-- `Views/AvatarAssessment/Phases/*.swift` — all phase views (clock drawing, verbal fluency, word registration, word recall, story recall, welcome, QA)
-- `Models/QmciModels.swift` — scoring formulas, subscale weights, normative cutoffs, Codable persistence
-- `Theme/LeftPaneSpeechCopy.swift` — verbatim examiner scripts validated against Qmci protocol
-- `Services/VerbalFluencyScorer.swift` — animal lexicon, compound-name dedup, repetition tracking
-- `Services/WordRecallScorer.swift` — delayed recall scoring with semantic substitution detection
-- `Views/TavusCVIView.swift` — WebRTC lifecycle, avatar speech bridge, mic mute control
-- `ContentView.swift` — routing entry point, PHI persistence trigger, Tavus session lifecycle
+**Policy note:** As of April 12, 2026, Cursor was promoted from a utility-only allowlist to
+full project access per clinician decision (Tolla). Earlier restrictions were a response to
+a specific Cowork incident; that incident’s resolution and Cursor’s subsequent behavior
+demonstrated reliable adherence to diagnostic-first discipline. Both agents now share full
+project access under the same rules.
