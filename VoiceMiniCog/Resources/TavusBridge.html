@@ -47,6 +47,9 @@ let pendingEchos = [];   // Queue for echo requests that arrive before room join
 let echoTextQueue = [];
 let echoInFlight = false;
 let echoWatchdog = null;
+let firstEchoSent = false;  // True after the first echo is sent — until then,
+                             // remote audio is muted to suppress the Tavus
+                             // persona greeting that fires on room join.
 
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
@@ -143,11 +146,16 @@ async function joinRoom(roomUrl) {
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
 
-    // 3. Mute mic and remote audio immediately — avatar must stay silent
-    //    until the app sends the first sendEcho() command (user started assessment).
-    //    This prevents the avatar's persona greeting from playing on the Home screen.
+    // 3. Mute mic AND remote participant audio immediately — avatar must
+    //    stay silent until the app sends the first sendEcho() command
+    //    (user started assessment). Muting remote audio at the Daily level
+    //    prevents the Tavus persona greeting from being audible at all —
+    //    the auto-interrupt catches it but can't fire until started_speaking,
+    //    by which time the patient hears a brief syllable.
     callObject.setLocalAudio(false);
-    log('Mic muted on join (waiting for assessment start)');
+    firstEchoSent = false;
+    callObject.updateParticipant('*', { setAudio: false });
+    log('Mic + remote audio muted on join (waiting for first echo)');
 
     // 4. Set global persona: neuropsychologist examiner
     sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
@@ -381,6 +389,19 @@ function pumpEchoQueue() {
 
   const text = echoTextQueue.shift();
   echoInFlight = true;
+
+  // On the very first echo, unmute remote participant audio so the
+  // patient can hear the avatar. This was muted on join to suppress
+  // the Tavus persona greeting.
+  if (!firstEchoSent) {
+    firstEchoSent = true;
+    try {
+      callObject.updateParticipant('*', { setAudio: true });
+      log('Remote audio unmuted (first echo — assessment started)');
+    } catch (e) {
+      log('Remote audio unmute failed: ' + e.message);
+    }
+  }
 
   try {
     callObject.setLocalAudio(false);
