@@ -120,6 +120,12 @@ struct ClockPauseEvent: Codable, Equatable {
     let durationMs: Int
 }
 
+/// Recall semantic substitution pair (e.g., patient said "puppy" for "dog").
+struct SemanticSubstitution: Codable, Equatable {
+    let target: String
+    let substitution: String
+}
+
 /// CGPoint wrapper so we can Codable it.
 struct CGPointCodable: Codable, Equatable {
     let x: Double
@@ -141,11 +147,17 @@ let ORIENTATION_ITEMS: [OrientationItem] = [
 
 // MARK: - Registration Word Lists (5 words each)
 
-// Validated QMCI word sets — use alternates for repeat testing to reduce practice effects
+// QMCI word sets — use alternates for repeat testing to reduce practice effects.
+// Set 1 is from the published QMCI scoring sheet (O'Caoimh 2012).
+// ⚠️ Sets 2 and 3 are APPROXIMATE — pending source confirmation from
+// O'Caoimh or Cunje 2007 ("Alternative forms of logical memory and verbal
+// fluency tasks for repeated testing", Int Psychogeriatr 2007).
+// DO NOT use sets 2/3 in published research without verifying against
+// the canonical alternate groupings.
 let QMCI_WORD_LISTS: [[String]] = [
-    ["dog", "rain", "butter", "love", "door"],       // Standard set
-    ["cat", "dark", "rat", "heat", "bread"],          // Alternate set 2
-    ["fear", "round", "bed", "chair", "fruit"],       // Alternate set 3
+    ["dog", "rain", "butter", "love", "door"],       // Standard set (verified)
+    ["cat", "dark", "rat", "heat", "bread"],          // Alternate set 2 (approximate)
+    ["fear", "round", "bed", "chair", "fruit"],       // Alternate set 3 (approximate)
 ]
 
 // MARK: - Logical Memory Stories
@@ -158,43 +170,46 @@ struct LogicalMemoryStory: Identifiable {
     let maxScore: Int = 30
 }
 
-// Validated QMCI Logical Memory stories — verbatim recall only, 2 pts per key word
-// Use alternates for repeat testing to reduce practice effects
+// Validated QMCI Logical Memory stories — verbatim recall only, 2 pts per content unit.
+// Use alternates for repeat testing to reduce practice effects.
+//
+// Scoring units are MULTI-WORD PHRASES per O'Caoimh 2012 Appendix 1. The scorer
+// must match the full phrase (fuzzy), not just the head noun. 15 units × 2 pts = 30.
 let LOGICAL_MEMORY_STORIES: [LogicalMemoryStory] = [
-    // Verbatim O'Caoimh red-fox story and scoring units taken from the Molloy
-    // & O'Caoimh QMCI scoring sheet. 15 highlighted content units × 2 pts = 30.
-    // Note: "across" is prose, NOT a scoring unit. "fragrant" IS a scoring unit.
+    // Story 0 — Red Fox (O'Caoimh & Molloy QMCI scoring sheet, Appendix 1)
     LogicalMemoryStory(
         id: 0,
         text: "The red fox ran across the ploughed field. It was chased by a brown dog. It was a hot May morning. Fragrant blossoms were forming on the bushes.",
         voiceText: "The red fox ran across the ploughed field. It was chased by a brown dog. It was a hot May morning. Fragrant blossoms were forming on the bushes.",
         scoringUnits: [
-            "red", "fox", "ran", "ploughed", "field",
-            "chased", "brown", "dog",
-            "hot", "May", "morning",
-            "fragrant", "blossoms", "forming", "bushes"
+            "the red", "fox", "ran across", "the ploughed", "field",
+            "it was chased by", "a brown", "dog",
+            "it was a hot", "may", "morning",
+            "fragrant", "blossoms", "were forming on", "the bushes"
         ]
     ),
+    // Story 1 — Brown Dog (parallel structure from Appendix 1)
     LogicalMemoryStory(
         id: 1,
         text: "The brown dog ran across the metal bridge. It was a cold October day. It was hunting a white rabbit. The ripe apples were hanging on the trees.",
         voiceText: "The brown dog ran across the metal bridge. It was a cold October day. It was hunting a white rabbit. The ripe apples were hanging on the trees.",
         scoringUnits: [
-            "brown", "dog", "ran", "across", "metal",
-            "bridge", "cold", "October", "day",
-            "hunting", "white", "rabbit", "ripe",
-            "apples", "trees"
+            "the brown", "dog", "ran across", "the metal", "bridge",
+            "it was a cold", "october", "day",
+            "it was hunting", "a white", "rabbit",
+            "the ripe", "apples", "were hanging on", "the trees"
         ]
     ),
+    // Story 2 — White Hen (parallel structure from Appendix 1)
     LogicalMemoryStory(
         id: 2,
         text: "The white hen walked across the concrete road. It was a warm September afternoon. It was followed by a black cat. The dry leaves were blowing in the wind.",
         voiceText: "The white hen walked across the concrete road. It was a warm September afternoon. It was followed by a black cat. The dry leaves were blowing in the wind.",
         scoringUnits: [
-            "white", "hen", "walked", "across", "concrete",
-            "road", "warm", "September", "afternoon",
-            "followed", "black", "cat", "dry",
-            "leaves", "wind"
+            "the white", "hen", "walked across", "the concrete", "road",
+            "it was a warm", "september", "afternoon",
+            "it was followed by", "a black", "cat",
+            "the dry", "leaves", "were blowing in", "the wind"
         ]
     ),
 ]
@@ -241,9 +256,46 @@ final class QmciState: ObservableObject, Codable {
     /// Per-trial recalled words for the 3 registration trials.
     @Published var registrationTrialWords: [[String]] = [[], [], []]
 
+    /// Registration telemetry: first-word latency on trial 1 (seconds from listening start to first correct word).
+    @Published var registrationFirstWordLatency: TimeInterval? = nil
+    /// Registration telemetry: non-target words the patient said (raw).
+    @Published var registrationIntrusions: [String] = []
+    /// Registration telemetry: count of repeated target words across all trials.
+    @Published var registrationRepetitionCount: Int = 0
+    /// Registration telemetry: total phase duration in seconds.
+    @Published var registrationPhaseDuration: TimeInterval? = nil
+    /// Registration telemetry: true if the 4-minute ceiling was hit.
+    @Published var registrationCeilingHit: Bool = false
+
+    // MARK: - Delayed Recall Telemetry
+
+    @Published var recallFirstWordLatencyMs: Int? = nil
+    @Published var recallInterWordIntervalsMs: [Int] = []
+    @Published var recallIntrusionCount: Int = 0
+    @Published var recallIntrusions: [String] = []
+    @Published var recallSemanticSubstitutions: [SemanticSubstitution] = []
+    @Published var recallSemanticSubstitutionCount: Int = 0
+    @Published var recallTotalPhaseDurationMs: Int = 0
+    @Published var recallSilenceBeforePromptMs: Int = 0
+    @Published var recallAnyOthersPromptUsed: Bool = false
+    @Published var recallASRDetectedWords: [String] = []
+    @Published var recallClinicianOverrides: [String: Bool] = [:]
+
     /// Full verbatim list of animals named INCLUDING duplicates. Distinct from
     /// `verbalFluencyWords` which is the unique/scored list.
     @Published var fluencyAnimalsNamed: [String] = []
+
+    /// Verbal fluency telemetry
+    @Published var fluencyRepetitions: [String] = []
+    @Published var fluencyIntrusions: [String] = []
+    @Published var fluencySuperordinateCount: Int = 0
+    @Published var fluencyFirstWordLatency: TimeInterval? = nil
+    @Published var fluencyMeanInterWordInterval: TimeInterval? = nil
+    @Published var fluencyQuartileCounts: [Int] = [0, 0, 0, 0]  // 4 × 15s bins
+    @Published var fluencyMeanClusterSize: Double? = nil
+    @Published var fluencySwitchCount: Int = 0
+    @Published var fluencyRePromptUsed: Bool = false
+    @Published var fluencyPhaseDuration: TimeInterval? = nil
 
     /// PNG-encoded clock image bytes (UIImage is not Codable, so store Data).
     @Published var clockDrawingImagePNG: Data? = nil
@@ -256,46 +308,22 @@ final class QmciState: ObservableObject, Codable {
     @Published var clinicianDecisionRepeat: Bool? = nil
     @Published var clinicianDecisionTimestamp: Date? = nil
 
-    // MARK: - Delayed Recall Telemetry (biomarker research)
-
-    /// Milliseconds from prompt end to first correct word recall
-    @Published var recallFirstWordLatencyMs: Int? = nil
-    /// Millisecond intervals between successive correct word detections
-    @Published var recallInterWordIntervalsMs: [Int] = []
-    /// Number of non-target words spoken during recall
-    @Published var recallIntrusionCount: Int = 0
-    /// Non-target words spoken (for clinician review)
-    @Published var recallIntrusions: [String] = []
-    /// Semantic substitutions: [(target, said)]
-    @Published var recallSemanticSubstitutions: [(String, String)] = []
-    /// Number of semantic substitutions
-    @Published var recallSemanticSubstitutionCount: Int = 0
-    /// Total phase duration in milliseconds
-    @Published var recallTotalPhaseDurationMs: Int = 0
-    /// Silence in ms before "Any others?" prompt (0 if not used)
-    @Published var recallSilenceBeforePromptMs: Int = 0
-    /// Whether the "Any others?" follow-up was triggered
-    @Published var recallAnyOthersPromptUsed: Bool = false
-    /// ASR-detected recalled words (clinician can override in review)
-    @Published var recallASRDetectedWords: [String] = []
-    /// Clinician overrides on ASR results (word → override-correct)
-    @Published var recallClinicianOverrides: [String: Bool] = [:]
-
     // MARK: - QMCI 15-point Clock Drawing (manual clinician scoring)
     //
     // QMCI protocol rubric for clock drawing (max 15 points):
     //   • 1 point per correctly placed number (1-12)            → 12 pts max
-    //   • 1 point for minute hand pointing toward 2 (for 11:10) → 1 pt
-    //   • 1 point for hour hand pointing toward 11              → 1 pt
+    //   • Hands: 0 = neither correct, 1 = one correct, 2 = both correct
+    //     (hour toward 11 AND minute toward 2 for "ten past eleven")  → 2 pts max
     //   • 1 point for pivot (center point where hands meet)     → 1 pt
     //   • -1 per duplicate number or number > 12
+    //   Per O'Caoimh 2012 Appendix 1 rubric.
     //
     // Populated by the clinician in the PCP Report view. Call
     // `recomputeClockDrawingScore()` after mutating any cdt* field to
     // refresh `clockDrawingScore`.
     @Published var cdtNumbersPlaced: [Bool] = Array(repeating: false, count: 12)
-    @Published var cdtMinuteHandCorrect: Bool = false
-    @Published var cdtHourHandCorrect: Bool = false
+    /// 0 = neither hand correct, 1 = one hand correct, 2 = both hands correct
+    @Published var cdtHandsScore: Int = 0
     @Published var cdtPivotCorrect: Bool = false
     @Published var cdtInvalidNumbersCount: Int = 0
 
@@ -303,10 +331,8 @@ final class QmciState: ObservableObject, Codable {
     /// Clamped to 0...15.
     var cdtComputedScore: Int {
         let numberPoints = cdtNumbersPlaced.filter { $0 }.count
-        let minutePoint = cdtMinuteHandCorrect ? 1 : 0
-        let hourPoint = cdtHourHandCorrect ? 1 : 0
         let pivotPoint = cdtPivotCorrect ? 1 : 0
-        let raw = numberPoints + minutePoint + hourPoint + pivotPoint - cdtInvalidNumbersCount
+        let raw = numberPoints + min(cdtHandsScore, 2) + pivotPoint - cdtInvalidNumbersCount
         return max(0, min(15, raw))
     }
 
@@ -327,12 +353,19 @@ final class QmciState: ObservableObject, Codable {
         min(registrationTrialWords.first?.count ?? 0, 5)
     }
 
-    /// QMCI verbal fluency: 0.5 pts per unique animal, max 40 animals = 20 pts.
-    /// Rounds up (e.g., 15 animals → 7.5 pts → 8).
+    /// Number of trials needed to achieve full 5/5 registration (nil if never reached).
+    /// Single-trial learning is preserved in normal aging; multi-trial requirement suggests encoding deficit.
+    var trialsToFullRegistration: Int? {
+        for (i, words) in registrationTrialWords.enumerated() {
+            if words.count >= 5 { return i + 1 }
+        }
+        return nil
+    }
+
+    /// QMCI verbal fluency: 1 pt per unique animal, capped at 20.
+    /// Per O'Caoimh 2012 Appendix 1 scoring rubric.
     var verbalFluencyScore: Int {
-        let uniqueCount = min(Set(verbalFluencyWords.map { $0.lowercased() }).count, 40)
-        let raw = Double(uniqueCount) * 0.5
-        return Int(raw.rounded(.up))
+        min(Set(verbalFluencyWords.map { $0.lowercased() }).count, 20)
     }
     var logicalMemoryScore: Int { min(logicalMemoryRecalledUnits.count * 2, 30) }
     var delayedRecallScore: Int { min(delayedRecallWords.count * 4, 20) }
@@ -341,7 +374,7 @@ final class QmciState: ObservableObject, Codable {
     /// Used to decide whether to trust the computed cdt score vs. a legacy stored value.
     private var hasCDTFieldsSet: Bool {
         cdtNumbersPlaced.contains(true) ||
-        cdtMinuteHandCorrect || cdtHourHandCorrect || cdtPivotCorrect ||
+        cdtHandsScore > 0 || cdtPivotCorrect ||
         cdtInvalidNumbersCount > 0
     }
 
@@ -356,7 +389,7 @@ final class QmciState: ObservableObject, Codable {
     }
 
     var totalScore: Int {
-        orientationScore + registrationScore + effectiveClockDrawingScore +
+        orientationScore + trial1RegistrationScore + effectiveClockDrawingScore +
         verbalFluencyScore + logicalMemoryScore + delayedRecallScore
     }
     var maxScore: Int { 100 }
@@ -411,24 +444,31 @@ final class QmciState: ObservableObject, Codable {
         case logicalMemoryStoryIndex, logicalMemoryRecalledUnits, logicalMemoryTranscript
         case delayedRecallWords, delayedRecallTranscript
         case completedSubtests, isComplete, clockDrawingScore
-        case cdtNumbersPlaced, cdtMinuteHandCorrect, cdtHourHandCorrect
+        case cdtNumbersPlaced, cdtHandsScore
+        case cdtMinuteHandCorrect, cdtHourHandCorrect // legacy decode only
         case cdtPivotCorrect, cdtInvalidNumbersCount
         // New spec-required fields
         case testVersion
         case sessionID, sessionDateTime
         case orientationResponses, orientationAttempted
         case registrationTrialWords
-        case fluencyAnimalsNamed
-        case clockDrawingImagePNG, clockStrokeEvents, clockPauseEvents
-        case clockScoreOverrideBy, clockScoreOverrideTimestamp
-        case clinicianDecisionWorkup, clinicianDecisionRepeat, clinicianDecisionTimestamp
+        case registrationFirstWordLatency, registrationIntrusions
+        case registrationRepetitionCount, registrationPhaseDuration, registrationCeilingHit
         // Delayed recall telemetry
         case recallFirstWordLatencyMs, recallInterWordIntervalsMs
         case recallIntrusionCount, recallIntrusions
-        case recallSemanticSubstitutionCount
+        case recallSemanticSubstitutions, recallSemanticSubstitutionCount
         case recallTotalPhaseDurationMs, recallSilenceBeforePromptMs
         case recallAnyOthersPromptUsed
         case recallASRDetectedWords, recallClinicianOverrides
+        case fluencyAnimalsNamed
+        case fluencyRepetitions, fluencyIntrusions, fluencySuperordinateCount
+        case fluencyFirstWordLatency, fluencyMeanInterWordInterval
+        case fluencyQuartileCounts, fluencyMeanClusterSize, fluencySwitchCount
+        case fluencyRePromptUsed, fluencyPhaseDuration
+        case clockDrawingImagePNG, clockStrokeEvents, clockPauseEvents
+        case clockScoreOverrideBy, clockScoreOverrideTimestamp
+        case clinicianDecisionWorkup, clinicianDecisionRepeat, clinicianDecisionTimestamp
     }
 
     required init(from decoder: Decoder) throws {
@@ -467,8 +507,14 @@ final class QmciState: ObservableObject, Codable {
         if cdtNumbersPlaced.count != 12 {
             cdtNumbersPlaced = Array(repeating: false, count: 12)
         }
-        cdtMinuteHandCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtMinuteHandCorrect) ?? false
-        cdtHourHandCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtHourHandCorrect) ?? false
+        // Prefer new cdtHandsScore; fall back to legacy Bool fields for migration
+        if let hands = try c.decodeIfPresent(Int.self, forKey: .cdtHandsScore) {
+            cdtHandsScore = hands
+        } else {
+            let minute = try c.decodeIfPresent(Bool.self, forKey: .cdtMinuteHandCorrect) ?? false
+            let hour = try c.decodeIfPresent(Bool.self, forKey: .cdtHourHandCorrect) ?? false
+            cdtHandsScore = (minute ? 1 : 0) + (hour ? 1 : 0)
+        }
         cdtPivotCorrect = try c.decodeIfPresent(Bool.self, forKey: .cdtPivotCorrect) ?? false
         cdtInvalidNumbersCount = try c.decodeIfPresent(Int.self, forKey: .cdtInvalidNumbersCount) ?? 0
 
@@ -488,7 +534,34 @@ final class QmciState: ObservableObject, Codable {
         }
         registrationTrialWords = try c.decodeIfPresent([[String]].self, forKey: .registrationTrialWords)
             ?? [[], [], []]
+        registrationFirstWordLatency = try c.decodeIfPresent(TimeInterval.self, forKey: .registrationFirstWordLatency)
+        registrationIntrusions = try c.decodeIfPresent([String].self, forKey: .registrationIntrusions) ?? []
+        registrationRepetitionCount = try c.decodeIfPresent(Int.self, forKey: .registrationRepetitionCount) ?? 0
+        registrationPhaseDuration = try c.decodeIfPresent(TimeInterval.self, forKey: .registrationPhaseDuration)
+        registrationCeilingHit = try c.decodeIfPresent(Bool.self, forKey: .registrationCeilingHit) ?? false
+        // Delayed recall telemetry
+        recallFirstWordLatencyMs = try c.decodeIfPresent(Int.self, forKey: .recallFirstWordLatencyMs)
+        recallInterWordIntervalsMs = try c.decodeIfPresent([Int].self, forKey: .recallInterWordIntervalsMs) ?? []
+        recallIntrusionCount = try c.decodeIfPresent(Int.self, forKey: .recallIntrusionCount) ?? 0
+        recallIntrusions = try c.decodeIfPresent([String].self, forKey: .recallIntrusions) ?? []
+        recallSemanticSubstitutions = try c.decodeIfPresent([SemanticSubstitution].self, forKey: .recallSemanticSubstitutions) ?? []
+        recallSemanticSubstitutionCount = try c.decodeIfPresent(Int.self, forKey: .recallSemanticSubstitutionCount) ?? 0
+        recallTotalPhaseDurationMs = try c.decodeIfPresent(Int.self, forKey: .recallTotalPhaseDurationMs) ?? 0
+        recallSilenceBeforePromptMs = try c.decodeIfPresent(Int.self, forKey: .recallSilenceBeforePromptMs) ?? 0
+        recallAnyOthersPromptUsed = try c.decodeIfPresent(Bool.self, forKey: .recallAnyOthersPromptUsed) ?? false
+        recallASRDetectedWords = try c.decodeIfPresent([String].self, forKey: .recallASRDetectedWords) ?? []
+        recallClinicianOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .recallClinicianOverrides) ?? [:]
         fluencyAnimalsNamed = try c.decodeIfPresent([String].self, forKey: .fluencyAnimalsNamed) ?? []
+        fluencyRepetitions = try c.decodeIfPresent([String].self, forKey: .fluencyRepetitions) ?? []
+        fluencyIntrusions = try c.decodeIfPresent([String].self, forKey: .fluencyIntrusions) ?? []
+        fluencySuperordinateCount = try c.decodeIfPresent(Int.self, forKey: .fluencySuperordinateCount) ?? 0
+        fluencyFirstWordLatency = try c.decodeIfPresent(TimeInterval.self, forKey: .fluencyFirstWordLatency)
+        fluencyMeanInterWordInterval = try c.decodeIfPresent(TimeInterval.self, forKey: .fluencyMeanInterWordInterval)
+        fluencyQuartileCounts = try c.decodeIfPresent([Int].self, forKey: .fluencyQuartileCounts) ?? [0, 0, 0, 0]
+        fluencyMeanClusterSize = try c.decodeIfPresent(Double.self, forKey: .fluencyMeanClusterSize)
+        fluencySwitchCount = try c.decodeIfPresent(Int.self, forKey: .fluencySwitchCount) ?? 0
+        fluencyRePromptUsed = try c.decodeIfPresent(Bool.self, forKey: .fluencyRePromptUsed) ?? false
+        fluencyPhaseDuration = try c.decodeIfPresent(TimeInterval.self, forKey: .fluencyPhaseDuration)
         clockDrawingImagePNG = try c.decodeIfPresent(Data.self, forKey: .clockDrawingImagePNG)
         clockStrokeEvents = try c.decodeIfPresent([ClockStrokeEvent].self, forKey: .clockStrokeEvents) ?? []
         clockPauseEvents = try c.decodeIfPresent([ClockPauseEvent].self, forKey: .clockPauseEvents) ?? []
@@ -497,17 +570,6 @@ final class QmciState: ObservableObject, Codable {
         clinicianDecisionWorkup = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionWorkup)
         clinicianDecisionRepeat = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionRepeat)
         clinicianDecisionTimestamp = try c.decodeIfPresent(Date.self, forKey: .clinicianDecisionTimestamp)
-        // Delayed recall telemetry (optional for backward compat)
-        recallFirstWordLatencyMs = try c.decodeIfPresent(Int.self, forKey: .recallFirstWordLatencyMs)
-        recallInterWordIntervalsMs = try c.decodeIfPresent([Int].self, forKey: .recallInterWordIntervalsMs) ?? []
-        recallIntrusionCount = try c.decodeIfPresent(Int.self, forKey: .recallIntrusionCount) ?? 0
-        recallIntrusions = try c.decodeIfPresent([String].self, forKey: .recallIntrusions) ?? []
-        recallSemanticSubstitutionCount = try c.decodeIfPresent(Int.self, forKey: .recallSemanticSubstitutionCount) ?? 0
-        recallTotalPhaseDurationMs = try c.decodeIfPresent(Int.self, forKey: .recallTotalPhaseDurationMs) ?? 0
-        recallSilenceBeforePromptMs = try c.decodeIfPresent(Int.self, forKey: .recallSilenceBeforePromptMs) ?? 0
-        recallAnyOthersPromptUsed = try c.decodeIfPresent(Bool.self, forKey: .recallAnyOthersPromptUsed) ?? false
-        recallASRDetectedWords = try c.decodeIfPresent([String].self, forKey: .recallASRDetectedWords) ?? []
-        recallClinicianOverrides = try c.decodeIfPresent([String: Bool].self, forKey: .recallClinicianOverrides) ?? [:]
     }
 
     func encode(to encoder: Encoder) throws {
@@ -530,8 +592,7 @@ final class QmciState: ObservableObject, Codable {
         try c.encode(isComplete, forKey: .isComplete)
         try c.encode(clockDrawingScore, forKey: .clockDrawingScore)
         try c.encode(cdtNumbersPlaced, forKey: .cdtNumbersPlaced)
-        try c.encode(cdtMinuteHandCorrect, forKey: .cdtMinuteHandCorrect)
-        try c.encode(cdtHourHandCorrect, forKey: .cdtHourHandCorrect)
+        try c.encode(cdtHandsScore, forKey: .cdtHandsScore)
         try c.encode(cdtPivotCorrect, forKey: .cdtPivotCorrect)
         try c.encode(cdtInvalidNumbersCount, forKey: .cdtInvalidNumbersCount)
         // New spec-required fields
@@ -541,7 +602,34 @@ final class QmciState: ObservableObject, Codable {
         try c.encode(orientationResponses, forKey: .orientationResponses)
         try c.encode(orientationAttempted, forKey: .orientationAttempted)
         try c.encode(registrationTrialWords, forKey: .registrationTrialWords)
+        try c.encodeIfPresent(registrationFirstWordLatency, forKey: .registrationFirstWordLatency)
+        try c.encode(registrationIntrusions, forKey: .registrationIntrusions)
+        try c.encode(registrationRepetitionCount, forKey: .registrationRepetitionCount)
+        try c.encodeIfPresent(registrationPhaseDuration, forKey: .registrationPhaseDuration)
+        try c.encode(registrationCeilingHit, forKey: .registrationCeilingHit)
+        // Delayed recall telemetry
+        try c.encodeIfPresent(recallFirstWordLatencyMs, forKey: .recallFirstWordLatencyMs)
+        try c.encode(recallInterWordIntervalsMs, forKey: .recallInterWordIntervalsMs)
+        try c.encode(recallIntrusionCount, forKey: .recallIntrusionCount)
+        try c.encode(recallIntrusions, forKey: .recallIntrusions)
+        try c.encode(recallSemanticSubstitutions, forKey: .recallSemanticSubstitutions)
+        try c.encode(recallSemanticSubstitutionCount, forKey: .recallSemanticSubstitutionCount)
+        try c.encode(recallTotalPhaseDurationMs, forKey: .recallTotalPhaseDurationMs)
+        try c.encode(recallSilenceBeforePromptMs, forKey: .recallSilenceBeforePromptMs)
+        try c.encode(recallAnyOthersPromptUsed, forKey: .recallAnyOthersPromptUsed)
+        try c.encode(recallASRDetectedWords, forKey: .recallASRDetectedWords)
+        try c.encode(recallClinicianOverrides, forKey: .recallClinicianOverrides)
         try c.encode(fluencyAnimalsNamed, forKey: .fluencyAnimalsNamed)
+        try c.encode(fluencyRepetitions, forKey: .fluencyRepetitions)
+        try c.encode(fluencyIntrusions, forKey: .fluencyIntrusions)
+        try c.encode(fluencySuperordinateCount, forKey: .fluencySuperordinateCount)
+        try c.encodeIfPresent(fluencyFirstWordLatency, forKey: .fluencyFirstWordLatency)
+        try c.encodeIfPresent(fluencyMeanInterWordInterval, forKey: .fluencyMeanInterWordInterval)
+        try c.encode(fluencyQuartileCounts, forKey: .fluencyQuartileCounts)
+        try c.encodeIfPresent(fluencyMeanClusterSize, forKey: .fluencyMeanClusterSize)
+        try c.encode(fluencySwitchCount, forKey: .fluencySwitchCount)
+        try c.encode(fluencyRePromptUsed, forKey: .fluencyRePromptUsed)
+        try c.encodeIfPresent(fluencyPhaseDuration, forKey: .fluencyPhaseDuration)
         try c.encodeIfPresent(clockDrawingImagePNG, forKey: .clockDrawingImagePNG)
         try c.encode(clockStrokeEvents, forKey: .clockStrokeEvents)
         try c.encode(clockPauseEvents, forKey: .clockPauseEvents)
@@ -550,20 +638,9 @@ final class QmciState: ObservableObject, Codable {
         try c.encodeIfPresent(clinicianDecisionWorkup, forKey: .clinicianDecisionWorkup)
         try c.encodeIfPresent(clinicianDecisionRepeat, forKey: .clinicianDecisionRepeat)
         try c.encodeIfPresent(clinicianDecisionTimestamp, forKey: .clinicianDecisionTimestamp)
-        // Delayed recall telemetry
-        try c.encodeIfPresent(recallFirstWordLatencyMs, forKey: .recallFirstWordLatencyMs)
-        try c.encode(recallInterWordIntervalsMs, forKey: .recallInterWordIntervalsMs)
-        try c.encode(recallIntrusionCount, forKey: .recallIntrusionCount)
-        try c.encode(recallIntrusions, forKey: .recallIntrusions)
-        try c.encode(recallSemanticSubstitutionCount, forKey: .recallSemanticSubstitutionCount)
-        try c.encode(recallTotalPhaseDurationMs, forKey: .recallTotalPhaseDurationMs)
-        try c.encode(recallSilenceBeforePromptMs, forKey: .recallSilenceBeforePromptMs)
-        try c.encode(recallAnyOthersPromptUsed, forKey: .recallAnyOthersPromptUsed)
-        try c.encode(recallASRDetectedWords, forKey: .recallASRDetectedWords)
-        try c.encode(recallClinicianOverrides, forKey: .recallClinicianOverrides)
     }
 
-    init() {}
+    init() { selectTestVersion() }
 
     // Avoid swift_task_deinitOnExecutorMainActorBackDeploy crash on iOS 17.6
     // by never hopping to the main actor at dealloc time.
@@ -618,8 +695,7 @@ final class QmciState: ObservableObject, Codable {
         delayedRecallWords = []; delayedRecallTranscript = ""
         completedSubtests = []; isComplete = false; clockDrawingScore = 0
         cdtNumbersPlaced = Array(repeating: false, count: 12)
-        cdtMinuteHandCorrect = false
-        cdtHourHandCorrect = false
+        cdtHandsScore = 0
         cdtPivotCorrect = false
         cdtInvalidNumbersCount = 0
 
@@ -630,16 +706,11 @@ final class QmciState: ObservableObject, Codable {
         orientationResponses = Array(repeating: "", count: 5)
         orientationAttempted = Array(repeating: false, count: 5)
         registrationTrialWords = [[], [], []]
-        fluencyAnimalsNamed = []
-        clockDrawingImagePNG = nil
-        clockStrokeEvents = []
-        clockPauseEvents = []
-        clockScoreOverrideBy = nil
-        clockScoreOverrideTimestamp = nil
-        clinicianDecisionWorkup = nil
-        clinicianDecisionRepeat = nil
-        clinicianDecisionTimestamp = nil
-
+        registrationFirstWordLatency = nil
+        registrationIntrusions = []
+        registrationRepetitionCount = 0
+        registrationPhaseDuration = nil
+        registrationCeilingHit = false
         // Delayed recall telemetry
         recallFirstWordLatencyMs = nil
         recallInterWordIntervalsMs = []
@@ -652,8 +723,27 @@ final class QmciState: ObservableObject, Codable {
         recallAnyOthersPromptUsed = false
         recallASRDetectedWords = []
         recallClinicianOverrides = [:]
+        fluencyAnimalsNamed = []
+        fluencyRepetitions = []
+        fluencyIntrusions = []
+        fluencySuperordinateCount = 0
+        fluencyFirstWordLatency = nil
+        fluencyMeanInterWordInterval = nil
+        fluencyQuartileCounts = [0, 0, 0, 0]
+        fluencyMeanClusterSize = nil
+        fluencySwitchCount = 0
+        fluencyRePromptUsed = false
+        fluencyPhaseDuration = nil
+        clockDrawingImagePNG = nil
+        clockStrokeEvents = []
+        clockPauseEvents = []
+        clockScoreOverrideBy = nil
+        clockScoreOverrideTimestamp = nil
+        clinicianDecisionWorkup = nil
+        clinicianDecisionRepeat = nil
+        clinicianDecisionTimestamp = nil
 
-        selectWordList(); selectStory()
+        selectTestVersion()
     }
 }
 

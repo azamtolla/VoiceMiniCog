@@ -2,151 +2,236 @@
 //  WordRecallScorer.swift
 //  VoiceMiniCog
 //
-//  Scores the delayed word recall subtest by matching ASR transcript
-//  words against the 5 registration target words. Tracks timing biomarkers
-//  (first-word latency, inter-word intervals, silence duration).
-//
-//  Fuzzy matching uses the same prefix-aware + Levenshtein approach as
-//  scoreWordRegistrationRecall in ResponseCheckers.swift — tolerant of
-//  common ASR mishearings and inflected forms ("feared" → "fear").
+//  @Observable service for real-time delayed word recall scoring.
+//  Matches ASR transcript tokens against the 5 target words from
+//  the registration phase, tracking recall count, intrusions,
+//  timing biomarkers, and completion detection.
 //
 
 import Foundation
+import Observation
 
-struct WordRecallScorer {
+@Observable
+class WordRecallScorer {
+
+    // MARK: Configuration
+
     let targetWords: [String]
-    var promptEndTime: Date?
-    var recalledWords: Set<String> = []
-    var intrusions: [String] = []
-    var semanticSubstitutions: [(target: String, said: String)] = []
-    var anyOthersPromptUsed = false
-    var silenceBeforePromptMs: Int = 0
+    private let targetSet: Set<String>
 
-    private var phaseStartTime = Date()
-    private var firstRecallTime: Date?
-    private var wordRecallTimes: [Date] = []
-    private var lastProcessedLength = 0
-    private var peakSilenceSeconds: TimeInterval = 0
+    // MARK: Outputs
+
+    /// Unique correctly recalled words (lowercased).
+    private(set) var recalledWords: Set<String> = []
+    /// Non-target words the patient said (excludes stopwords and short tokens).
+    private(set) var intrusions: [String] = []
+    /// Semantic substitutions: (target, said) — near-misses NOT credited as correct.
+    private(set) var semanticSubstitutions: [(target: String, said: String)] = []
 
     var recalledCount: Int { recalledWords.count }
 
-    var firstWordLatencySeconds: Double? {
-        guard let prompt = promptEndTime, let first = firstRecallTime else { return nil }
-        return first.timeIntervalSince(prompt)
-    }
+    // MARK: Timing
 
-    var interWordIntervalsMs: [Int] {
-        guard wordRecallTimes.count > 1 else { return [] }
-        return zip(wordRecallTimes, wordRecallTimes.dropFirst()).map { prev, next in
-            Int(next.timeIntervalSince(prev) * 1000)
-        }
-    }
+    /// Set via markPromptEnded() when the avatar finishes the recall prompt.
+    private(set) var promptEndTime: Date? = nil
+    private var firstWordTime: Date? = nil
+    private var wordTimes: [Date] = []
+    private var phaseStartTime = Date()
 
-    var totalPhaseDurationMs: Int {
-        Int(Date().timeIntervalSince(phaseStartTime) * 1000)
-    }
+    // MARK: Follow-Up
+
+    var anyOthersPromptUsed: Bool = false
+    var silenceBeforePromptMs: Int = 0
+
+    // MARK: Internal
+
+    private var processedLength: Int = 0
+
+    private static let completionPhrases = [
+        "i'm done", "im done", "that's all", "thats all",
+        "that's it", "thats it", "i can't remember",
+        "i cant remember", "nothing else", "no more",
+        "i don't remember", "i dont remember"
+    ]
+
+    /// Synonym map: spoken word → target word. When a synonym is detected and
+    /// the corresponding target has NOT already been credited, the pair is
+    /// logged as a semantic substitution. Per Qmci protocol, semantic
+    /// substitutions are NOT credited as correct recalls — they are recorded
+    /// for clinician review only.
+    private static let synonymMap: [String: String] = [
+        // dog
+        "puppy": "dog", "doggie": "dog", "hound": "dog", "mutt": "dog",
+        // rain
+        "rainfall": "rain", "raindrop": "rain", "raining": "rain",
+        // butter
+        "margarine": "butter",
+        // love
+        "loved": "love", "loving": "love",
+        // door
+        "doorway": "door", "gate": "door",
+        // cat
+        "kitten": "cat", "kitty": "cat", "feline": "cat",
+        // dark
+        "darkness": "dark", "night": "dark",
+        // rat
+        "rodent": "rat", "mouse": "rat",
+        // heat
+        "hot": "heat", "warmth": "heat",
+        // bread
+        "loaf": "bread", "bun": "bread", "toast": "bread",
+        // fear
+        "afraid": "fear", "scared": "fear", "fright": "fear",
+        // round
+        "circle": "round", "circular": "round",
+        // bed
+        "mattress": "bed", "bunk": "bed",
+        // chair
+        "seat": "chair", "stool": "chair",
+        // fruit
+        "produce": "fruit",
+    ]
+
+    /// Common filler/function words excluded from intrusion tracking.
+    private static let stopwords: Set<String> = [
+        "the", "a", "an", "and", "or", "but", "um", "uh", "well",
+        "you", "know", "let", "me", "see", "think", "remember",
+        "was", "those", "were", "words", "word", "that", "this",
+        "these", "it", "is", "of", "to", "in", "for", "on", "with",
+        "my", "his", "her", "they", "there", "what", "how", "can",
+        "just", "like", "so", "yes", "no", "not", "oh", "okay",
+        "yeah", "hmm", "then", "said", "some", "one", "about",
+        "got", "get", "had", "have", "been", "from", "all", "do",
+    ]
+
+    // MARK: Init
 
     init(targetWords: [String]) {
         self.targetWords = targetWords
+        self.targetSet = Set(targetWords.map { $0.lowercased() })
     }
 
-    // MARK: - Transcript Processing
+    // MARK: Lifecycle
 
-    mutating func processTranscript(_ transcript: String) {
-        let tokens = tokenize(transcript)
-        let newTokens = Array(tokens.dropFirst(lastProcessedLength))
-        lastProcessedLength = tokens.count
+    /// Resets all scoring state. Call on phase entry before processing begins.
+    func startScoring() {
+        recalledWords = []
+        intrusions = []
+        semanticSubstitutions = []
+        wordTimes = []
+        firstWordTime = nil
+        processedLength = 0
+        phaseStartTime = Date()
+        promptEndTime = nil
+        anyOthersPromptUsed = false
+        silenceBeforePromptMs = 0
+    }
 
-        for token in newTokens {
-            if let matched = matchTarget(token) {
-                if recalledWords.insert(matched).inserted {
-                    let now = Date()
-                    wordRecallTimes.append(now)
-                    if firstRecallTime == nil { firstRecallTime = now }
+    /// Records the moment the avatar finishes speaking the recall prompt.
+    /// Idempotent — subsequent calls are ignored so latency measurement
+    /// anchors to the first prompt delivery only.
+    func markPromptEnded() {
+        guard promptEndTime == nil else { return }
+        promptEndTime = Date()
+    }
+
+    // MARK: Processing
+
+    func processTranscript(_ transcript: String) {
+        let lower = transcript.lowercased()
+        guard lower.count > processedLength else { return }
+        processedLength = lower.count
+
+        let tokens = lower.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+
+        for token in tokens {
+            let normalized = normalizePlural(token)
+
+            if targetSet.contains(normalized), !recalledWords.contains(normalized) {
+                // Direct target match
+                recalledWords.insert(normalized)
+                let now = Date()
+                if firstWordTime == nil, promptEndTime != nil {
+                    firstWordTime = now
                 }
-            } else if token.count > 2 && !isCommonFiller(token) {
-                intrusions.append(token)
+                wordTimes.append(now)
+            } else if let target = Self.synonymMap[normalized],
+                      targetSet.contains(target),
+                      !recalledWords.contains(target),
+                      !semanticSubstitutions.contains(where: { $0.said == normalized }) {
+                // Semantic substitution — log for clinician review, do NOT credit
+                semanticSubstitutions.append((target: target, said: normalized))
+            } else if !normalized.isEmpty,
+                      normalized.count > 2,
+                      !targetSet.contains(normalized),
+                      !Self.stopwords.contains(normalized),
+                      !intrusions.contains(normalized),
+                      Self.synonymMap[normalized] == nil {
+                // Intrusion — non-target, non-synonym, non-stopword
+                intrusions.append(normalized)
             }
         }
     }
 
     func containsCompletionPhrase(_ transcript: String) -> Bool {
         let lower = transcript.lowercased()
-        let phrases = ["that's all", "that's it", "i can't remember", "no more",
-                       "i don't remember", "i don't know", "nothing else",
-                       "i'm done", "im done", "that is all", "that is it"]
-        return phrases.contains { lower.contains($0) }
+        // Use word-boundary matching to prevent substring false positives
+        return Self.completionPhrases.contains(where: { phrase in
+            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: phrase))\\b"
+            return lower.range(of: pattern, options: .regularExpression) != nil
+        })
     }
 
-    mutating func markAnyOthersPromptUsed() {
-        anyOthersPromptUsed = true
+    // MARK: State Updates
+
+    func markAnyOthersPromptUsed() { anyOthersPromptUsed = true }
+
+    // MARK: Computed Metrics
+
+    /// Time from prompt delivery to first recalled word.
+    /// Note: latency is measured from ASR transcript-update receipt, not from
+    /// the actual moment of patient utterance. Apple SFSpeechRecognizer commit
+    /// latency (typically 200-800ms) is included. Values are systematically
+    /// inflated by ASR processing time.
+    var firstWordLatencySeconds: TimeInterval? {
+        guard let prompt = promptEndTime, let first = firstWordTime else { return nil }
+        let latency = first.timeIntervalSince(prompt)
+        // Guard against negative latency (firstWordTime before promptEndTime
+        // due to ASR delivering a buffered result from before the prompt ended)
+        return latency >= 0 ? latency : nil
     }
 
-    mutating func updateSilence(_ seconds: TimeInterval) {
-        if seconds > peakSilenceSeconds { peakSilenceSeconds = seconds }
-    }
-
-    mutating func finalizePhase() {
-        // Phase duration is computed dynamically via totalPhaseDurationMs
-    }
-
-    // MARK: - Fuzzy Matching (mirrors ResponseCheckers.scoreWordRegistrationRecall)
-
-    /// Match a spoken token against target words using exact, prefix, and
-    /// Levenshtein matching — tolerant of ASR variants and inflections.
-    private func matchTarget(_ token: String) -> String? {
-        let tok = token.lowercased()
-
-        for word in targetWords {
-            let wl = word.lowercased()
-            guard !recalledWords.contains(word) else { continue }
-
-            // Exact match
-            if tok == wl { return word }
-
-            // Prefix extensions ("buttered" → "butter", "queenly" → "queen")
-            if tok.hasPrefix(wl) && tok.count <= wl.count + 3 { return word }
-            if wl.hasPrefix(tok) && wl.count <= tok.count + 2 { return word }
-
-            // Levenshtein with length-scaled threshold
-            let maxDist = wl.count <= 4 ? 1 : (wl.count <= 6 ? 1 : 2)
-            if levenshtein(tok, wl) <= maxDist { return word }
+    var interWordIntervalsMs: [Int] {
+        guard wordTimes.count >= 2 else { return [] }
+        return zip(wordTimes, wordTimes.dropFirst()).map {
+            Int(($1.timeIntervalSince($0) * 1000).rounded())
         }
-        return nil
     }
 
-    // MARK: - Private Helpers
-
-    private func tokenize(_ transcript: String) -> [String] {
-        transcript.lowercased()
-            .split { !$0.isLetter && !$0.isNumber }
-            .map(String.init)
-            .filter { !$0.isEmpty }
+    var totalPhaseDurationMs: Int {
+        Int((Date().timeIntervalSince(phaseStartTime) * 1000).rounded())
     }
 
-    private func levenshtein(_ s: String, _ t: String) -> Int {
-        let a = Array(s), b = Array(t)
-        var row = Array(0...b.count)
-        for (i, ca) in a.enumerated() {
-            var previous = row[0]
-            row[0] = i + 1
-            for (j, cb) in b.enumerated() {
-                let insertCost = row[j + 1]
-                let deleteCost = row[j]
-                let replaceCost = previous + (ca == cb ? 0 : 1)
-                previous = row[j + 1]
-                row[j + 1] = min(insertCost + 1, deleteCost + 1, replaceCost)
-            }
+    // MARK: - Plural Normalization
+
+    private static let irregularPlurals: [String: String] = [
+        "mice": "mouse", "geese": "goose", "wolves": "wolf",
+        "calves": "calf", "knives": "knife", "leaves": "leaf",
+        "loaves": "loaf",
+    ]
+
+    private func normalizePlural(_ word: String) -> String {
+        if let irregular = Self.irregularPlurals[word] { return irregular }
+        if word.hasSuffix("ies") && word.count > 4 {
+            return String(word.dropLast(3)) + "y"
         }
-        return row[b.count]
-    }
-
-    private func isCommonFiller(_ word: String) -> Bool {
-        let fillers: Set = ["um", "uh", "the", "and", "a", "an", "oh", "hmm", "like",
-                            "so", "well", "okay", "ok", "was", "it", "is", "that",
-                            "i", "my", "me", "we", "you", "they", "he", "she",
-                            "can", "do", "did", "have", "has", "had", "been",
-                            "what", "how", "when", "where", "why", "who"]
-        return fillers.contains(word.lowercased())
+        if word.hasSuffix("shes") || word.hasSuffix("ches") || word.hasSuffix("xes") || word.hasSuffix("zes") {
+            return String(word.dropLast(2))
+        }
+        if word.hasSuffix("s") && !word.hasSuffix("ss") && word.count > 2 {
+            return String(word.dropLast())
+        }
+        return word
     }
 }

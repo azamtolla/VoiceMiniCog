@@ -604,33 +604,31 @@ struct PCPReportView: View {
 
             Divider()
 
-            // --- Hands + pivot section ---
+            // --- Hands (0/1/2) + pivot section ---
             VStack(alignment: .leading, spacing: 8) {
-                Text("HANDS & PIVOT (1 PT EACH)")
+                Text("HANDS & PIVOT")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(MCDesign.Colors.textTertiary)
                     .tracking(0.6)
 
-                clockRubricRow(
-                    label: "Minute hand toward 2 (11:10)",
-                    isOn: Binding(
-                        get: { q.cdtMinuteHandCorrect },
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Hands (both pointing correctly = 2, one = 1, neither = 0)")
+                        .font(.system(size: 13))
+                        .foregroundColor(MCDesign.Colors.textSecondary)
+                    Picker("Hands score", selection: Binding(
+                        get: { q.cdtHandsScore },
                         set: { newValue in
-                            q.cdtMinuteHandCorrect = newValue
+                            q.cdtHandsScore = newValue
                             q.recomputeClockDrawingScore()
                         }
-                    )
-                )
-                clockRubricRow(
-                    label: "Hour hand toward 11",
-                    isOn: Binding(
-                        get: { q.cdtHourHandCorrect },
-                        set: { newValue in
-                            q.cdtHourHandCorrect = newValue
-                            q.recomputeClockDrawingScore()
-                        }
-                    )
-                )
+                    )) {
+                        Text("0").tag(0)
+                        Text("1").tag(1)
+                        Text("2").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 clockRubricRow(
                     label: "Pivot (center where hands meet)",
                     isOn: Binding(
@@ -806,8 +804,7 @@ struct PCPReportView: View {
     private func resetClockRubric() {
         let q = state.qmciState
         q.cdtNumbersPlaced = Array(repeating: false, count: 12)
-        q.cdtMinuteHandCorrect = false
-        q.cdtHourHandCorrect = false
+        q.cdtHandsScore = 0
         q.cdtPivotCorrect = false
         q.cdtInvalidNumbersCount = 0
         q.recomputeClockDrawingScore()

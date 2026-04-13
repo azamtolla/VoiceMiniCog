@@ -459,8 +459,7 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             state.cdtInvalidNumbersCount = 0
             XCTAssertEqual(state.cdtComputedScore, 15,
@@ -472,8 +471,7 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = false
-            state.cdtHourHandCorrect = false
+            state.cdtHandsScore = 0
             state.cdtPivotCorrect = false
             XCTAssertEqual(state.cdtComputedScore, 12,
                            "12 numbers only = 12")
@@ -484,11 +482,10 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.cdtNumbersPlaced = Array(repeating: false, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             XCTAssertEqual(state.cdtComputedScore, 3,
-                           "Minute + hour + pivot = 3")
+                           "Hands (2) + pivot = 3")
         }
     }
 
@@ -496,8 +493,7 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             state.cdtInvalidNumbersCount = 2
             XCTAssertEqual(state.cdtComputedScore, 13,
@@ -509,8 +505,7 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.cdtNumbersPlaced = Array(repeating: false, count: 12)
-            state.cdtMinuteHandCorrect = false
-            state.cdtHourHandCorrect = false
+            state.cdtHandsScore = 0
             state.cdtPivotCorrect = false
             state.cdtInvalidNumbersCount = 5
             XCTAssertEqual(state.cdtComputedScore, 0,
@@ -523,8 +518,7 @@ class QmciScoringTests: XCTestCase {
             let state = QmciState()
             // This scenario can't naturally exceed 15, but ensure clamp works.
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             state.cdtInvalidNumbersCount = 0
             XCTAssertLessThanOrEqual(state.cdtComputedScore, 15,
@@ -538,8 +532,7 @@ class QmciScoringTests: XCTestCase {
             let state = QmciState()
             XCTAssertEqual(state.clockDrawingScore, 0, "Starts at 0")
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             // Before recompute, stored field is still stale
             XCTAssertEqual(state.clockDrawingScore, 0,
@@ -873,8 +866,7 @@ class QmciScoringTests: XCTestCase {
             state.delayedRecallWords = ["a"]
             state.clockDrawingScore = 15
             state.cdtNumbersPlaced = Array(repeating: true, count: 12)
-            state.cdtMinuteHandCorrect = true
-            state.cdtHourHandCorrect = true
+            state.cdtHandsScore = 2
             state.cdtPivotCorrect = true
             state.cdtInvalidNumbersCount = 3
 
@@ -888,8 +880,7 @@ class QmciScoringTests: XCTestCase {
             XCTAssertTrue(state.delayedRecallWords.isEmpty)
             XCTAssertEqual(state.clockDrawingScore, 0)
             XCTAssertEqual(state.cdtNumbersPlaced, Array(repeating: false, count: 12))
-            XCTAssertFalse(state.cdtMinuteHandCorrect)
-            XCTAssertFalse(state.cdtHourHandCorrect)
+            XCTAssertEqual(state.cdtHandsScore, 0)
             XCTAssertFalse(state.cdtPivotCorrect)
             XCTAssertEqual(state.cdtInvalidNumbersCount, 0)
         }

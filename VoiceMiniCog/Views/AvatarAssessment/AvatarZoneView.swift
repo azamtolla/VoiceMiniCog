@@ -2,453 +2,399 @@
 //  AvatarZoneView.swift
 //  VoiceMiniCog
 //
-//  Right side of the avatar assessment canvas — premium clinical avatar zone.
-//  Three-layer architecture:
-//    1. Background layer — dark gradient (standard phases) or white (clock drawing)
-//    2. Video layer — ONE persistent TavusCVIView, phase-aware frame/clip morph
-//    3. Chrome layer — phase-specific overlays (standard or clock drawing)
+//  Right side of the avatar assessment canvas — dark radial gradient with
+//  rectangular video for standard phases, or light surface with circular
+//  avatar crop and controls panel during clock drawing.
 //
-//  CRITICAL: TavusCVIView appears in exactly ONE `if let url` branch.
-//  That branch is NOT nested inside any phase-conditional. Only the video's
-//  .frame(), .clipShape(), and .position() depend on isClockDrawing.
+//  Clock drawing uses a light panel (#F2F4F6), circular video clip, and
+//  panel-only instructions / actions; other phases use the dark radial chrome.
 //
 
 import SwiftUI
 
 // MARK: - CLINICAL-UI
-// Displays the AI avatar video stream with clinical trust indicators.
-// No PHI is rendered here — only the avatar video feed and status overlays.
+// Displays the AI avatar video stream and behavioral state indicator.
+// No PHI is rendered here — only the avatar video feed and state label.
 
 struct AvatarZoneView: View {
     let layoutManager: AvatarLayoutManager
     let conversationURL: String?
-    var isLoading: Bool = false
-    var errorMessage: String?
-    var onAvatarEvent: ((TavusAvatarEvent) -> Void)?
+    var isConnecting: Bool = false
+    var errorMessage: String? = nil
     let width: CGFloat
     let height: CGFloat
+    var onRetry: (() -> Void)? = nil
+    var onContinueWithoutAvatar: (() -> Void)? = nil
+    var onDoneDrawing: (() -> Void)? = nil
+    var onEndSession: (() -> Void)? = nil
 
-    // MARK: Clock Drawing Callbacks (Task 6 will wire these)
-
-    var onDoneDrawing: (() -> Void)?
-    var onEndSession: (() -> Void)?
-
-    // MARK: Animation State
-
-    @State private var breatheScale: CGFloat = 1.0
     @State private var ringScale: CGFloat = 1.0
-    @State private var ringOpacity: Double = 0.4
-    @State private var statusDotOpacity: Double = 0.5
-    @State private var waveformActive = false
-    @State private var accentGlowOpacity: Double = 0.06
+    @State private var ringOpacity: Double = 1.0
+    @State private var connectingElapsed: TimeInterval = 0
+    private let connectionTimeout: TimeInterval = 15
+
+    /// Clock panel: hide the connecting / Waiting chip once Daily has joined (or session already live).
+    @State private var clockPanelFeedReady = false
+
+    private var isClockDrawing: Bool {
+        layoutManager.currentPhase == .clockDrawing
+    }
 
     // MARK: - Body
 
     var body: some View {
-        let isClockDrawing = layoutManager.currentPhase == .clockDrawing
+        let circleDiam = min(width * 0.65, 160.0)
 
-        GeometryReader { geo in
-            ZStack {
-                backgroundLayer(isClockDrawing: isClockDrawing)
-                videoLayer(isClockDrawing: isClockDrawing, panelWidth: geo.size.width, panelHeight: geo.size.height)
-                if isClockDrawing {
-                    clockDrawingChromeLayer(panelHeight: geo.size.height)
-                } else {
-                    standardChromeLayer(inset: AssessmentTheme.Avatar.videoInset)
+        ZStack {
+            // 1. Background — dark gradient (standard) or light surface (clock only)
+            if isClockDrawing {
+                Color(hex: "#F2F4F6")
+            } else {
+                RadialGradient(
+                    colors: [AssessmentTheme.Avatar.gradientCenter, AssessmentTheme.Avatar.gradientEdge],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: max(width, height) * 0.7
+                )
+            }
+
+            // 2. Video / placeholders — ONE TavusCVIView when URL exists; layout + clip change with phase.
+            //    Clock drawing: small circle at top, no colored ring.
+            //    Standard: full-bleed rectangle with rounded corners.
+            //    clipShape MUST be applied before the expanding frame so the clip
+            //    region matches the video content, not the full-zone container.
+            Group {
+                if let url = conversationURL {
+                    TavusCVIView(conversationURL: url)
+                        .padding(isClockDrawing ? 0 : 16)
+                        .frame(width: isClockDrawing ? circleDiam : nil,
+                               height: isClockDrawing ? circleDiam : nil)
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: isClockDrawing ? circleDiam / 2 : 16,
+                                style: .continuous
+                            )
+                        )
+                        .overlay {
+                            if isClockDrawing {
+                                Circle()
+                                    .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: isClockDrawing ? .top : .center)
+                        .padding(.top, isClockDrawing ? 40 : 0)
+                        .opacity(layoutManager.avatarOpacity)
+                } else if isConnecting && connectingElapsed < connectionTimeout {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(isClockDrawing ? .gray : .white)
+                            .scaleEffect(1.5)
+                        Text("Connecting avatar...")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isClockDrawing ? Color(hex: "#374151") : .white.opacity(0.7))
+                    }
+                    .onAppear { connectingElapsed = 0 }
+                    .task(id: isConnecting) {
+                        while !Task.isCancelled && isConnecting {
+                            try? await Task.sleep(for: .seconds(1))
+                            connectingElapsed += 1
+                        }
+                    }
+                } else if let error = errorMessage {
+                    avatarRecoveryView(message: error, lightChrome: isClockDrawing)
+                } else if isConnecting && connectingElapsed >= connectionTimeout {
+                    avatarRecoveryView(message: "Avatar is taking longer than expected.", lightChrome: isClockDrawing)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: layoutManager.avatarOpacity)
+
+            // 3. Accent ring — standard mode (hidden during clock, registration, fluency, and .waiting)
+            if !isClockDrawing
+                && layoutManager.currentPhase != .wordRegistration
+                && layoutManager.currentPhase != .verbalFluency
+                && layoutManager.showAvatarRing {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(layoutManager.accentColor, lineWidth: AssessmentTheme.Sizing.avatarRingWidth)
+                    .padding(16)
+                    .scaleEffect(ringScale)
+                    .opacity(ringOpacity)
+                    .animation(.easeInOut(duration: 0.3), value: ringScale)
+                    .animation(.easeInOut(duration: 0.3), value: ringOpacity)
+            }
+
+            // 4. Controls panel — clock drawing mode
+            if isClockDrawing {
+                clockDrawingControls(circleDiam: circleDiam)
+                    .transition(.opacity)
+            }
+
+            // 5. State label — standard mode
+            if !isClockDrawing {
+                VStack {
+                    Spacer()
+                    avatarStateLabel
+                        .padding(.bottom, 20)
                 }
             }
         }
+        .animation(.spring(duration: 0.55, bounce: 0.15), value: layoutManager.currentPhase)
         .onChange(of: layoutManager.avatarBehavior) { _, newBehavior in
-            updateAnimations(for: newBehavior)
+            updateRingAnimation(for: newBehavior)
         }
         .onAppear {
-            startBreathing()
-            updateAnimations(for: layoutManager.avatarBehavior)
+            updateRingAnimation(for: layoutManager.avatarBehavior)
+            refreshClockPanelFeedReady()
         }
-    }
-
-    // MARK: - Background Layer
-
-    @ViewBuilder
-    private func backgroundLayer(isClockDrawing: Bool) -> some View {
-        if isClockDrawing {
-            AssessmentTheme.ClockControls.panelBackground
-        } else {
-            ZStack {
-                animatedBackground
-                phaseAccentGlow
+        .onChange(of: layoutManager.currentPhase) { _, _ in
+            refreshClockPanelFeedReady()
+        }
+        .onChange(of: conversationURL) { _, _ in
+            refreshClockPanelFeedReady()
+        }
+        .onChange(of: isConnecting) { _, _ in
+            refreshClockPanelFeedReady()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tavusDailyRoomJoined)) { _ in
+            if layoutManager.currentPhase == .clockDrawing {
+                clockPanelFeedReady = true
             }
         }
     }
 
-    // MARK: - Video Layer (CRITICAL — single TavusCVIView at fixed tree position)
-
-    @ViewBuilder
-    private func videoLayer(isClockDrawing: Bool, panelWidth: CGFloat, panelHeight: CGFloat) -> some View {
-        if isLoading && conversationURL == nil {
-            loadingState
-        } else if let error = errorMessage, conversationURL == nil {
-            errorState(error)
-        } else if let url = conversationURL {
-            let diameter = AssessmentTheme.ClockControls.avatarDiameter
-            let inset = AssessmentTheme.Avatar.videoInset
-            let standardW = panelWidth - 2 * inset - 2
-            let standardH = panelHeight - 2 * inset - 2
-            let videoW = isClockDrawing ? diameter : standardW
-            let videoH = isClockDrawing ? diameter : standardH
-            let centerY = isClockDrawing ? (diameter / 2) + 60 : panelHeight / 2
-
-            TavusCVIView(conversationURL: url, onAvatarEvent: onAvatarEvent)
-                .frame(width: videoW, height: videoH)
-                .clipShape(PhaseClipShape(circleProgress: isClockDrawing ? 1.0 : 0.0))
-                .overlay(videoRingOverlay(isClockDrawing: isClockDrawing))
-                .opacity(layoutManager.avatarOpacity)
-                .scaleEffect(isClockDrawing ? 1.0 : breatheScale)
-                .position(x: panelWidth / 2, y: centerY)
-                .animation(.spring(duration: 0.55, bounce: 0.15), value: isClockDrawing)
+    /// True once Daily has reported joined, or the session already has a live URL when entering clock.
+    private func refreshClockPanelFeedReady() {
+        guard isClockDrawing else {
+            clockPanelFeedReady = false
+            return
+        }
+        if conversationURL != nil, !isConnecting {
+            clockPanelFeedReady = true
         }
     }
 
-    // MARK: - Video Ring Overlay
+    // MARK: - Clock Drawing Controls
 
     @ViewBuilder
-    private func videoRingOverlay(isClockDrawing: Bool) -> some View {
-        if isClockDrawing {
-            PhaseClipShape(circleProgress: 1.0)
-                .strokeBorder(AssessmentTheme.ClockControls.avatarRingColor, lineWidth: AssessmentTheme.ClockControls.avatarRingWidth)
-        } else {
-            RoundedRectangle(cornerRadius: AssessmentTheme.Avatar.videoCornerRadius)
-                .strokeBorder(layoutManager.accentColor.opacity(ringOpacity), lineWidth: AssessmentTheme.Avatar.accentRingWidth)
-                .scaleEffect(ringScale)
-        }
-    }
+    private func clockDrawingControls(circleDiam: CGFloat) -> some View {
+        VStack(spacing: 16) {
+            // Space for the circular avatar above
+            Spacer().frame(height: 40 + circleDiam + (clockPanelFeedReady ? 16 : 8))
 
-    // MARK: - Clock Drawing Chrome Layer
-
-    private func clockDrawingChromeLayer(panelHeight: CGFloat) -> some View {
-        let avatarBottom = 60 + AssessmentTheme.ClockControls.avatarDiameter + 20
-        return VStack(spacing: 0) {
-            Spacer().frame(height: avatarBottom)
-            if let done = onDoneDrawing, let end = onEndSession {
-                ClockDrawingControlsView(
-                    layoutManager: layoutManager,
-                    onDoneDrawing: done,
-                    onEndSession: end
-                )
+            // Connecting / Waiting — hidden once the feed is considered live (Daily joined or URL ready).
+            if !clockPanelFeedReady {
+                HStack(spacing: 10) {
+                    WaveformBars(
+                        isActive: true,
+                        color: layoutManager.avatarBehavior == .speaking
+                            ? Color(hex: "#34C759")
+                            : AssessmentTheme.Phase.welcome
+                    )
+                    Text(isConnecting ? "Connecting..." : clockStatusText)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color(hex: "#1F2937"))
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(Color(hex: "#E5E7EB"))
+                .clipShape(Capsule())
+                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
             }
+
+            Spacer()
+
+            // Clock instruction (panel only)
+            Text(LeftPaneSpeechCopy.clockDrawingAvatarPanelInstruction)
+                .font(.system(size: 17, weight: .regular))
+                .multilineTextAlignment(.center)
+                .foregroundColor(Color(hex: "#111827"))
+                .padding(.horizontal, 24)
+
+            Spacer().frame(height: 4)
+
+            // Done Drawing
+            if let onDoneDrawing {
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    onDoneDrawing()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Done Drawing")
+                            .font(.system(size: 17, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: 260)
+                    .frame(height: 52)
+                    .background(Color(hex: "#34C759"))
+                    .cornerRadius(14)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // End Session
+            if let onEndSession {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onEndSession()
+                } label: {
+                    Text("End Session")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: 260)
+                        .frame(height: 52)
+                        .background(Color(hex: "#DC2626"))
+                        .cornerRadius(14)
+                }
+                .buttonStyle(.plain)
+            }
+
             Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 24)
     }
 
-    // MARK: - Standard Chrome Layer
+    // MARK: - Clock Status Text
 
-    private func standardChromeLayer(inset: CGFloat) -> some View {
-        ZStack {
-            // Glass material backdrop
-            RoundedRectangle(cornerRadius: AssessmentTheme.Avatar.videoCornerRadius)
-                .fill(Color.white.opacity(AssessmentTheme.Avatar.glassOpacity))
-                .padding(inset)
-                .allowsHitTesting(false)
-
-            // Clinical light effect (top-left highlight)
-            RoundedRectangle(cornerRadius: AssessmentTheme.Avatar.videoCornerRadius)
-                .fill(LinearGradient(colors: [Color.white.opacity(0.03), Color.clear], startPoint: .topLeading, endPoint: .center))
-                .padding(inset)
-                .allowsHitTesting(false)
-
-            // Status dot, badge, waveform overlays
-            overlays(inset: inset)
-        }
-    }
-
-    // MARK: - Animated Background
-
-    private var animatedBackground: some View {
-        RadialGradient(
-            colors: [AssessmentTheme.Avatar.gradientCenter, AssessmentTheme.Avatar.gradientEdge],
-            center: .init(x: 0.5, y: 0.4),
-            startRadius: 0,
-            endRadius: max(width, height) * 0.8
-        )
-    }
-
-    // MARK: - Phase Accent Glow
-
-    private var phaseAccentGlow: some View {
-        RadialGradient(
-            colors: [
-                layoutManager.accentColor.opacity(accentGlowOpacity),
-                Color.clear
-            ],
-            center: .center,
-            startRadius: 0,
-            endRadius: max(width, height) * 0.5
-        )
-        .animation(.easeInOut(duration: 0.8), value: layoutManager.accentColor)
-        .animation(.easeInOut(duration: 0.6), value: accentGlowOpacity)
-    }
-
-    // MARK: - Loading State
-
-    private var loadingState: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .progressViewStyle(.circular)
-                .tint(.white)
-                .scaleEffect(1.5)
-            Text("Connecting to Avatar...")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
-        }
-    }
-
-    // MARK: - Error State
-
-    private func errorState(_ error: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.orange)
-            Text("Avatar Unavailable")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.white)
-            Text(error)
-                .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.6))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-        }
-    }
-
-    // MARK: - Overlays
-
-    private func overlays(inset: CGFloat) -> some View {
-        ZStack {
-            // Status dot (top-right)
-            VStack {
-                HStack {
-                    Spacer()
-                    statusDot
-                        .padding(.top, inset + 14)
-                        .padding(.trailing, inset + 14)
-                }
-                Spacer()
-            }
-
-            // Bottom overlays
-            VStack {
-                Spacer()
-                HStack(alignment: .bottom) {
-                    // Mercy Clinical badge (bottom-left)
-                    clinicalBadge
-                        .padding(.leading, inset + 12)
-
-                    Spacer()
-
-                    // Audio waveform (bottom-center -> right area)
-                }
-                .padding(.bottom, inset + 14)
-
-                // Audio waveform centered at bottom
-                if waveformActive {
-                    audioWaveform
-                        .padding(.bottom, inset + 14)
-                        .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                }
-            }
-        }
-    }
-
-    // MARK: - Status Dot
-
-    private var statusDot: some View {
-        Circle()
-            .fill(statusDotColor)
-            .frame(
-                width: AssessmentTheme.Avatar.statusDotSize,
-                height: AssessmentTheme.Avatar.statusDotSize
-            )
-            .shadow(color: statusDotColor.opacity(0.5), radius: 6)
-            .opacity(statusDotOpacity)
-    }
-
-    private var statusDotColor: Color {
+    private var clockStatusText: String {
         switch layoutManager.avatarBehavior {
-        case .speaking, .narrating:
-            return layoutManager.accentColor
-        case .listening:
-            return Color(hex: "#22C55E")
-        default:
-            return Color(hex: "#6B7280")
+        case .speaking, .narrating: return "Speaking..."
+        case .listening:            return "Listening..."
+        case .waiting:              return "Waiting..."
+        case .idle:                 return "Ready"
+        case .acknowledging:        return "Got it..."
+        case .completing:           return "Finishing..."
         }
     }
 
-    // MARK: - Clinical Badge
+    // MARK: - State Label
 
-    private var clinicalBadge: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "staroflife.fill")
-                .font(.system(size: 10))
-                .foregroundColor(layoutManager.accentColor.opacity(0.8))
-
-            Text("Mercy Clinical Team")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.white.opacity(0.5))
+    @ViewBuilder
+    private var avatarStateLabel: some View {
+        let labelText = stateLabelText(for: layoutManager.avatarBehavior)
+        if !labelText.isEmpty {
+            Text(labelText)
+                .font(AssessmentTheme.Fonts.avatarLabel)
+                .foregroundColor(.white.opacity(0.7))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(AssessmentTheme.Avatar.badgeOpacity))
-                .overlay(
-                    Capsule()
-                        .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
-                )
-        )
-        .background(.ultraThinMaterial, in: Capsule())
     }
 
-    // MARK: - Audio Waveform
+    // MARK: - Helpers
 
-    private var audioWaveform: some View {
-        HStack(spacing: AssessmentTheme.Avatar.waveBarWidth) {
-            ForEach(0..<AssessmentTheme.Avatar.waveBarCount, id: \.self) { index in
-                WaveformBar(
-                    index: index,
-                    accentColor: layoutManager.accentColor,
-                    isActive: waveformActive
-                )
+    private func stateLabelText(for behavior: AvatarBehavior) -> String {
+        switch behavior {
+        case .speaking:        return "Speaking..."
+        case .listening:       return "Listening..."
+        case .narrating:       return "Reading story..."
+        case .idle:            return "Ready"
+        case .acknowledging:   return "Got it..."
+        case .waiting:         return ""
+        case .completing:      return "Finishing up..."
+        }
+    }
+
+    // MARK: - Recovery UI
+
+    private func avatarRecoveryView(message: String, lightChrome: Bool) -> some View {
+        let primaryText = lightChrome ? Color(hex: "#374151") : Color.white.opacity(0.7)
+        let secondaryText = lightChrome ? Color(hex: "#6B7280") : Color.white.opacity(0.5)
+        let buttonBg = lightChrome ? Color(hex: "#E5E7EB") : Color.white.opacity(0.15)
+        let buttonFg = lightChrome ? Color(hex: "#111827") : Color.white
+
+        return VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28))
+                .foregroundColor(.orange)
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundColor(primaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+
+            if let onRetry {
+                Button {
+                    connectingElapsed = 0
+                    onRetry()
+                } label: {
+                    Label("Retry Connection", systemImage: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(buttonFg)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(buttonBg)
+                        .clipShape(Capsule())
+                }
+            }
+
+            if let onContinue = onContinueWithoutAvatar {
+                Button {
+                    onContinue()
+                } label: {
+                    Text("Continue without avatar")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(secondaryText)
+                }
             }
         }
-        .frame(height: 20)
     }
 
-    // MARK: - Animation Control
-
-    private func startBreathing() {
-        withAnimation(
-            .easeInOut(duration: AssessmentTheme.Avatar.breatheDuration)
-            .repeatForever(autoreverses: true)
-        ) {
-            breatheScale = AssessmentTheme.Avatar.breatheScale
-        }
-    }
-
-    private func updateAnimations(for behavior: AvatarBehavior) {
+    private func updateRingAnimation(for behavior: AvatarBehavior) {
         switch behavior {
         case .speaking, .narrating:
-            withAnimation(.easeInOut(duration: 0.4)) {
-                ringOpacity = 0.6
-                accentGlowOpacity = 0.1
-                statusDotOpacity = 1.0
-                waveformActive = true
-            }
             withAnimation(
                 .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
                 .repeatForever(autoreverses: true)
             ) {
-                ringScale = 1.02
+                ringScale = 1.03
+                ringOpacity = 1.0
             }
 
         case .listening:
-            withAnimation(.easeInOut(duration: 0.4)) {
-                ringOpacity = 0.5
-                ringScale = 1.0
-                accentGlowOpacity = 0.08
-                statusDotOpacity = 1.0
-                waveformActive = false
-            }
             withAnimation(
-                .easeInOut(duration: 2.0)
+                .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
                 .repeatForever(autoreverses: true)
             ) {
-                ringScale = 1.03
+                ringScale = 1.05
+                ringOpacity = 1.0
             }
 
         case .idle:
-            withAnimation(.easeInOut(duration: 0.6)) {
-                ringOpacity = 0.25
+            withAnimation(
+                .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
+                .repeatForever(autoreverses: true)
+            ) {
+                ringOpacity = 0.4
                 ringScale = 1.0
-                accentGlowOpacity = 0.06
-                statusDotOpacity = 0.5
-                waveformActive = false
             }
 
         case .acknowledging:
             withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                ringScale = 1.04
-                ringOpacity = 0.7
+                ringScale = 1.08
+                ringOpacity = 1.0
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     ringScale = 1.0
-                    ringOpacity = 0.3
                 }
             }
 
         case .waiting:
-            withAnimation(.easeInOut(duration: 0.5)) {
+            withAnimation(.easeInOut(duration: 0.2)) {
                 ringOpacity = 0.0
-                accentGlowOpacity = 0.02
-                statusDotOpacity = 0.3
-                waveformActive = false
+                ringScale = 1.0
             }
 
         case .completing:
-            withAnimation(.easeInOut(duration: 0.4)) {
-                ringOpacity = 0.4
+            withAnimation(.easeInOut(duration: 0.3)) {
+                ringOpacity = 0.6
                 ringScale = 1.0
-                accentGlowOpacity = 0.06
-                statusDotOpacity = 0.6
-                waveformActive = false
             }
-        }
-    }
-}
-
-// MARK: - Waveform Bar
-
-private struct WaveformBar: View {
-    let index: Int
-    let accentColor: Color
-    let isActive: Bool
-
-    @State private var barHeight: CGFloat = 4
-
-    private var targetHeight: CGFloat {
-        // Staggered heights for visual interest
-        let heights: [CGFloat] = [6, 12, 8, 16, 10, 14, 7]
-        return heights[index % heights.count]
-    }
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 1.5)
-            .fill(accentColor.opacity(0.5 + Double(index % 3) * 0.1))
-            .frame(width: AssessmentTheme.Avatar.waveBarWidth, height: barHeight)
-            .onAppear {
-                guard isActive else { return }
-                animate()
-            }
-            .onChange(of: isActive) { _, active in
-                if active {
-                    animate()
-                } else {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        barHeight = 4
-                    }
-                }
-            }
-    }
-
-    private func animate() {
-        let delay = Double(index) * 0.08
-        withAnimation(
-            .easeInOut(duration: 0.6 + Double(index % 3) * 0.15)
-            .repeatForever(autoreverses: true)
-            .delay(delay)
-        ) {
-            barHeight = targetHeight
         }
     }
 }

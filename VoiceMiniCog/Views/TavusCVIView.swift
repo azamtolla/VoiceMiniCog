@@ -12,6 +12,9 @@
 
 import SwiftUI
 import WebKit
+import os
+
+private let cviLog = Logger(subsystem: "com.mercycog.VoiceMiniCog", category: "TavusCVI")
 
 extension Notification.Name {
     static let tavusContextUpdate = Notification.Name("tavusContextUpdate")
@@ -26,6 +29,8 @@ extension Notification.Name {
     static let patientStartedSpeaking = Notification.Name("patientStartedSpeaking")
     /// Daily room joined — WebView bridge can now deliver echos; welcome may replay if the first echo was missed.
     static let tavusDailyRoomJoined = Notification.Name("tavusDailyRoomJoined")
+    /// Mute/unmute the patient's microphone in the Daily call
+    static let tavusMicMuteRequest = Notification.Name("tavusMicMuteRequest")
 }
 
 // MARK: - CLINICAL-UI
@@ -60,13 +65,18 @@ struct TavusCVIView: UIViewRepresentable {
         context.coordinator.conversationURL = conversationURL
         context.coordinator.onAvatarEvent = onAvatarEvent
 
-        // Load the custom bridge HTML
+        let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+        print("[TavusCVI] makeUIView — WKWebView \(ptr) created")
+        cviLog.info("makeUIView — WKWebView \(ptr, privacy: .public) created")
+
+        // Load the custom bridge HTML — restrict read access to the file itself
+        // to prevent bridge JS from reading other files in Resources/.
         if let bridgePath = Bundle.main.path(forResource: "TavusBridge", ofType: "html") {
             let bridgeURL = URL(fileURLWithPath: bridgePath)
-            webView.loadFileURL(bridgeURL, allowingReadAccessTo: bridgeURL.deletingLastPathComponent())
-            print("[TavusCVI] Loading bridge HTML")
+            webView.loadFileURL(bridgeURL, allowingReadAccessTo: bridgeURL)
+            cviLog.info("Loading bridge HTML (webView \(ptr, privacy: .public))")
         } else {
-            print("[TavusCVI] ERROR: TavusBridge.html not found in bundle")
+            cviLog.error("TavusBridge.html not found in bundle")
         }
 
         return webView
@@ -74,6 +84,12 @@ struct TavusCVIView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         // No-op: conversation URL doesn't change during a session
+    }
+
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+        print("[TavusCVI] dismantleUIView — WKWebView \(ptr) DESTROYED")
+        cviLog.info("dismantleUIView — WKWebView \(ptr, privacy: .public) DESTROYED")
     }
 
     func makeCoordinator() -> Coordinator {
@@ -89,6 +105,7 @@ struct TavusCVIView: UIViewRepresentable {
         private var hasJoined = false
         private var contextObserver: NSObjectProtocol?
         private var echoObserver: NSObjectProtocol?
+        private var muteObserver: NSObjectProtocol?
 
         override init() {
             super.init()
@@ -112,6 +129,16 @@ struct TavusCVIView: UIViewRepresentable {
                     self?.sendEcho(text)
                 }
             }
+            // Listen for mic mute/unmute requests
+            muteObserver = NotificationCenter.default.addObserver(
+                forName: .tavusMicMuteRequest,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                if let muted = notification.userInfo?["muted"] as? Bool {
+                    self?.setMicMuted(muted)
+                }
+            }
         }
 
         deinit {
@@ -119,6 +146,9 @@ struct TavusCVIView: UIViewRepresentable {
                 NotificationCenter.default.removeObserver(observer)
             }
             if let observer = echoObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            if let observer = muteObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
         }
@@ -132,20 +162,52 @@ struct TavusCVIView: UIViewRepresentable {
             type: WKMediaCaptureType,
             decisionHandler: @escaping (WKPermissionDecision) -> Void
         ) {
-            decisionHandler(.grant)
+            // Allowlist: local bridge file (file://) + Tavus and Daily domains.
+            // Any other origin is denied — prevents remote frames or future
+            // code changes from silently gaining mic/camera access to PHI.
+            let host = origin.host.lowercased()
+            let allowed = origin.protocol == "file"
+                || host.hasSuffix("tavus.io")
+                || host.hasSuffix("daily.co")
+                || host.hasSuffix("daily.com")
+            if allowed {
+                decisionHandler(.grant)
+            } else {
+                cviLog.warning("Denied media capture from non-allowlisted origin: \(host, privacy: .public)")
+                decisionHandler(.deny)
+            }
         }
 
         // MARK: Bridge Page Loaded → Join Room
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            guard !hasJoined, let url = conversationURL else { return }
-            hasJoined = true
-            print("[TavusCVI] Bridge loaded, joining room: \(url)")
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+            cviLog.info("didCommit — webView \(ptr, privacy: .public)")
+        }
 
-            let js = "joinRoom('\(url)');"
-            webView.evaluateJavaScript(js) { _, error in
-                if let error {
-                    print("[TavusCVI] joinRoom error: \(error.localizedDescription)")
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+            guard !hasJoined, let url = conversationURL else {
+                print("[TavusCVI] didFinish — webView \(ptr), already joined or no URL")
+                cviLog.info("didFinish — webView \(ptr, privacy: .public), already joined or no URL")
+                return
+            }
+            hasJoined = true
+            print("[TavusCVI] didFinish — webView \(ptr), joining room")
+            cviLog.info("didFinish — webView \(ptr, privacy: .public), joining room")
+
+            // joinRoom is async in the bridge JS — use callAsyncJavaScript
+            // with parameterized argument to avoid URL injection.
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "await joinRoom(url);",
+                        arguments: ["url": url],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("joinRoom failed: \(error.localizedDescription, privacy: .public)")
                 }
             }
         }
@@ -165,26 +227,29 @@ struct TavusCVIView: UIViewRepresentable {
             switch type {
             case "log":
                 let msg = json["message"] as? String ?? ""
-                print("[TavusBridge] \(msg)")
+                cviLog.debug("Bridge: \(msg, privacy: .private)")
 
             case "joined":
-                print("[TavusCVI] ✅ Joined Daily room")
+                print("[TavusCVI] Joined Daily room")
+                cviLog.info("Joined Daily room")
                 onAvatarEvent?(.joined)
                 NotificationCenter.default.post(name: .tavusDailyRoomJoined, object: nil)
 
             case "left":
                 print("[TavusCVI] Left Daily room")
+                cviLog.info("Left Daily room")
                 onAvatarEvent?(.left)
 
             case "error":
                 let msg = json["message"] as? String ?? "Unknown"
-                print("[TavusCVI] ❌ Error: \(msg)")
+                print("[TavusCVI] Bridge error: \(msg)")
+                cviLog.error("Bridge error: \(msg, privacy: .public)")
                 onAvatarEvent?(.error(msg))
 
             case "tavusEvent":
                 if let event = json["event"] as? [String: Any],
                    let eventType = event["event_type"] as? String {
-                    print("[TavusCVI] Tavus event: \(eventType)")
+                    cviLog.debug("Tavus event: \(eventType, privacy: .public)")
                     switch eventType {
                     case "conversation.replica.started_speaking":
                         onAvatarEvent?(.replicaStartedSpeaking)
@@ -209,40 +274,94 @@ struct TavusCVIView: UIViewRepresentable {
         }
 
         // MARK: Swift → JS Interaction Methods
+        //
+        // All methods use callAsyncJavaScript with parameterized arguments
+        // to prevent JavaScript injection. Values are passed as native
+        // arguments, never interpolated into JS strings.
 
         /// Update the avatar's conversation context (tells it what phase/state we're in)
         func sendContextUpdate(_ context: String) {
-            let escaped = context
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
-                .replacingOccurrences(of: "\n", with: "\\n")
-            let js = "sendContextUpdate('\(escaped)');"
-            webView?.evaluateJavaScript(js) { _, error in
-                if let error { print("[TavusCVI] Context update error: \(error.localizedDescription)") }
+            guard let webView else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendContextUpdate(text);",
+                        arguments: ["text": context],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("Context update failed: \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
 
         /// Make the avatar speak exact text (bypasses LLM — for clinical prompts)
         func sendEcho(_ text: String) {
-            let escaped = text
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
-                .replacingOccurrences(of: "\n", with: "\\n")
-            let js = "sendEcho('\(escaped)');"
-            webView?.evaluateJavaScript(js) { _, error in
-                if let error { print("[TavusCVI] Echo error: \(error.localizedDescription)") }
+            guard let webView else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendEcho(text);",
+                        arguments: ["text": text],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("Echo failed: \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
 
         /// Interrupt the avatar (stop speaking immediately)
         func sendInterrupt() {
-            webView?.evaluateJavaScript("sendInterrupt();", completionHandler: nil)
+            guard let webView else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendInterrupt();",
+                        arguments: [:],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("Interrupt failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+
+        /// Mute or unmute the patient's microphone via the Daily JS bridge
+        func setMicMuted(_ muted: Bool) {
+            guard let webView else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "setMicMuted(muted);",
+                        arguments: ["muted": muted],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("setMicMuted failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
 
         /// Adjust turn-taking sensitivity
         func setSensitivity(pause: String, interrupt: String) {
-            let js = "setSensitivity('\(pause)', '\(interrupt)');"
-            webView?.evaluateJavaScript(js, completionHandler: nil)
+            guard let webView else { return }
+            Task { @MainActor in
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "setSensitivity(p, i);",
+                        arguments: ["p": pause, "i": interrupt],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                } catch {
+                    cviLog.error("setSensitivity failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
         }
 
         // MARK: Navigation Error Handling
@@ -252,7 +371,9 @@ struct TavusCVIView: UIViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
-            print("[TavusCVI] Navigation failed: \(error.localizedDescription)")
+            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+            cviLog.error("Navigation failed — webView \(ptr, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            hasJoined = false  // allow rejoin on next successful navigation
         }
 
         func webView(
@@ -260,7 +381,9 @@ struct TavusCVIView: UIViewRepresentable {
             didFail navigation: WKNavigation!,
             withError error: Error
         ) {
-            print("[TavusCVI] Load failed: \(error.localizedDescription)")
+            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
+            cviLog.error("Load failed — webView \(ptr, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            hasJoined = false  // allow rejoin on next successful navigation
         }
     }
 }
@@ -287,6 +410,24 @@ func avatarSetContext(_ context: String) {
         name: .tavusContextUpdate,
         object: nil,
         userInfo: ["context": context]
+    )
+}
+
+/// Set assessment context with examinerNeverCorrectPatient automatically appended.
+/// Use this instead of `avatarSetContext` in all QMCI subtest phase views to
+/// enforce the protocol constraint that the examiner never confirms or denies
+/// patient responses. This eliminates the regression risk of forgetting to
+/// append the rule at each individual call site.
+func avatarSetAssessmentContext(_ context: String) {
+    avatarSetContext(context + " " + LeftPaneSpeechCopy.examinerNeverCorrectPatient)
+}
+
+/// Mute or unmute the patient's microphone in the active Daily call.
+func avatarSetMicMuted(_ muted: Bool) {
+    NotificationCenter.default.post(
+        name: .tavusMicMuteRequest,
+        object: nil,
+        userInfo: ["muted": muted]
     )
 }
 

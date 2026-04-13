@@ -116,7 +116,7 @@ enum QMCIScoringEngine {
             return "Presented: \(presented)\nRecalled: \(recalled)"
         case .clockDrawing:
             let numbers = session.cdtNumbersPlaced.filter { $0 }.count
-            return "Numbers: \(numbers)/12 • Minute: \(session.cdtMinuteHandCorrect ? "✓" : "✗") • Hour: \(session.cdtHourHandCorrect ? "✓" : "✗") • Pivot: \(session.cdtPivotCorrect ? "✓" : "✗") • Errors: \(session.cdtInvalidNumbersCount)"
+            return "Numbers: \(numbers)/12 • Hands: \(session.cdtHandsScore)/2 • Pivot: \(session.cdtPivotCorrect ? "✓" : "✗") • Errors: \(session.cdtInvalidNumbersCount)"
         case .verbalFluency:
             let unique = Set(session.verbalFluencyWords.map { $0.lowercased() }).count
             return "\(unique) unique animals — \(session.verbalFluencyWords.joined(separator: ", "))"

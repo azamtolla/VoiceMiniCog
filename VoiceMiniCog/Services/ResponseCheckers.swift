@@ -78,95 +78,48 @@ func makeRecallChecker(wordList: [String]) -> (String) -> Bool {
     }
 }
 
-// Score word recall - returns count and list of recalled words
-func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, recalled: [String]) {
+// Score word recall - returns count, recalled words, intrusions, and repetition count.
+// Intrusions are non-target words the patient said (excluding common filler/stop words).
+// Repetitions count how many times the patient re-said an already-credited target word.
+func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, recalled: [String], intrusions: [String], repetitions: Int) {
     let lower = transcript.lowercased()
     var found: [String] = []
+    var intrusions: [String] = []
+    var repetitions = 0
 
-    for word in wordList {
-        if lower.contains(word.lowercased()) && !found.contains(word.lowercased()) {
-            found.append(word.lowercased())
+    // Target word matching (substring — catches partial utterances)
+    let targets = wordList.map { $0.lowercased() }
+    for target in targets {
+        if lower.contains(target) && !found.contains(target) {
+            found.append(target)
         }
     }
 
-    return (count: found.count, recalled: found)
-}
-
-// MARK: - Word registration (fuzzy STT / homophone-tolerant)
-
-private func registrationTokenize(_ transcript: String) -> [String] {
-    transcript
-        .lowercased()
-        .split { !$0.isLetter && !$0.isNumber }
-        .map(String.init)
-        .filter { !$0.isEmpty }
-}
-
-private func registrationLevenshtein(_ a: String, _ b: String) -> Int {
-    let a = Array(a)
-    let b = Array(b)
-    var row = Array(0...b.count)
-    for (i, ca) in a.enumerated() {
-        var previous = row[0]
-        row[0] = i + 1
-        for (j, cb) in b.enumerated() {
-            let insertCost = row[j + 1]
-            let deleteCost = row[j]
-            let replaceCost = previous + (ca == cb ? 0 : 1)
-            previous = row[j + 1]
-            row[j + 1] = min(insertCost + 1, deleteCost + 1, replaceCost)
+    // Intrusion + repetition detection (word-level)
+    let stopWords: Set<String> = [
+        "the", "a", "an", "and", "or", "but", "i", "me", "my", "is", "are",
+        "was", "were", "it", "that", "this", "of", "to", "in", "on", "um",
+        "uh", "like", "so", "well", "yeah", "yes", "no", "ok", "okay",
+        "let", "think", "hmm", "ah", "oh", "they", "those", "them",
+        "don't", "dont", "can't", "cant", "know", "remember", "recall",
+        "what", "again", "said", "words", "word", "say", "there"
+    ]
+    let spokenWords = lower.components(separatedBy: CharacterSet.alphanumerics.inverted)
+        .filter { !$0.isEmpty && $0.count > 1 }
+    var seenTargets: Set<String> = []
+    for word in spokenWords {
+        if let matched = targets.first(where: { $0 == word || word.contains($0) || $0.contains(word) }) {
+            if seenTargets.contains(matched) {
+                repetitions += 1
+            } else {
+                seenTargets.insert(matched)
+            }
+        } else if !stopWords.contains(word) && word.count > 2 {
+            intrusions.append(word)
         }
     }
-    return row[b.count]
-}
 
-/// QMCI-style registration scoring: order-independent set match with light fuzzy token match
-/// (edit distance, mild prefix extensions like "feared" → fear) for STT variance.
-func scoreWordRegistrationRecall(transcript: String, wordList: [String]) -> (count: Int, recalled: [String]) {
-    let lower = transcript.lowercased()
-    let tokens = registrationTokenize(transcript)
-    var found: [String] = []
-
-    for word in wordList {
-        let wl = word.lowercased()
-        if found.contains(where: { $0.caseInsensitiveCompare(word) == .orderedSame }) { continue }
-
-        if lower.contains(wl) {
-            found.append(word)
-            continue
-        }
-
-        var matched = false
-        for tok in tokens {
-            if tok == wl {
-                found.append(word)
-                matched = true
-                break
-            }
-            if tok.hasPrefix(wl), tok.count <= wl.count + 2 {
-                found.append(word)
-                matched = true
-                break
-            }
-            if wl.hasPrefix(tok), wl.count <= tok.count + 2 {
-                found.append(word)
-                matched = true
-                break
-            }
-            let maxDist: Int
-            if wl.count <= 4 { maxDist = 1 }
-            else if wl.count <= 6 { maxDist = 1 }
-            else { maxDist = 2 }
-            if registrationLevenshtein(tok, wl) <= maxDist {
-                found.append(word)
-                matched = true
-                break
-            }
-        }
-        if matched { continue }
-    }
-
-    return (count: found.count, recalled: found)
+    return (count: found.count, recalled: found, intrusions: intrusions, repetitions: repetitions)
 }
 
 // MARK: - Qmci Scoring Extensions

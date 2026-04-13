@@ -24,7 +24,7 @@ private struct SpeechTimingModel {
     /// How far ahead of the activity name to reveal the row (seconds).
     static let revealLeadTime: Double = 0.18
 
-    /// Pause (seconds) after sentence boundary `boundaryIndex` (after sentence `boundaryIndex`, before the next).
+    /// Pause (seconds) after sentence boundary `boundaryIndex`.
     static func welcomeBoundaryPause(boundaryIndex: Int, sentenceCount: Int) -> Double {
         let lastBoundary = sentenceCount - 2
         switch boundaryIndex {
@@ -118,20 +118,20 @@ struct WelcomePhaseView: View {
     /// True once replica has started speaking on welcome (confirms intro echo reached Tavus).
     @State private var welcomeIntroReplicaStarted = false
 
-    // MARK: - Intro Script (single echo)
+    // MARK: - Intro Script
 
-    /// Exact spoken wording (no SSML) — used for timing + reduce-motion path.
+    /// Exact spoken wording (no SSML) — used for timing calculations + reduce-motion path.
     private let introScriptPlain = "Welcome to your Brain Health Check. We'll go through six quick activities together. First, Orientation. Then, Word Learning. Next, Clock Drawing. After that, Verbal Fluency. Then Story Recall. And finally, Word Recall. When you're ready, press Begin Assessment."
 
-    /// Same words as `introScriptPlain` with SSML breaks for Tavus/ElevenLabs-friendly pacing (welcome only).
+    /// Same words with SSML breaks for Tavus/ElevenLabs-friendly pacing (welcome only).
     private var introScriptForEcho: String {
         "<speak>Welcome to your Brain Health Check.<break time=\"700ms\"/> We'll go through six quick activities together.<break time=\"900ms\"/> First, Orientation.<break time=\"500ms\"/> Then, Word Learning.<break time=\"500ms\"/> Next, Clock Drawing.<break time=\"500ms\"/> After that, Verbal Fluency.<break time=\"500ms\"/> Then Story Recall.<break time=\"500ms\"/> And finally, Word Recall.<break time=\"1000ms\"/> When you're ready, press Begin Assessment.</speak>"
     }
 
     // MARK: - Computed Reveal Timings
     //
-    // Derived from the intro script using the speech-rate model so they
-    // stay accurate even if the script wording changes. Each delay is
+    // Derived from the plain intro script using the speech-rate model so
+    // they stay accurate even if the script wording changes. Each delay is
     // the estimated seconds-from-speech-start to the moment just before
     // the avatar says the corresponding activity name.
 

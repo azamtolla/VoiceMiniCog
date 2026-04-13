@@ -11,38 +11,6 @@ import SwiftUI
 // MARK: - AssessmentTheme
 
 enum AssessmentTheme {
-    enum PromptCopy {
-        // Welcome
-        static let welcomeTitle = "Brain Health Assessment"
-        static let welcomeSubtitle = "6 cognitive activities, about 5-7 minutes"
-
-        // Word Registration
-        static let wordRegistrationTitle = "Listen carefully"
-        static let wordRegistrationSubtitle = "The avatar will say 5 words.\nRepeat them back when asked."
-
-        // Clock Drawing
-        static let clockDrawingInstruction = "Draw a clock. Put in all the numbers.\nSet the hands to ten past eleven."
-
-        // Story Recall
-        static let storyListeningTitle = "Listen carefully to\nthis short story"
-        static let storyListeningSubtitle = "The avatar is reading a story.\nPay close attention."
-        static let storyRecallingTitle = "Now tell me everything\nyou remember"
-        static let storyRecallingSubtitle = "Take your time. Say everything\nyou can recall."
-
-        // Verbal Fluency
-        static let verbalFluencyTitle = "Name as many animals\nas you can"
-        static let verbalFluencySubtitle = "You have one minute."
-        static let verbalFluencyStartNow = "Start now."
-
-        // Word Recall
-        static let wordRecallTitle = "What were the 5 words?"
-
-        static func spoken(_ text: String) -> String {
-            text.replacingOccurrences(of: "\n", with: " ")
-                .replacingOccurrences(of: "  ", with: " ")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-    }
 
     // MARK: Content Zone (light, patient-facing left panel)
 
@@ -62,10 +30,11 @@ enum AssessmentTheme {
     // MARK: Avatar Zone (dark right panel)
 
     enum Avatar {
-        /// Animated gradient center: #121226
-        static let gradientCenter = Color(hex: "#121226")
-        /// Animated gradient edge: #080811
-        static let gradientEdge   = Color(hex: "#080811")
+        /// HA-inspired dark chrome — formalized from Home Assistant palette
+        /// Radial gradient center color: #1C1C1C (HA card surface)
+        static let gradientCenter = Color(hex: "#1C1C1C")
+        /// Radial gradient edge color: #111111 (HA page background)
+        static let gradientEdge   = Color(hex: "#111111")
 
         /// Radial gradient filling the avatar panel.
         static let backgroundGradient = RadialGradient(
@@ -74,42 +43,6 @@ enum AssessmentTheme {
             startRadius: 0,
             endRadius: 400
         )
-
-        /// Glass material backdrop opacity for video container
-        static let glassOpacity: Double = 0.03
-        /// Accent ring stroke width (thin, premium)
-        static let accentRingWidth: CGFloat = 0.75
-        /// Status dot size
-        static let statusDotSize: CGFloat = 8
-        /// Waveform bar width
-        static let waveBarWidth: CGFloat = 2.5
-        /// Waveform bar count
-        static let waveBarCount: Int = 7
-        /// Video container corner radius
-        static let videoCornerRadius: CGFloat = 16
-        /// Video container inset from edges
-        static let videoInset: CGFloat = 12
-        /// Breathing animation scale amount
-        static let breatheScale: CGFloat = 1.015
-        /// Breathing animation duration
-        static let breatheDuration: Double = 4.0
-        /// Clinical badge background opacity
-        static let badgeOpacity: Double = 0.35
-    }
-
-    // MARK: Clock Drawing Controls Panel (light right panel)
-
-    enum ClockControls {
-        static let doneButtonColor       = Color(hex: "#22C55E")
-        static let endSessionColor       = Color(hex: "#DC2626")
-        static let avatarRingColor       = Color(hex: "#78716C") // stone-500
-        static let avatarRingWidth: CGFloat = 3.0
-        static let avatarDiameter: CGFloat = 180
-        static let statusChipBackground  = Color(hex: "#F5F5F4") // stone-100
-        static let statusChipText        = Color(hex: "#57534E") // stone-600
-        static let panelBackground       = Color.white
-        static let shimmerBase           = Color(hex: "#E7E5E4") // stone-200
-        static let shimmerHighlight      = Color(hex: "#F5F5F4") // stone-100
     }
 
     // MARK: Split-Screen Gradient (avatar dark → content light)
@@ -124,41 +57,24 @@ enum AssessmentTheme {
         endPoint: .leading
     )
 
-    // MARK: Phase Named Accents
-
-    /// Named phase accent colors for direct use in views.
-    enum Phase {
-        static let welcome          = Color(hex: "#2563EB") // blue
-        static let qdrs             = Color(hex: "#D97706") // amber
-        static let phq2             = Color(hex: "#7C3AED") // violet
-        static let orientation      = Color(hex: "#059669") // emerald
-        static let wordRegistration = Color(hex: "#DB2777") // pink
-        static let clock            = Color(hex: "#DC2626") // red
-        static let verbalFluency    = Color(hex: "#0891B2") // cyan
-        static let storyRecall      = Color(hex: "#4F46E5") // indigo
-        static let wordRecall       = Color(hex: "#16A34A") // green
-        static let results          = Color(hex: "#16A34A") // green (same as wordRecall / completion)
-    }
-
     // MARK: Phase Accent Colors
 
-    /// Accent color dictionary keyed by AssessmentPhaseID.rawValue (1-9).
-    /// Order: welcome, qdrs, phq2, orientation, wordRegistration, clockDrawing, verbalFluency, storyRecall, wordRecall
-    static let phaseAccents: [Int: Color] = [
-        1: Color(hex: "#2563EB"), // Welcome — blue
-        2: Color(hex: "#D97706"), // QDRS — amber
-        3: Color(hex: "#7C3AED"), // PHQ-2 — violet
-        4: Color(hex: "#059669"), // Orientation — emerald
-        5: Color(hex: "#DB2777"), // Word Registration — pink
-        6: Color(hex: "#DC2626"), // Clock Drawing — red
-        7: Color(hex: "#0891B2"), // Verbal Fluency — cyan
-        8: Color(hex: "#4F46E5"), // Story Recall — indigo
-        9: Color(hex: "#16A34A"), // Word Recall — green
-    ]
+    /// Nine accent colors, one per assessment phase.
+    enum Phase {
+        static let welcome  = Color(hex: "#007AFF") // blue
+        static let orient   = Color(hex: "#FF9F0A") // amber
+        static let register = Color(hex: "#BF5AF2") // violet
+        static let clock    = Color(hex: "#30D158") // emerald
+        static let fluency  = Color(hex: "#FF375F") // pink
+        static let story    = Color(hex: "#FF3B30") // red
+        static let recall   = Color(hex: "#32ADE6") // cyan
+        static let qdrs     = Color(hex: "#5E5CE6") // indigo
+        static let results  = Color(hex: "#34C759") // green
 
-    /// Look up accent color by phase number (1-9). Falls back to blue.
-    static func accent(for phase: Int) -> Color {
-        phaseAccents[phase] ?? Color(hex: "#2563EB")
+        /// Ordered array matching progress segment weights.
+        static let all: [Color] = [
+            welcome, orient, register, clock, fluency, story, recall, qdrs, results
+        ]
     }
 
     // MARK: Answer Button Styles
@@ -180,7 +96,7 @@ enum AssessmentTheme {
 
     // MARK: Typography
 
-    enum Fonts {
+    enum Typography {
         /// Phase label above question — 11pt, rounded, all-caps weight
         static let phaseLabel = Font.system(size: 11, weight: .semibold, design: .rounded)
         /// Main question text — 19pt semibold
@@ -189,54 +105,87 @@ enum AssessmentTheme {
         static let helper     = Font.system(size: 14, weight: .regular, design: .default)
         /// Answer button label — 16pt medium
         static let buttonLabel = Font.system(size: 16, weight: .medium, design: .default)
+        /// Avatar zone label — 13pt medium
+        static let avatarLabel = Font.system(size: 13, weight: .medium, design: .default)
 
         // Timers & counters (monospaced for stable width)
-        /// Small timer — 13pt monospaced
-        static let timerSmall     = Font.system(size: 13, weight: .regular, design: .monospaced)
-        /// Large timer — 32pt monospaced bold
-        static let timerLarge     = Font.system(size: 32, weight: .bold, design: .monospaced)
+        /// General timer display — 17pt monospaced regular
+        static let timer          = Font.system(size: 17, weight: .regular, design: .monospaced)
+        /// Small timer display — 13pt monospaced medium
+        static let timerSmall     = Font.system(size: 13, weight: .medium, design: .monospaced)
         /// Large counter hero (e.g., fluency word count) — 48pt monospaced bold
         static let counterHero    = Font.system(size: 48, weight: .bold, design: .monospaced)
         /// Score display — 28pt monospaced bold
+        static let score          = Font.system(size: 28, weight: .bold, design: .monospaced)
+        /// Score display alias
         static let scoreDisplay   = Font.system(size: 28, weight: .bold, design: .monospaced)
-        /// Avatar state label — 11pt medium
-        static let avatarLabel    = Font.system(size: 11, weight: .medium)
     }
+
+    /// Alias for views that reference `Fonts` instead of `Typography`
+    typealias Fonts = Typography
 
     // MARK: Sizing
 
-    enum Sizing {
+    enum Size {
         /// Minimum tappable height for answer buttons: 56 pt
         static let buttonMinHeight: CGFloat = 56
         /// Progress track thickness: 4 pt
         static let progressTrack: CGFloat = 4
+        /// Progress track height (alias)
         static let progressTrackHeight: CGFloat = 4
         /// Ring / indicator line width: 2 pt
         static let ring: CGFloat = 2
+        /// Avatar accent ring stroke width: 3 pt
+        static let avatarRingWidth: CGFloat = 3
+        /// Pause button diameter: 44 pt
+        static let pauseButton: CGFloat = 44
+        /// Pause button width: 44 pt
+        static let pauseButtonWidth: CGFloat = 44
         /// Pause button height: 44 pt
         static let pauseButtonHeight: CGFloat = 44
-        /// Pause button width: 120 pt
-        static let pauseButtonWidth: CGFloat = 120
-        /// Avatar ring stroke width: 2 pt
-        static let avatarRingWidth: CGFloat = 2
         /// Standard horizontal padding for content panel: 16 pt
         static let contentPadding: CGFloat = 16
     }
 
+    /// Alias for views that reference `Sizing` instead of `Size`
+    typealias Sizing = Size
+
     // MARK: Avatar Width Ratios (fraction of total screen width)
 
-    /// Avatar width ratio keyed by AssessmentPhaseID.rawValue (1-9).
+    enum AvatarRatio {
+        /// Welcome / intro — balanced 50/50
+        static let welcome: CGFloat      = 0.50
+        /// Q&A phases (orientation, registration, word recall) — balanced 50/50
+        static let qa: CGFloat           = 0.50
+        /// Clock drawing & verbal fluency — content takes over (70/30)
+        static let clockFluency: CGFloat = 0.30
+        /// Story recall — avatar dominant (40/60), patient just listens
+        static let story: CGFloat        = 0.60
+        /// Delayed word recall — balanced 50/50
+        static let recall: CGFloat       = 0.50
+    }
+
+    // MARK: Avatar Width Ratios by Phase ID
+
+    /// Maps AssessmentPhaseID.rawValue → avatar width fraction.
     static let avatarWidthRatios: [Int: CGFloat] = [
-        1: 0.65, // Welcome — large
-        2: 0.50, // QDRS — medium
-        3: 0.50, // PHQ-2 — medium
-        4: 0.50, // Orientation — medium
-        5: 0.50, // Word Registration — medium
-        6: 0.30, // Clock Drawing — small (content takes over)
-        7: 0.30, // Verbal Fluency — small (content takes over)
-        8: 0.55, // Story Recall — medium-large (narrator)
-        9: 0.45, // Word Recall — medium
+        1: AvatarRatio.welcome,       // welcome
+        2: AvatarRatio.qa,            // qdrs
+        3: AvatarRatio.qa,            // phq2
+        4: AvatarRatio.qa,            // orientation
+        5: AvatarRatio.qa,            // wordRegistration
+        6: AvatarRatio.clockFluency,  // clockDrawing
+        7: AvatarRatio.clockFluency,  // verbalFluency
+        8: AvatarRatio.story,         // storyRecall
+        9: AvatarRatio.recall,        // wordRecall
+        10: AvatarRatio.welcome,      // completion
     ]
+
+    /// Phase accent color by AssessmentPhaseID.rawValue (1-based).
+    static func accent(for phaseRawValue: Int) -> Color {
+        let index = max(0, min(phaseRawValue - 1, Phase.all.count - 1))
+        return Phase.all[index]
+    }
 
     // MARK: Progress Segment Weights
 
@@ -246,23 +195,25 @@ enum AssessmentTheme {
 
     // MARK: Animation Constants
 
-    enum Anim {
-        /// Phase transition — spring, 0.55 s, 0.15 bounce
+    /// Alias for views that reference `Anim` instead of `Animation`
+    typealias Anim = Animation
+
+    enum Animation {
+        /// Phase layout transition — spring tuned for elderly patients (slower, no bounce)
         static let phaseTransition = SwiftUI.Animation.spring(
-            response: 0.55,
-            dampingFraction: 1.0 - 0.15,
+            response: 0.65,
+            dampingFraction: 0.88,
             blendDuration: 0
         )
 
-        /// Content enter — spring, 0.4 s, fade + slide-up entrance
-        static let contentEnter = SwiftUI.Animation.spring(
-            response: 0.4,
-            dampingFraction: 0.85,
-            blendDuration: 0
-        )
+        /// Phase content swap — crossfade + upward drift, purposeful not playful
+        static let contentSwap = SwiftUI.Animation.easeInOut(duration: 0.35)
 
         /// Content fade in/out — 0.25 s ease-in-out
         static let contentFade = SwiftUI.Animation.easeInOut(duration: 0.25)
+
+        /// Content enter — staggered fade + slide-up for phase elements
+        static let contentEnter = SwiftUI.Animation.easeOut(duration: 0.4)
 
         /// Button press feedback — spring, 0.15 s
         static let buttonPress = SwiftUI.Animation.spring(
@@ -270,6 +221,9 @@ enum AssessmentTheme {
             dampingFraction: 0.85,
             blendDuration: 0
         )
+
+        /// Button success confirmation — scale pulse 1.0 → 1.03 → 1.0
+        static let successPulse = SwiftUI.Animation.easeInOut(duration: 0.3)
 
         /// Word chip appear — spring, 0.35 s
         static let chipAppear = SwiftUI.Animation.spring(
@@ -283,7 +237,7 @@ enum AssessmentTheme {
         static let ringPulse = SwiftUI.Animation.easeInOut(duration: ringPulseDuration)
             .repeatForever(autoreverses: true)
 
-        /// Reduced motion fallback — instant
-        static let reducedMotion = SwiftUI.Animation.easeInOut(duration: 0.01)
+        /// Reduced-motion fallback — opacity only, no spatial movement
+        static let reducedMotion = SwiftUI.Animation.easeInOut(duration: 0.2)
     }
 }

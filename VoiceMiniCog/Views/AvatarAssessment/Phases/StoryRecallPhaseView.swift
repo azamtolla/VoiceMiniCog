@@ -19,6 +19,49 @@
 
 import SwiftUI
 
+// MARK: - FlowLayout (wrapping horizontal layout for scoring unit chips)
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: maxWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 // MARK: - StoryRecallPhaseView
 
 struct StoryRecallPhaseView: View {
@@ -59,9 +102,10 @@ struct StoryRecallPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetContext(
+            avatarSetAssessmentContext(
                 "You are administering story learning and recall. Speak only echo text from the app. " +
-                LeftPaneSpeechCopy.examinerNeverCorrectPatient
+                "Read the story slowly, approximately one second per word, with a brief pause at each comma and period. " +
+                "Do not rush. Pacing is critical for accurate scoring."
             )
             // Initialize the scoring flags to match the current story's unit count.
             if recalledFlags.count != scoringUnits.count {

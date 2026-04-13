@@ -21,6 +21,44 @@ enum AvatarBehavior: String {
     case completing
 }
 
+// MARK: - AssessmentFlowType
+
+// ┌─────────────┬──────────────────────────────────────────────────────────┐
+// │ Flow Type   │ Phase Sequence                                          │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .quick      │ welcome → orientation → wordReg → clock → fluency →    │
+// │             │ story → wordRecall                                      │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .caregiver  │ welcome → qdrs → completion                            │
+// ├─────────────┼──────────────────────────────────────────────────────────┤
+// │ .extended   │ (same as .quick — intentionally separate for future     │
+// │             │ divergence, do NOT collapse into .quick)                │
+// └─────────────┴──────────────────────────────────────────────────────────┘
+
+enum AssessmentFlowType: String, Codable {
+    /// Patient cognitive screen — no informant questions
+    case quick
+    /// Informant/caregiver QDRS — no cognitive subtests
+    case caregiver
+    /// Full battery — currently same as quick, separate route for future divergence
+    case extended
+
+    var phaseSequence: [AssessmentPhaseID] {
+        switch self {
+        case .quick, .extended:
+            // QMCI protocol order: Orientation → Registration → Clock Drawing →
+            // Delayed Recall → Verbal Fluency → Logical Memory → Completion
+            // Clock Drawing serves as the distractor interval between registration and recall.
+            // The final .completion phase is required — without it the last subtest
+            // has no next phase to advance into and the assessment cannot finish cleanly.
+            return [.welcome, .orientation, .wordRegistration, .clockDrawing,
+                    .wordRecall, .verbalFluency, .storyRecall, .completion]
+        case .caregiver:
+            return [.welcome, .qdrs, .completion]
+        }
+    }
+}
+
 // MARK: - AssessmentPhaseID
 
 enum AssessmentPhaseID: Int, CaseIterable {
@@ -33,6 +71,7 @@ enum AssessmentPhaseID: Int, CaseIterable {
     case verbalFluency   = 7
     case storyRecall     = 8
     case wordRecall      = 9
+    case completion      = 10
 
     var displayName: String {
         switch self {
@@ -45,6 +84,7 @@ enum AssessmentPhaseID: Int, CaseIterable {
         case .verbalFluency:    return "Verbal Fluency"
         case .storyRecall:      return "Story Recall"
         case .wordRecall:       return "Word Recall"
+        case .completion:       return "Complete"
         }
     }
 
@@ -66,9 +106,16 @@ class AvatarLayoutManager {
 
     // MARK: Properties
 
+    var flowType: AssessmentFlowType = .quick
     var currentPhase: AssessmentPhaseID = .welcome
     var avatarBehavior: AvatarBehavior = .idle
     var isTransitioning: Bool = false
+
+    /// Ordered phases for the current flow type
+    var phaseSequence: [AssessmentPhaseID] { flowType.phaseSequence }
+
+    /// Index of the current phase within the sequence
+    var currentPhaseIndex: Int { phaseSequence.firstIndex(of: currentPhase) ?? 0 }
 
     // MARK: Computed Properties
 
@@ -86,11 +133,11 @@ class AvatarLayoutManager {
     var avatarOpacity: Double {
         switch currentPhase {
         case .clockDrawing:
-            return 1.0  // Circular avatar visible at full opacity in controls panel
-        case .verbalFluency:
-            return 0.4
-        case .wordRecall:
             return 1.0
+        case .verbalFluency:
+            return 1.0
+        case .wordRecall:
+            return 0.85
         default:
             return 1.0
         }
@@ -101,42 +148,23 @@ class AvatarLayoutManager {
         avatarBehavior != .waiting
     }
 
-    // MARK: Phase Sequence
-
-    /// Ordered list of phases in the current assessment flow.
-    var phaseSequence: [AssessmentPhaseID] {
-        AssessmentPhaseID.allCases
-    }
-
-    /// Index of the current phase within the phase sequence.
-    var currentPhaseIndex: Int {
-        phaseSequence.firstIndex(of: currentPhase) ?? 0
-    }
-
     // MARK: Counts
 
     var completedPhaseCount: Int {
-        currentPhase.rawValue - 1
+        currentPhaseIndex
     }
 
     var totalPhaseCount: Int {
-        AssessmentPhaseID.allCases.count
+        phaseSequence.count
     }
 
     // MARK: - Phase Transition
 
-    /// Phases to skip in the assessment flow
-    private static let skippedPhases: Set<AssessmentPhaseID> = [.qdrs, .phq2]
-
-    /// Advance to the next phase in sequence, skipping removed phases
+    /// Advance to the next phase in the flow sequence (no-op if already on last phase)
     func advanceToNextPhase() {
-        var nextRaw = currentPhase.rawValue + 1
-        while let candidate = AssessmentPhaseID(rawValue: nextRaw),
-              Self.skippedPhases.contains(candidate) {
-            nextRaw += 1
-        }
-        guard let nextPhase = AssessmentPhaseID(rawValue: nextRaw) else { return }
-        transitionTo(nextPhase)
+        let nextIndex = currentPhaseIndex + 1
+        guard nextIndex < phaseSequence.count else { return }
+        transitionTo(phaseSequence[nextIndex])
     }
 
     /// Animate transition to the specified phase
@@ -161,14 +189,15 @@ class AvatarLayoutManager {
     func defaultBehavior(for phase: AssessmentPhaseID) -> AvatarBehavior {
         switch phase {
         case .welcome:          return .speaking
-        case .qdrs:             return .listening
-        case .phq2:             return .listening
-        case .orientation:      return .listening
+        case .qdrs:             return .speaking  // speaks question first, then listens
+        case .phq2:             return .speaking
+        case .orientation:      return .speaking  // speaks question first, then listens
         case .wordRegistration: return .speaking
         case .clockDrawing:     return .waiting
         case .verbalFluency:    return .waiting
         case .storyRecall:      return .narrating
-        case .wordRecall:       return .listening
+        case .wordRecall:       return .speaking  // speaks recall prompt first, then listens
+        case .completion:       return .completing
         }
     }
 

@@ -187,10 +187,11 @@ struct WordRecallPhaseView: View {
             contentVisible = true
         }
 
+        scorer.startScoring()
+
         // Set avatar context for this phase
-        avatarSetContext(
-            "You are administering delayed word recall. Speak only the echo text supplied by the app. " +
-            LeftPaneSpeechCopy.examinerNeverCorrectPatient
+        avatarSetAssessmentContext(
+            "You are administering delayed word recall. Speak only the echo text supplied by the app."
         )
 
         // Timer loop starts via .task(id: timerActive) when timerActive becomes true
@@ -231,7 +232,7 @@ struct WordRecallPhaseView: View {
         guard !recallPromptListeningUnlocked else { return }
         recallPromptListeningUnlocked = true
 
-        scorer.promptEndTime = Date()
+        scorer.markPromptEnded()
         layoutManager.setAvatarListening()
 
         if phase == .promptDelivery {
@@ -274,8 +275,6 @@ struct WordRecallPhaseView: View {
         guard transcript.count > lastTranscriptLength else { return }
         lastTranscriptLength = transcript.count
 
-        // Feed to scorer
-        let previousCount = scorer.recalledCount
         scorer.processTranscript(transcript)
 
         // Reset silence timer on new speech
@@ -345,7 +344,6 @@ struct WordRecallPhaseView: View {
 
             // Silence tracking
             silenceSeconds += 1
-            scorer.updateSilence(silenceSeconds)
 
             let threshold: TimeInterval = (phase == .followUp)
                 ? silenceAfterFollowUp
@@ -372,7 +370,6 @@ struct WordRecallPhaseView: View {
 
     private func resetSilenceTimer() {
         silenceSeconds = 0
-        scorer.updateSilence(0)
     }
 
     // MARK: - Advance Phase
@@ -382,7 +379,8 @@ struct WordRecallPhaseView: View {
         phase = .done
         timerActive = false
         speechService.stopListening()
-        scorer.finalizePhase()
+        // Process final cleaned-up ASR transcript before persisting
+        scorer.processTranscript(speechService.transcript)
         persistResults()
         layoutManager.advanceToNextPhase()
     }
@@ -405,7 +403,7 @@ struct WordRecallPhaseView: View {
         qmciState.recallInterWordIntervalsMs = scorer.interWordIntervalsMs
         qmciState.recallIntrusionCount = scorer.intrusions.count
         qmciState.recallIntrusions = scorer.intrusions
-        qmciState.recallSemanticSubstitutions = scorer.semanticSubstitutions.map { ($0.target, $0.said) }
+        qmciState.recallSemanticSubstitutions = scorer.semanticSubstitutions.map { SemanticSubstitution(target: $0.target, substitution: $0.said) }
         qmciState.recallSemanticSubstitutionCount = scorer.semanticSubstitutions.count
         qmciState.recallTotalPhaseDurationMs = scorer.totalPhaseDurationMs
         qmciState.recallSilenceBeforePromptMs = scorer.silenceBeforePromptMs
