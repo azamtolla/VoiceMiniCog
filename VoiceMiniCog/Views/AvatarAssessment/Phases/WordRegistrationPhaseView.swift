@@ -445,6 +445,11 @@ struct WordRegistrationPhaseView: View {
 
         // Poll ASR transcript (workaround for @Observable not always driving onChange).
         applyTranscriptUpdate(speech.transcript)
+        // `applyTranscriptUpdate` may call `endListeningForTrial()` (e.g. 5/5 or done phrase).
+        // Without this guard, the silence / max-duration logic below can run in the
+        // same timer tick and invoke `endListeningForTrial` again — double-scheduling
+        // `runTrial` cancels the in-flight echo Task and leaves the avatar stuck.
+        guard mode == .listening, !didFinish else { return }
 
         // Phase ceiling
         if Date().timeIntervalSince(phaseStartTime) >= phaseCeiling {
@@ -477,10 +482,21 @@ struct WordRegistrationPhaseView: View {
         guard mode == .listening, !didFinish else { return }
 
         silenceTimer?.invalidate()
+        silenceTimer = nil
+
+        // Leave listening immediately so this handler cannot re-enter in the same
+        // runloop tick, and so ASR `onChange` stops competing with the retry echo chain.
+        withAnimation(.easeInOut(duration: 0.15)) {
+            mode = .speaking
+        }
+        layoutManager.avatarBehavior = .waiting
+
+        // Snapshot before tearing down the audio tap — matches scoring to this boundary.
+        let frozenTranscript = speech.transcript
         speech.stopListening()
 
         // Persist trial results
-        let result = registrationScore(transcript: speech.transcript)
+        let result = registrationScore(transcript: frozenTranscript)
         let trialIdx = currentTrial - 1
         if qmciState.registrationTrialWords.indices.contains(trialIdx) {
             qmciState.registrationTrialWords[trialIdx] = result.recalled
