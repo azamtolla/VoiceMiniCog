@@ -88,18 +88,12 @@ class SpeechService {
             throw SpeechError.audioEngineNotAvailable
         }
 
-        do {
-            // Use AudioSessionManager as single source of truth for session
-            // config. This ensures SpeechService and WebRTC (Daily) use the
-            // same category/mode/options (.playAndRecord + .voiceChat +
-            // .mixWithOthers). Previously SpeechService called setCategory
-            // with .measurement mode, which evicted WebRTC and silenced the
-            // avatar at the recall window.
-            try AudioSessionManager.shared.configureForRealtimeVoice()
-        } catch {
-            print("[SpeechService] Audio session setup failed: \(error)")
-            throw SpeechError.audioEngineNotAvailable
-        }
+        // Audio session is already configured by WebRTC (Daily SDK) at room
+        // join via AudioSessionManager.configureForRealtimeVoice(). Do NOT
+        // reconfigure here — calling setCategory or setActive mid-session
+        // triggers iOS AudioSession::beginInterruption on the active WebRTC
+        // session, permanently silencing avatar audio. SpeechService just
+        // installs a tap on the existing audio engine input node.
 
         // Create recognition request
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
