@@ -207,8 +207,18 @@ async function joinRoom(roomUrl) {
       }
 
       if (data.event_type === 'conversation.replica.started_speaking') {
-        callObject.setLocalAudio(false);
-        log('Mic muted (avatar speaking)');
+        // If no echo is in-flight, this is unprompted Tavus speech —
+        // either the initial persona greeting on room join, or an LLM
+        // acknowledgment that survived the user.stopped_speaking interrupt.
+        // Suppress it immediately. This does NOT affect echoed prompts
+        // because echoInFlight is true while an echo is being spoken.
+        if (!echoInFlight && echoTextQueue.length === 0) {
+          sendInteraction('conversation.interrupt', {});
+          log('Auto-interrupt: suppressed unprompted Tavus speech (no echo in-flight)');
+        } else {
+          callObject.setLocalAudio(false);
+          log('Mic muted (avatar speaking)');
+        }
       } else if (data.event_type === 'conversation.replica.stopped_speaking') {
         releaseEchoSlot();
         // Only unmute mic if no more echoes are queued — prevents
