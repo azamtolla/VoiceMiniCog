@@ -66,8 +66,14 @@ struct AvatarAssessmentCanvas: View {
                         contentZone
                             .frame(width: contentWidth)
                     } else {
+                        // Assessment not started — don't mount phase views.
+                        // This prevents WelcomePhaseView.onAppear from firing
+                        // the welcome echo before the user taps Start.
                         Color.clear
                             .frame(width: contentWidth)
+                            .onAppear {
+                                print("[Canvas] Phase content SUPPRESSED — isActive=false, waiting for user to start assessment")
+                            }
                     }
 
                     // MARK: Right Panel — avatar zone (always present, never swapped out)
@@ -81,16 +87,26 @@ struct AvatarAssessmentCanvas: View {
             reduceMotion ? AssessmentTheme.Anim.reducedMotion : AssessmentTheme.Anim.phaseTransition,
             value: layoutManager.currentPhase
         )
-        .onAppear {
-            layoutManager.flowType = flowType
-            layoutManager.currentPhase = .welcome
+        .onChange(of: isActive) { _, active in
+            // Only initialize the phase when the user explicitly starts.
+            // The canvas onAppear fires at app launch (always in hierarchy)
+            // — setting currentPhase there would prime WelcomePhaseView
+            // before the user taps Start.
+            if active {
+                layoutManager.flowType = flowType
+                layoutManager.currentPhase = .welcome
+                print("[Canvas] Assessment STARTED — phase set to .welcome")
+            }
         }
         .onChange(of: flowType) { _, newFlow in
+            guard isActive else { return }
             layoutManager.flowType = newFlow
             layoutManager.currentPhase = .welcome
         }
         .onChange(of: sessionID) { _, _ in
-            // New assessment started — reset to welcome regardless of flow type
+            // New assessment started — reset to welcome regardless of flow type.
+            // Only act if isActive, otherwise this is just a UUID refresh at init.
+            guard isActive else { return }
             layoutManager.flowType = flowType
             layoutManager.currentPhase = .welcome
             avatarDismissed = false
