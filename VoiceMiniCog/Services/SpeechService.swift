@@ -89,20 +89,13 @@ class SpeechService {
         }
 
         do {
-            // Configure audio session for recording — must coexist with WebRTC.
-            // .voiceChat mode is compatible with Daily's WebRTC audio session
-            // and enables built-in echo cancellation (filters avatar speaker
-            // output from the mic input). .mixWithOthers allows SpeechService
-            // and WebRTC to share the session without evicting each other.
-            // Previously used .measurement mode which silently interrupted
-            // WebRTC's playback, causing avatar audio to go silent.
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(
-                .playAndRecord,
-                mode: .voiceChat,
-                options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers]
-            )
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            // Use AudioSessionManager as single source of truth for session
+            // config. This ensures SpeechService and WebRTC (Daily) use the
+            // same category/mode/options (.playAndRecord + .voiceChat +
+            // .mixWithOthers). Previously SpeechService called setCategory
+            // with .measurement mode, which evicted WebRTC and silenced the
+            // avatar at the recall window.
+            try AudioSessionManager.shared.configureForRealtimeVoice()
         } catch {
             print("[SpeechService] Audio session setup failed: \(error)")
             throw SpeechError.audioEngineNotAvailable

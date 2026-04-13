@@ -2,7 +2,9 @@
 //  AudioSessionManager.swift
 //  VoiceMiniCog
 //
-//  Configures AVAudioSession for bidirectional realtime voice conversation
+//  Single source of truth for AVAudioSession configuration.
+//  Tavus CVI uses Daily.co WebRTC for bidirectional avatar audio.
+//  SpeechService (on-device ASR) shares the same session via .mixWithOthers.
 //
 
 import Foundation
@@ -14,26 +16,29 @@ final class AudioSessionManager {
     private init() {}
 
     /// Configure audio session for simultaneous recording and playback
-    /// suitable for realtime voice conversation (WebRTC)
+    /// suitable for WebRTC (Tavus/Daily) + on-device ASR coexistence.
     func configureForRealtimeVoice() throws {
         let session = AVAudioSession.sharedInstance()
 
-        // Use voiceChat mode for bidirectional audio with echo cancellation
+        // .voiceChat: bidirectional audio with built-in echo cancellation.
+        // .mixWithOthers: allows WebRTC and SpeechService to share the
+        // session without evicting each other — without this flag,
+        // whichever subsystem calls setCategory last wins exclusive
+        // ownership and silences the other.
         try session.setCategory(
             .playAndRecord,
             mode: .voiceChat,
             options: [
                 .defaultToSpeaker,
                 .allowBluetoothHFP,
-                .allowBluetoothA2DP
+                .allowBluetoothA2DP,
+                .mixWithOthers
             ]
         )
 
-        // Set preferred sample rate (OpenAI Realtime uses 24kHz)
-        try session.setPreferredSampleRate(24000)
-
-        // Set preferred buffer duration for low latency
-        try session.setPreferredIOBufferDuration(0.01) // 10ms
+        // Let iOS negotiate sample rate and buffer duration with Daily's
+        // WebRTC stack. Forcing 24kHz or 10ms buffers can cause resampling
+        // artifacts or audio starvation on older devices.
 
         // Activate the session
         try session.setActive(true, options: .notifyOthersOnDeactivation)
@@ -68,7 +73,7 @@ final class AudioSessionManager {
 
     /// Check if microphone permission is granted
     func checkMicrophonePermission() async -> Bool {
-        let status = AVAudioSession.sharedInstance().recordPermission
+        let status = AVAudioApplication.shared.recordPermission
 
         switch status {
         case .granted:
@@ -77,7 +82,7 @@ final class AudioSessionManager {
             return false
         case .undetermined:
             return await withCheckedContinuation { continuation in
-                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                AVAudioApplication.requestRecordPermission { granted in
                     continuation.resume(returning: granted)
                 }
             }
