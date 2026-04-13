@@ -358,7 +358,15 @@ struct WordRegistrationPhaseView: View {
                 avatarSpeak(text)
                 echoSafetyTask?.cancel()
                 echoSafetyTask = Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(55))
+                    // 18s safety: the JS watchdog fires at 15s and synthesizes
+                    // avatarDoneSpeaking, so this only fires if BOTH the real
+                    // stopped_speaking AND the watchdog notification are lost.
+                    // Must be > 15s so the watchdog resolves the continuation
+                    // first; if safety fired earlier, the watchdog's late
+                    // avatarDoneSpeaking would corrupt the next segment.
+                    // Old value (55s) caused a perceived freeze when Tavus
+                    // delayed or dropped stopped_speaking on the final echo.
+                    try? await Task.sleep(for: .seconds(18))
                     finish()
                 }
             }

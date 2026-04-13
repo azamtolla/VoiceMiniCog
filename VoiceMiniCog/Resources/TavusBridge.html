@@ -364,9 +364,20 @@ function pumpEchoQueue() {
 
   if (echoWatchdog) clearTimeout(echoWatchdog);
   echoWatchdog = setTimeout(() => {
-    log('Echo watchdog: no stopped_speaking — releasing slot');
+    log('Echo watchdog: no stopped_speaking — releasing slot + notifying Swift');
     echoWatchdog = null;
     releaseEchoSlot();
+    // Synthesize a stopped_speaking notification so the Swift continuation
+    // resumes immediately instead of hanging until the 12-second safety task.
+    // Without this, a dropped Tavus event causes a perceived freeze equal to
+    // the safety timeout duration.
+    notifySwift('tavusEvent', {event: {event_type: 'conversation.replica.stopped_speaking'}});
+    // Unmute mic — the stopped_speaking handler won't run for this echo since
+    // the watchdog fired instead, so we must unmute here explicitly.
+    if (echoTextQueue.length === 0 && !echoInFlight) {
+      callObject.setLocalAudio(true);
+      log('Mic unmuted (watchdog, queue empty)');
+    }
   }, 15000);
 
   log('Echo sending (serialized): ' + text.substring(0, 80) + '...');

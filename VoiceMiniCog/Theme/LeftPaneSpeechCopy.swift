@@ -5,8 +5,9 @@
 //  Centralized text constants for the left panel display AND avatar speech.
 //  Single source of truth: the avatar speaks what the left panel shows.
 //
-//  PERSONA: The avatar IS the neuropsychologist examiner. All voice strings
-//  use verbatim QMCI protocol wording from the validation literature.
+//  PERSONA: The avatar IS the neuropsychologist examiner. Subtest prompts
+//  use verbatim QMCI wording (Molloy & O'Caoimh) where marked; transitional
+//  and instructional strings may be lightly adapted for TTS delivery.
 //  Do not ad-lib, simplify, or paraphrase the examiner scripts.
 //
 
@@ -21,7 +22,6 @@ enum LeftPaneSpeechCopy {
     static let welcomeSubtitle = "6 cognitive activities, about 3-5 minutes"
 
     /// Tavus overwrite_context for the **welcome screen only** — slower, calmer delivery than conversational TTS.
-    /// Echo text still carries SSML `<break/>` tags when supported; this steadies prosody if the engine ignores breaks.
     static let welcomeTavusDeliveryContext = """
     You are a board-certified clinical neuropsychologist welcoming a patient before a standardized cognitive battery. \
     VOICE: warm, neutral, and measured — never performative or chatty. \
@@ -34,13 +34,6 @@ enum LeftPaneSpeechCopy {
     Never correct, score, or coach the patient during this screen.
     """
 
-    /// Shared Tavus `overwrite_context` fragment — examiner stays neutral; no implicit scoring or coaching.
-    static let examinerNeverCorrectPatient = """
-    Never correct the patient or judge their answers — do not say right, wrong, close, not quite, actually, or good try; \
-    do not repeat their words to evaluate them; do not fix pronunciation or word choice. Stay neutral while they respond; \
-    speak only the exact echo text the app sends.
-    """
-
     // MARK: - Subtest 1: Orientation (10 pts)
 
     static let orientationIntro = "I am going to ask you a few questions. Please answer as best you can."
@@ -49,47 +42,64 @@ enum LeftPaneSpeechCopy {
 
     // MARK: - Subtest 2: Word Registration (5 pts)
 
-    static let wordRegistrationTitle = "Listen carefully"
+    static let wordRegistrationTitle = "Listen"
 
-    /// Shown on the left panel during registration (no target words — auditory-only presentation).
-    static let wordRegistrationSubtitle = "Listen to your examiner. Words are not shown until you repeat them."
+    static let wordRegistrationSubtitle = "I will say some words.\nRepeat them back when asked."
 
-    static let wordRegistrationIntro = "I am going to say some words. After I have said these words, repeat them back to me."
+    static let wordRegistrationIntro = "I'm going to say five words. Listen carefully and try to remember them. I'll ask you to recall them later. Ready?"
 
-    /// Trial 1 — full spoken intro (echo). No words from the list in this clip.
-    static let wordRegistrationSpokenIntro =
-        "I'm going to say five words. I want you to listen carefully and repeat them back to me. Try to remember them, because I'll ask you to recall them again later. Ready?"
-
-    /// Spoken immediately before the first target word (echo).
-    static let wordRegistrationWordsAre = "The words are…"
-
-    /// Trials 2–3 — shortened retry intro (echo), then pause, then `wordRegistrationWordsAre`.
-    static let wordRegistrationRetryIntro =
-        "Let's try again. Listen carefully."
-
-    static func wordRegistrationNarration(words: [String]) -> String {
-        // Legacy / AssessmentState — not used for Tavus multi-echo registration flow.
-        let wordList = words.joined(separator: " ... ")
-        return "\(wordList)."
-    }
+    /// Spoken alone before each target word (auditory-only registration; one echo per segment).
+    /// No trailing period — the per-word echoes provide pacing; a period here
+    /// causes some TTS engines to insert an unnaturally long stop.
+    static let wordRegistrationWordsLeadIn = "The words are"
 
     static let wordRegistrationRepeat = "Now repeat them back to me."
+
+    /// Retry trial: lead-in only (words follow as separate echoes).
+    static let wordRegistrationRetryLeadIn = "Let me say them again."
+
+    /// Retry trial: closing prompt after the five words.
+    static let wordRegistrationRetryClosing = "Now repeat them."
+
+    /// Legacy single-utterance narration (kept for non-avatar flows / reference).
+    static func wordRegistrationNarration(words: [String]) -> String {
+        let wordList = words.joined(separator: " ... ")
+        return "\(wordRegistrationIntro) ... \(wordList). ... \(wordRegistrationRepeat)"
+    }
 
     static let wordRegistrationRemember = "Remember these words because I'll ask you to recall them later."
 
     static func wordRegistrationRetry(words: [String]) -> String {
         let wordList = words.joined(separator: " ... ")
-        return "Let me say those words again: \(wordList). Now repeat them back to me."
+        return "Let me say them again. ... \(wordList). ... Now repeat them."
     }
+
+    /// Neutral closure when patient got all 5 words — no evaluative language.
+    static let wordRegistrationAllCorrect = "Let's continue."
+
+    /// Neutral closure after final trial — no evaluative language.
+    static let wordRegistrationDone = "Thank you. Let's continue."
+
+    // MARK: - Examiner Protocol Rules
+
+    /// Appended to avatar context prompts. Enforces the QMCI protocol constraint
+    /// that the examiner must never confirm or deny correctness of patient responses.
+    static let examinerNeverCorrectPatient = "You must never confirm or deny whether the patient's answer is correct. Never say 'yes', 'right', 'correct', 'good job', or nod approvingly. Do not respond to the patient between echo commands. Remain completely silent unless you receive an echo command."
 
     // MARK: - Subtest 3: Clock Drawing (15 pts, 60 sec)
 
-    // Verbatim QMCI scoring-sheet phrasing (Molloy & O'Caoimh): "ten past eleven".
+    // Verbatim QMCI scoring-sheet phrasing (Molloy & O'Caoimh):
+    //   "Draw a clock face, put in all the numbers, and set the hands
+    //    to ten past eleven."
     // Do not change to "ten minutes after eleven" or "11:10" — the written
     // validation protocol uses this exact wording (single quotes in the sheet).
-    static let clockDrawingInstruction = "Draw a clock face and set the time to ten past eleven."
+    // One canonical instruction used everywhere: spoken, on-screen, and avatar panel.
+    static let clockDrawingInstruction = "Draw a clock face, put in all the numbers, and set the hands to ten past eleven."
 
-    static let clockDrawingOnScreen = "Draw a clock face.\nSet the time to ten past eleven."
+    static let clockDrawingOnScreen = "Draw a clock face.\nPut in all the numbers.\nSet the hands to ten past eleven."
+
+    /// Same validated instruction — available for avatar panel call sites.
+    static let clockDrawingAvatarPanelInstruction = clockDrawingInstruction
 
     static let clockDrawingStop = "Please stop drawing now."
 
@@ -97,28 +107,33 @@ enum LeftPaneSpeechCopy {
 
     static let delayedRecallTitle = "Word Recall"
 
-    /// Standardized recall prompt — verbatim QMCI protocol wording.
-    /// Avatar speaks this; it is NOT shown on the patient screen.
-    static let delayedRecallPrompt = "A few minutes ago I read you a list of words and asked you to remember them. Tell me as many of those words as you can remember, in any order."
+    static let delayedRecallPrompt = "A few minutes ago I named five words. Name as many of those words as you can remember."
 
-    /// Single follow-up after patient indicates completion or 60s silence
-    static let delayedRecallAnyOthers = "Any others?"
+    static let delayedRecallOnScreen = "Recall the 5 words from earlier."
 
     /// Patient-facing subtitle (calming, non-cueing)
     static let delayedRecallPatientSubtitle = "Take your time."
 
-    static let delayedRecallOnScreen = "Recall the 5 words from earlier."
+    /// Single follow-up after patient indicates completion or 60s silence
+    static let delayedRecallAnyOthers = "Any others?"
 
     // MARK: - Subtest 5: Verbal Fluency (20 pts, 60 sec)
 
-    static let verbalFluencyTitle = "Name as many animals\nas you can"
+    static let verbalFluencyTitle = "Animals"
 
     static let verbalFluencySubtitle = "You have one minute."
 
-    static let verbalFluencyInstruction = "Name as many animals as you can in one minute."
+    /// Full avatar prompt. Timer starts when the avatar finishes saying "Go."
+    static let verbalFluencyPrompt = "I'd like you to name as many animals as you can think of. Any animals at all — wild, farm, pets, birds, fish, insects, anything. You'll have one minute. Ready? Go."
 
-    // No mid-timer prompts per QMCI protocol — examiner stays silent during timed tasks
-    // static let verbalFluencyMidTimer removed — protocol says no hints or prompts
+    /// Legacy alias — kept for any call sites that reference the old name.
+    static let verbalFluencyInstruction = verbalFluencyPrompt
+
+    /// Neutral close after 60 seconds.
+    static let verbalFluencyClose = "Thank you. That's the end of this part."
+
+    /// Single re-prompt if patient is silent for 15 seconds. Never re-prompt twice.
+    static let verbalFluencyRePrompt = "Any animals you can think of."
 
     // MARK: - Subtest 6: Logical Memory (30 pts)
 
