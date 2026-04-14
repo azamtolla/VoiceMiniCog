@@ -1190,6 +1190,26 @@ class QmciScoringTests: XCTestCase {
             }
         }
     }
+
+    func testQmciStateRoundTrips() throws {
+        let original = QmciState()
+        original.orientationScores = [2, 2, 1, 2, 0]
+        original.registrationWords = ["dog", "rain", "butter", "love", "door"]
+        original.verbalFluencyWords = ["cat", "dog", "lion"]
+        original.clockDrawingScore = 12
+        original.cdtHandsScore = 2
+        original.cdtPivotCorrect = true
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(QmciState.self, from: data)
+
+        XCTAssertEqual(decoded.orientationScores.compactMap { $0 }, [2, 2, 1, 2, 0])
+        XCTAssertEqual(decoded.registrationWords, original.registrationWords)
+        XCTAssertEqual(decoded.verbalFluencyWords, original.verbalFluencyWords)
+        XCTAssertEqual(decoded.cdtHandsScore, 2)
+        XCTAssertEqual(decoded.cdtPivotCorrect, true)
+        XCTAssertEqual(decoded.totalScore, original.totalScore)
+    }
 }
 
 // MARK: - Composite Risk Matrix
