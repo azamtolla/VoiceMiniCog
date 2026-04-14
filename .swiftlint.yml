@@ -1,0 +1,43 @@
+# SwiftLint configuration for VoiceMiniCog
+# Tuned to match the existing codebase style.
+
+excluded:
+  - .build
+  - DerivedData
+  - Pods
+
+# Rules disabled because they conflict with established patterns
+disabled_rules:
+  - trailing_comma            # project uses trailing commas in arrays
+  - identifier_name           # short names (w, q, x, y) used throughout phase views
+  - type_body_length          # phase views are legitimately large (300-600 lines)
+  - file_length               # same reason
+  - function_body_length      # long async chains in phase views
+  - cyclomatic_complexity     # scoring functions have branching by design
+  - nesting                   # SwiftUI body builders nest deeply
+  - large_tuple               # scoring return types use tuples
+
+opt_in_rules:
+  - closure_spacing
+  - empty_count
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+  - private_outlet
+  - redundant_nil_coalescing
+  - sorted_imports
+  - vertical_whitespace_closing_braces
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+force_cast:
+  severity: warning
+
+force_try:
+  severity: warning
