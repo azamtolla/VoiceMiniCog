@@ -11,6 +11,8 @@ import SwiftUI
 struct CompletionPhaseView: View {
 
     let onComplete: () -> Void
+    let assessmentState: AssessmentState
+    @State private var showReport = false
 
     @State private var contentVisible = false
     @State private var avatarSpeaking = true
@@ -64,6 +66,17 @@ struct CompletionPhaseView: View {
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
 
+            MCSecondaryButton("Review Clinical Report",
+                              icon: "doc.text.magnifyingglass",
+                              color: AssessmentTheme.Phase.results) {
+                showReport = true
+            }
+            .disabled(avatarSpeaking)
+            .opacity(avatarSpeaking ? 0.5 : 1.0)
+            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
+            .animation(AssessmentTheme.Anim.contentEnter.delay(0.30), value: contentVisible)
+
             Spacer()
         }
         .onAppear {
@@ -98,12 +111,27 @@ struct CompletionPhaseView: View {
                 avatarSpeaking = false
             }
         }
+        .sheet(isPresented: $showReport) {
+            NavigationStack {
+                PCPReportView(
+                    state: assessmentState,
+                    onRestart: {
+                        showReport = false
+                    },
+                    onFinalize: {
+                        showReport = false
+                        onComplete()
+                    }
+                )
+            }
+            .interactiveDismissDisabled(true)
+        }
     }
 }
 
 #Preview {
     @Previewable @State var completed = false
-    CompletionPhaseView(onComplete: { completed = true })
+    CompletionPhaseView(onComplete: { completed = true }, assessmentState: AssessmentState())
         .background(AssessmentTheme.Content.background)
         .overlay(alignment: .top) {
             if completed {
