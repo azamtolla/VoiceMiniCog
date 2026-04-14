@@ -88,9 +88,21 @@ class VerbalFluencyScorer: ObservableObject {
 
     /// Call whenever the ASR transcript updates. Processes only the new
     /// portion of the transcript (since last call) for efficiency.
+    /// Also handles ASR revisions: if the transcript shrinks (ASR corrected
+    /// an earlier hypothesis), we accept the shorter length and re-scan
+    /// from the new token boundary so revised words are still captured.
     func processTranscript(_ transcript: String) {
         let lower = transcript.lowercased()
-        guard lower.count > lastProcessedLength else { return }
+        if lower.count < lastProcessedLength {
+            // ASR revision — transcript got shorter. Accept the new length
+            // but don't reset processed tokens (already-credited animals
+            // stay credited). Adjust lastProcessedTokenCount so the
+            // single-token loop below re-scans from the right offset.
+            let revisedTokens = lower.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+            lastProcessedTokenCount = min(lastProcessedTokenCount, revisedTokens.count)
+        }
+        guard lower.count != lastProcessedLength else { return }
         lastProcessedLength = lower.count
 
         let now = timerStart.map { Date().timeIntervalSince($0) } ?? 0

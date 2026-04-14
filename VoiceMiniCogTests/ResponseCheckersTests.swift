@@ -101,11 +101,56 @@ class WordRegistrationCheckerTests: XCTestCase {
     }
 
     func testSubstringMatchBehavior() {
-        // Known limitation: "arm" will match inside "armchair"
+        // After Fix 6: makeWordRegistrationChecker still uses .contains() for
+        // the completion heuristic (is the patient done speaking?). "armchair"
+        // contains "arm" as a substring → found.count = 1, wordCount = 1 → true.
+        // This is acceptable for the *checker* (not a scorer).
         let checker = makeWordRegistrationChecker(wordList: wordList)
-        // "armchair" contains "arm" → found.count = 1, wordCount = 1 → true (1 word, <= 5)
         XCTAssertTrue(checker("armchair"),
-                      "Substring match: 'armchair' contains 'arm' — known behavior")
+                      "Registration checker uses .contains() — substring match expected")
+    }
+}
+
+// MARK: - Token-Level Matching (Fix 6)
+
+@MainActor
+class TokenLevelMatchingTests: XCTestCase {
+
+    let wordList = ["butter", "arm", "shore", "letter", "queen"]
+
+    func testSubstringFalsePositivePrevented() {
+        // Fix 6: scoreWordRecall uses token-level matching.
+        // "chairman" should NOT match "chair", "armchair" should NOT match "arm".
+        let result = scoreWordRecall(transcript: "armchair", wordList: wordList)
+        XCTAssertEqual(result.count, 0,
+                       "'armchair' must NOT match 'arm' with token-level matching")
+    }
+
+    func testExactTokenMatch() {
+        let result = scoreWordRecall(transcript: "I said arm and butter", wordList: wordList)
+        XCTAssertEqual(result.count, 2)
+        XCTAssertTrue(result.recalled.contains("arm"))
+        XCTAssertTrue(result.recalled.contains("butter"))
+    }
+
+    func testTokenBoundaryPunctuation() {
+        // Words separated by punctuation should still match as tokens
+        let result = scoreWordRecall(transcript: "arm, butter. shore!", wordList: wordList)
+        XCTAssertEqual(result.count, 3)
+    }
+
+    func testCompoundWordNoFalseMatch() {
+        // "letterbox" should NOT match "letter" at token level
+        let result = scoreWordRecall(transcript: "letterbox", wordList: wordList)
+        XCTAssertEqual(result.count, 0,
+                       "'letterbox' must NOT match 'letter' with token-level matching")
+    }
+
+    func testHyphenatedWordSplitsIntoTokens() {
+        // "arm-chair" splits into tokens "arm" and "chair" — "arm" should match
+        let result = scoreWordRecall(transcript: "arm-chair", wordList: wordList)
+        XCTAssertTrue(result.recalled.contains("arm"),
+                      "Hyphenated 'arm-chair' should split and match 'arm' as a token")
     }
 }
 
@@ -573,3 +618,171 @@ final class WordRecallScorerTests: XCTestCase {
                       "'fearful'≠'fear', 'lovely'≠'love', 'bedroom'≠'bed'")
     }
 }
+
+// MARK: - VerbalFluencyScorer ASR Revision Handling (Fix 8)
+
+@MainActor
+class VerbalFluencyScorerASRTests: XCTestCase {
+
+    func testBasicStreamingAccumulation() {
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+        scorer.processTranscript("dog")
+        XCTAssertEqual(scorer.count, 1)
+        scorer.processTranscript("dog cat")
+        XCTAssertEqual(scorer.count, 2)
+        scorer.processTranscript("dog cat horse")
+        XCTAssertEqual(scorer.count, 3)
+    }
+
+    func testASRRevisionDoesNotDecreaseCount() {
+        // Fix 8: When ASR revises and shortens the transcript, already-credited
+        // animals must stay credited (count never decreases).
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+
+        scorer.processTranscript("dog cat horse cow")
+        XCTAssertEqual(scorer.count, 4, "Should recognize 4 animals")
+
+        // ASR revision — transcript shrinks (earlier hypothesis corrected)
+        scorer.processTranscript("dog cat horse")
+        XCTAssertEqual(scorer.count, 4,
+                       "Fix 8: count must NOT decrease when ASR revises transcript shorter")
+    }
+
+    func testASRRevisionThenNewAnimal() {
+        // After a revision, new animals appended to the shorter transcript
+        // should still be detected.
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+
+        scorer.processTranscript("dog cat elephant")
+        XCTAssertEqual(scorer.count, 3)
+
+        // ASR revises: "elephant" was mis-heard, becomes "cat"
+        scorer.processTranscript("dog cat")
+        XCTAssertEqual(scorer.count, 3, "elephant stays credited after revision")
+
+        // New animal arrives
+        scorer.processTranscript("dog cat lion")
+        XCTAssertEqual(scorer.count, 4, "lion should be detected after revision")
+    }
+
+    func testDuplicateAnimalNotDoubleCounted() {
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+
+        scorer.processTranscript("dog")
+        scorer.processTranscript("dog dog")
+        XCTAssertEqual(scorer.count, 1, "Duplicate 'dog' must not inflate count")
+        XCTAssertTrue(scorer.repetitions.contains("dog"))
+    }
+
+    func testNonAnimalWordsIgnored() {
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+        scorer.processTranscript("um well I think dog and table chair cat")
+        XCTAssertEqual(scorer.count, 2, "Only 'dog' and 'cat' are animals")
+    }
+
+    func testStartScoringResetsState() {
+        let scorer = VerbalFluencyScorer()
+        scorer.startScoring()
+        scorer.processTranscript("dog cat horse")
+        XCTAssertEqual(scorer.count, 3)
+
+        scorer.startScoring()
+        XCTAssertEqual(scorer.count, 0, "startScoring must reset count to 0")
+        XCTAssertTrue(scorer.validAnimals.isEmpty)
+    }
+}
+
+// MARK: - KeychainHelper (Fix 7)
+
+class KeychainHelperTests: XCTestCase {
+
+    /// Unique key prefix per test run to avoid Keychain collisions.
+    private let testKey = "test_keychain_\(UUID().uuidString)"
+
+    override func tearDown() {
+        super.tearDown()
+        KeychainHelper.delete(key: testKey)
+    }
+
+    func testSaveAndRead() {
+        let saved = KeychainHelper.save(key: testKey, value: "secret123")
+        XCTAssertTrue(saved, "Save should succeed")
+
+        let read = KeychainHelper.read(key: testKey)
+        XCTAssertEqual(read, "secret123")
+    }
+
+    func testReadNonExistentKeyReturnsNil() {
+        let read = KeychainHelper.read(key: "nonexistent_key_\(UUID().uuidString)")
+        XCTAssertNil(read, "Reading a key that doesn't exist should return nil")
+    }
+
+    func testDeleteExistingKey() {
+        KeychainHelper.save(key: testKey, value: "to_delete")
+        let deleted = KeychainHelper.delete(key: testKey)
+        XCTAssertTrue(deleted)
+
+        let read = KeychainHelper.read(key: testKey)
+        XCTAssertNil(read, "Deleted key should return nil on read")
+    }
+
+    func testDeleteNonExistentKeySucceeds() {
+        // delete() returns true for errSecItemNotFound — this is intentional
+        let deleted = KeychainHelper.delete(key: "nonexistent_\(UUID().uuidString)")
+        XCTAssertTrue(deleted, "Deleting a non-existent key should return true (not-found is OK)")
+    }
+
+    func testOverwriteExistingValue() {
+        KeychainHelper.save(key: testKey, value: "original")
+        KeychainHelper.save(key: testKey, value: "updated")
+
+        let read = KeychainHelper.read(key: testKey)
+        XCTAssertEqual(read, "updated", "Save should overwrite existing value")
+    }
+
+    func testEmptyStringValue() {
+        let saved = KeychainHelper.save(key: testKey, value: "")
+        XCTAssertTrue(saved, "Saving empty string should succeed")
+
+        let read = KeychainHelper.read(key: testKey)
+        XCTAssertEqual(read, "", "Empty string should round-trip through Keychain")
+    }
+
+    func testUnicodeValue() {
+        let emoji = "api-key-\u{1F511}-\u{2705}"
+        KeychainHelper.save(key: testKey, value: emoji)
+
+        let read = KeychainHelper.read(key: testKey)
+        XCTAssertEqual(read, emoji, "Unicode/emoji values should round-trip")
+    }
+}
+
+// MARK: - Keychain Migration Path (Fix 7)
+//
+// TavusService.init() performs a one-time migration:
+//
+// 1. Reads legacy key from UserDefaults("tavus_api_key")
+// 2. Writes it to Keychain via KeychainHelper.save(key:value:)
+// 3. Deletes the UserDefaults entry
+// 4. On subsequent launches, reads from Keychain only
+//
+// Upgrade path:
+// - Fresh install: No UserDefaults entry → Keychain empty → user enters key
+//   in Settings → saved directly to Keychain
+// - Upgrade from pre-Fix-7 build: UserDefaults has plaintext key → migrated
+//   to Keychain on first launch → UserDefaults entry deleted
+// - Post-migration: Keychain has key → UserDefaults empty → no migration runs
+//
+// Edge cases handled:
+// - Empty legacy key: if legacyKey.isEmpty check prevents writing empty string
+// - Environment variable fallback: if Keychain is empty, checks TAVUS_API_KEY
+//   env var and saves it to Keychain for future launches
+// - Migration is idempotent: if Keychain already has the key and UserDefaults
+//   is cleared, the migration block is skipped entirely
+//
+// Verified in TavusService.swift lines 55-71.

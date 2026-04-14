@@ -25,6 +25,30 @@ class SpeechService: ObservableObject {
     // Authorization status
     @Published var isAuthorized: Bool = false
 
+    // MARK: - Debug Fixture Mode
+
+    /// When true (simulator only), `startListening()` injects a sample
+    /// transcript after a short delay so phases that depend on ASR
+    /// (orientation, verbal fluency, word recall) can be exercised
+    /// without a physical microphone. Set via launch argument
+    /// `-speechFixtures YES` or the SPEECH_FIXTURES env var.
+    static var fixturesEnabled: Bool {
+        #if targetEnvironment(simulator)
+        if UserDefaults.standard.bool(forKey: "speechFixtures") { return true }
+        if ProcessInfo.processInfo.environment["SPEECH_FIXTURES"] != nil { return true }
+        return false
+        #else
+        return false
+        #endif
+    }
+
+    /// Fixture transcript to inject on the simulator. Callers can set this
+    /// before calling `startListening()` to customize the simulated response.
+    var fixtureTranscript: String?
+
+    /// Work item for the delayed fixture injection (cancellable on stop).
+    private var fixtureWork: DispatchWorkItem?
+
     // Check if running on simulator
     private var isSimulator: Bool {
         #if targetEnvironment(simulator)
@@ -76,6 +100,20 @@ class SpeechService: ObservableObject {
             print("[SpeechService] Running on simulator - speech recognition disabled")
             isListening = true
             transcript = ""
+
+            // Debug fixture mode: inject a sample transcript after 1.5s so
+            // downstream scorers and phase logic can be exercised on the
+            // simulator without a real microphone.
+            if Self.fixturesEnabled, let fixture = fixtureTranscript, !fixture.isEmpty {
+                fixtureWork?.cancel()
+                let work = DispatchWorkItem { [weak self] in
+                    guard let self, self.isListening else { return }
+                    self.transcript = fixture
+                    print("[SpeechService] Fixture injected: \(fixture.prefix(60))...")
+                }
+                fixtureWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
+            }
             return
         }
 
@@ -167,6 +205,10 @@ class SpeechService: ObservableObject {
     // MARK: - Stop Listening
 
     func stopListening() {
+        // Cancel any pending fixture injection.
+        fixtureWork?.cancel()
+        fixtureWork = nil
+
         // Always clean up audio resources regardless of isListening flag.
         // Handles error paths where startListening() threw after installing
         // a tap but before setting isListening = true — without this, a

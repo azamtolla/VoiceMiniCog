@@ -107,6 +107,11 @@ struct CompletionPhaseView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            // Phase guard: only act on this notification if the completion
+            // phase is actually visible. A stale notification from a prior
+            // phase (e.g., story recall closing utterance) could race and
+            // prematurely enable the buttons.
+            guard contentVisible else { return }
             withAnimation(.easeInOut(duration: 0.25)) {
                 avatarSpeaking = false
             }

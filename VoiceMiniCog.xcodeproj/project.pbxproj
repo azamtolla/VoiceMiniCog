@@ -102,6 +102,9 @@
 		F04B422DA9D44E9E223B9478 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
 		F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
+		DD00112233445566778899A1 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00112233445566778899A0 /* KeychainHelper.swift */; };
+		DD00112233445566778899A2 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00112233445566778899A0 /* KeychainHelper.swift */; };
+		DD00112233445566778899A3 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00112233445566778899A0 /* KeychainHelper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -149,6 +152,7 @@
 		9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsService.swift; sourceTree = "<group>"; };
 		9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseCheckers.swift; sourceTree = "<group>"; };
 		9246E5DD2F63A68D00743FA8 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
+		DD00112233445566778899A0 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		9246E5DF2F63A68D00743FA8 /* MercyColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MercyColors.swift; sourceTree = "<group>"; };
 		9246E5E42F63A68D00743FA8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		9246E5E92F63A68D00743FA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -292,6 +296,7 @@
 				AA11223344556677000003A3 /* QMCIScoringEngine.swift */,
 				AA112233445566770001A1A1 /* QMCIAvatarContext.swift */,
 				7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */,
+				DD00112233445566778899A0 /* KeychainHelper.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -557,6 +562,7 @@
 				BB11223344556677000009B9 /* CaregiverAssessmentView.swift in Sources */,
 				75D35C24A82C4B8686EE441A /* WordRecallScorer.swift in Sources */,
 				60BD4C3A9DDCB7C7EE272323 /* VerbalFluencyScorer.swift in Sources */,
+				DD00112233445566778899A1 /* KeychainHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -584,6 +590,7 @@
 				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
 				75D35C24A82C4B8686EE441B /* WordRecallScorer.swift in Sources */,
 				AA112233445566770001B2C2 /* QMCIAvatarContext.swift in Sources */,
+				DD00112233445566778899A2 /* KeychainHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -611,6 +618,7 @@
 				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
 				75D35C24A82C4B8686EE441C /* WordRecallScorer.swift in Sources */,
 				AA112233445566770001B3C3 /* QMCIAvatarContext.swift in Sources */,
+				DD00112233445566778899A3 /* KeychainHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
