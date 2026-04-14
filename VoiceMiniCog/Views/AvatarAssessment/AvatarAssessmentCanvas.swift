@@ -113,14 +113,13 @@ struct AvatarAssessmentCanvas: View {
             }
         }
         .onChange(of: tavusService.activeConversation?.conversation_url) { _, url in
-            // Conversation URL becomes available. Configure always.
-            // If assessment is already active (URL arrived after Start), trigger join.
+            // URL becomes available — configure and always attempt join.
+            // DailyCallManager's deferJoinUntilAssessmentActive flag gates whether
+            // the join actually proceeds (true on Home, false once isActive fires).
             if let url {
                 dailyCallManager.configure(url: url)
-                if isActive {
-                    dailyCallManager.deferJoinUntilAssessmentActive = false
-                    dailyCallManager.joinIfReady()
-                }
+                dailyCallManager.joinIfReady()
+                canvasLog.debug("URL arrived — configured + joinIfReady (isActive=\(isActive))")
             }
         }
         .onChange(of: flowType) { _, newFlow in

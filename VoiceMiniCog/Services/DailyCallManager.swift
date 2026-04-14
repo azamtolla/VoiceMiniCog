@@ -450,35 +450,31 @@ final class DailyCallManager: NSObject {
         contextObserver = NotificationCenter.default.addObserver(
             forName: .tavusContextUpdate, object: nil, queue: .main
         ) { [weak self] notification in
-            if let context = notification.userInfo?["context"] as? String {
-                self?.enqueueOrExecute(.context(context))
-            }
+            guard let context = notification.userInfo?["context"] as? String else { return }
+            MainActor.assumeIsolated { self?.enqueueOrExecute(.context(context)) }
         }
         echoObserver = NotificationCenter.default.addObserver(
             forName: .tavusEchoRequest, object: nil, queue: .main
         ) { [weak self] notification in
-            if let text = notification.userInfo?["text"] as? String, !text.isEmpty {
-                self?.enqueueOrExecute(.echo(text))
-            }
+            guard let text = notification.userInfo?["text"] as? String, !text.isEmpty else { return }
+            MainActor.assumeIsolated { self?.enqueueOrExecute(.echo(text)) }
         }
         respondObserver = NotificationCenter.default.addObserver(
             forName: .tavusRespondRequest, object: nil, queue: .main
         ) { [weak self] notification in
-            if let text = notification.userInfo?["text"] as? String, !text.isEmpty {
-                self?.enqueueOrExecute(.respond(text))
-            }
+            guard let text = notification.userInfo?["text"] as? String, !text.isEmpty else { return }
+            MainActor.assumeIsolated { self?.enqueueOrExecute(.respond(text)) }
         }
         muteObserver = NotificationCenter.default.addObserver(
             forName: .tavusMicMuteRequest, object: nil, queue: .main
         ) { [weak self] notification in
-            if let muted = notification.userInfo?["muted"] as? Bool {
-                self?.enqueueOrExecute(.micMuted(muted))
-            }
+            guard let muted = notification.userInfo?["muted"] as? Bool else { return }
+            MainActor.assumeIsolated { self?.enqueueOrExecute(.micMuted(muted)) }
         }
         interruptObserver = NotificationCenter.default.addObserver(
             forName: .tavusInterruptRequest, object: nil, queue: .main
-        ) { [weak self] notification in
-            self?.enqueueOrExecute(.interrupt)
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.enqueueOrExecute(.interrupt) }
         }
     }
 
