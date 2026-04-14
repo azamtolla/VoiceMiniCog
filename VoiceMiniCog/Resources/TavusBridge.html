@@ -31,7 +31,8 @@ video {
   <div id="status">Connecting...</div>
 </div>
 
-<script src="https://unpkg.com/@daily-co/daily-js"></script>
+<!-- Pin Daily.js version for clinical stability — update deliberately, not on CDN push -->
+<script src="https://unpkg.com/@daily-co/daily-js@0.70.0/dist/daily-iframe.js"></script>
 <script>
 // === TAVUS BRIDGE ===
 // Custom Daily room page for MercyCognitive.
@@ -47,9 +48,14 @@ let pendingEchos = [];   // Queue for echo requests that arrive before room join
 let echoTextQueue = [];
 let echoInFlight = false;
 let echoWatchdog = null;
+let echoCounter = 0;     // Monotonic counter for inference_id (avoids same-ms collisions)
 let firstEchoSent = false;  // True after the first echo is sent — until then,
-                             // remote audio is muted to suppress the Tavus
-                             // persona greeting that fires on room join.
+                             // remote audio is gated at the MediaStream level to
+                             // suppress the Tavus persona greeting on room join.
+
+// Suppress false "unprompted speech" interrupts (see replica.started_speaking handler).
+let lastOverwriteContextMs = 0;   // overwrite_context often precedes a spurious started_speaking before Swift's echo lands.
+let lastEchoSlotReleasedMs = 0; // Between chained echoes, echoInFlight is briefly false while the next echo is still in flight on Tavus.
 
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
@@ -69,30 +75,36 @@ async function joinRoom(roomUrl) {
   status.textContent = 'Connecting...';
   echoTextQueue = [];
   echoInFlight = false;
+  pendingEchos = [];
+  lastOverwriteContextMs = 0;
+  lastEchoSlotReleasedMs = 0;
+  echoCounter = 0;
   if (echoWatchdog) {
     clearTimeout(echoWatchdog);
     echoWatchdog = null;
+  }
+
+  // Clean up any existing call object before creating a new one
+  // (prevents event listener accumulation if joinRoom is called without leaveRoom)
+  if (callObject) {
+    const old = callObject;
+    callObject = null;
+    try { old.destroy(); } catch (e) { log('Old callObject cleanup: ' + e.message); }
   }
 
   // Extract conversation ID from URL
   const parts = roomUrl.split('/');
   conversationId = parts[parts.length - 1];
 
+  // Audio constraints (echoCancellation, noiseSuppression, autoGainControl) are
+  // applied post-join via updateInputSettings — not at createCallObject level,
+  // where inputSettings.audio.settings is not a valid Daily.js config path.
   callObject = Daily.createCallObject({
     url: roomUrl,
     userName: 'Patient',
     videoSource: false,   // Patient camera not needed — Tavus is one-way
     audioSource: true,    // (avatar → patient). Disabling video eliminates
                           // camera capture pipeline, freeing ~100-200MB.
-    inputSettings: {
-      audio: {
-        settings: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      }
-    }
   });
 
   // === EVENT HANDLERS ===
@@ -123,7 +135,8 @@ async function joinRoom(roomUrl) {
       log('Audio input optimization failed: ' + e.message);
     }
 
-    // 1b. Request highest receive quality from the avatar's video stream
+    // 1b. Request lowest simulcast layer to minimize memory + bandwidth.
+    //     Layer 0 = lowest quality; higher integers = higher quality.
     try {
       await callObject.updateReceiveSettings({
         '*': { video: { layer: 0 } }
@@ -146,16 +159,14 @@ async function joinRoom(roomUrl) {
     setSensitivity('low', 'low');
     log('Set clinical sensitivity: pause=low, interrupt=low');
 
-    // 3. Mute mic AND remote participant audio immediately — avatar must
-    //    stay silent until the app sends the first sendEcho() command
-    //    (user started assessment). Muting remote audio at the Daily level
-    //    prevents the Tavus persona greeting from being audible at all —
-    //    the auto-interrupt catches it but can't fire until started_speaking,
-    //    by which time the patient hears a brief syllable.
+    // 3. Mute mic on join. Remote audio is gated at the MediaStream level
+    //    in updateVideoElements() (audio track not added until firstEchoSent).
+    //    This avoids the Tavus persona greeting being audible — without
+    //    requiring admin permissions that updateParticipant('*', {setAudio})
+    //    needs but a patient participant doesn't have.
     callObject.setLocalAudio(false);
     firstEchoSent = false;
-    callObject.updateParticipant('*', { setAudio: false });
-    log('Mic + remote audio muted on join (waiting for first echo)');
+    log('Mic muted + remote audio gated at MediaStream level (waiting for first echo)');
 
     // 4. Set global persona: neuropsychologist examiner
     sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
@@ -184,6 +195,14 @@ async function joinRoom(roomUrl) {
 
   callObject.on('participant-left', (evt) => {
     log('Participant left');
+    // Null srcObject before DOM removal — prevents Safari/WKWebView
+    // WebMediaPlayer memory leak where the player persists indefinitely.
+    const video = document.getElementById('remote-video');
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+      video.remove();
+    }
     updateVideoElements();
   });
 
@@ -214,8 +233,8 @@ async function joinRoom(roomUrl) {
         // surface as user.stopped after VAD; conversation.interrupt aborts the
         // clinician echo and can desync echoInFlight / freeze the replica until
         // the watchdog fires (especially during Word Registration chains).
-        if (echoInFlight) {
-          log('Auto-interrupt: skipped (echo in flight — do not cut scripted prompt)');
+        if (echoInFlight || echoTextQueue.length > 0) {
+          log('Auto-interrupt: skipped (echo queued or in flight — do not cut scripted prompt)');
           return;
         }
         sendInteraction('conversation.interrupt', {});
@@ -229,6 +248,21 @@ async function joinRoom(roomUrl) {
         // Suppress it immediately. This does NOT affect echoed prompts
         // because echoInFlight is true while an echo is being spoken.
         if (!echoInFlight && echoTextQueue.length === 0) {
+          const now = Date.now();
+          // Word Registration (and similar): Swift sends overwrite_context then
+          // conversation.echo a few ms later. Tavus often emits started_speaking
+          // with echoInFlight still false — interrupting here aborts the intro.
+          if (now - lastOverwriteContextMs < 1200) {
+            log('Auto-interrupt: skipped (recent overwrite_context — pre-echo pipeline)');
+            return;
+          }
+          // Swift chains echoes on avatarDoneSpeaking; between segments echoInFlight
+          // is false while Tavus reconnects audio, then started_speaking fires before
+          // the next sendEcho reaches this queue — do not interrupt that gap.
+          if (now - lastEchoSlotReleasedMs < 1200) {
+            log('Auto-interrupt: skipped (post-stopped_speaking gap — chained echo inbound)');
+            return;
+          }
           sendInteraction('conversation.interrupt', {});
           log('Auto-interrupt: suppressed unprompted Tavus speech (no echo in-flight)');
         } else {
@@ -264,6 +298,7 @@ async function joinRoom(roomUrl) {
 
   callObject.on('nonfatal-error', (evt) => {
     log('Non-fatal error: ' + JSON.stringify(evt).substring(0, 200));
+    notifySwift('error', {message: 'nonfatal-error: ' + JSON.stringify(evt).substring(0, 200)});
   });
 
   callObject.on('error', (evt) => {
@@ -276,6 +311,11 @@ async function joinRoom(roomUrl) {
     log('Left meeting — isJoined was: ' + isJoined);
     isJoined = false;
     notifySwift('left', {});
+  });
+
+  callObject.on('call-instance-destroyed', () => {
+    log('Call instance destroyed');
+    callObject = null;
   });
 
   try {
@@ -309,11 +349,17 @@ function updateVideoElements() {
       video.id = 'remote-video';
       video.autoplay = true;
       video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');  // legacy iOS WebKit
       status.style.display = 'none';
       container.appendChild(video);
     }
 
-    const audioTrack = p.tracks?.audio?.persistentTrack;
+    // Gate remote audio at the MediaStream level: only include the audio
+    // track after firstEchoSent. This suppresses the Tavus persona greeting
+    // without requiring admin permissions (unlike updateParticipant setAudio).
+    const rawAudioTrack = p.tracks?.audio?.persistentTrack;
+    const audioTrack = (rawAudioTrack && firstEchoSent) ? rawAudioTrack : null;
     const curStream = video.srcObject;
     const curVideo = curStream?.getVideoTracks?.()?.[0];
     const curAudio = curStream?.getAudioTracks?.()?.[0];
@@ -328,7 +374,7 @@ function updateVideoElements() {
     }
 
     // Participant snapshot sometimes omits audio briefly; keep existing audio track.
-    if (sameVideo && curStream && !audioTrack && curAudio) {
+    if (sameVideo && curStream && !rawAudioTrack && curAudio) {
       break;
     }
 
@@ -336,6 +382,9 @@ function updateVideoElements() {
       if (audioTrack && (!curAudio || curAudio.id !== audioTrack.id)) {
         if (curAudio) curStream.removeTrack(curAudio);
         curStream.addTrack(audioTrack);
+      } else if (!audioTrack && curAudio) {
+        // firstEchoSent is false — remove audio track to re-gate
+        curStream.removeTrack(curAudio);
       }
       break;
     }
@@ -344,9 +393,10 @@ function updateVideoElements() {
     stream.addTrack(vidTrack);
     if (audioTrack) stream.addTrack(audioTrack);
     video.srcObject = stream;
-    try {
-      video.play?.();
-    } catch (e) {}
+    video.play?.()?.catch(err => {
+      log('video.play() rejected: ' + err.message);
+      notifySwift('error', { message: 'video-play-failed: ' + err.message });
+    });
     break;
   }
 }
@@ -355,7 +405,7 @@ function updateVideoElements() {
 
 function sendInteraction(eventType, properties) {
   if (!callObject || !conversationId) {
-    log('Cannot send interaction - not connected');
+    log('Cannot send interaction (' + eventType + ') - not connected (callObject=' + !!callObject + ', conversationId=' + !!conversationId + ')');
     return false;
   }
   const msg = {
@@ -371,7 +421,8 @@ function sendInteraction(eventType, properties) {
 
 // Overwrite the avatar's conversation context (tells it what phase we're in)
 function sendContextUpdate(contextText) {
-  return sendInteraction('conversation.overwrite_context', {
+  lastOverwriteContextMs = Date.now();
+  return sendInteraction('conversation.overwrite_llm_context', {
     context: contextText
   });
 }
@@ -388,6 +439,7 @@ function releaseEchoSlot() {
   }
   echoInFlight = false;
   pumpEchoQueue();
+  lastEchoSlotReleasedMs = Date.now();
 }
 
 function pumpEchoQueue() {
@@ -398,17 +450,12 @@ function pumpEchoQueue() {
   const text = echoTextQueue.shift();
   echoInFlight = true;
 
-  // On the very first echo, unmute remote participant audio so the
-  // patient can hear the avatar. This was muted on join to suppress
-  // the Tavus persona greeting.
+  // On the very first echo, rebuild the MediaStream to include the audio
+  // track. This was gated on join to suppress the Tavus persona greeting.
   if (!firstEchoSent) {
     firstEchoSent = true;
-    try {
-      callObject.updateParticipant('*', { setAudio: true });
-      log('Remote audio unmuted (first echo — assessment started)');
-    } catch (e) {
-      log('Remote audio unmute failed: ' + e.message);
-    }
+    updateVideoElements();  // rebuilds stream with audio track now included
+    log('Remote audio enabled via MediaStream (first echo — assessment started)');
   }
 
   try {
@@ -419,6 +466,16 @@ function pumpEchoQueue() {
   }
 
   if (echoWatchdog) clearTimeout(echoWatchdog);
+  // Short scripted clips (orientation, registration words): tight watchdog.
+  // Welcome uses long SSML (<speak>…</speak>); Tavus often delays `stopped_speaking`
+  // until the full TTS finishes — a 10s watchdog re-queues the same echo and/or
+  // clears echoInFlight while audio is still playing, which triggers false
+  // "unprompted speech" auto-interrupts and cuts the replica off mid-sentence.
+  const longFormEcho =
+    text.indexOf('<speak') !== -1 ||
+    text.length > 280;
+  const watchdogMs = longFormEcho ? 120000 : 10000;
+
   echoWatchdog = setTimeout(() => {
     log('Echo watchdog: no stopped_speaking — releasing slot + notifying Swift');
     echoWatchdog = null;
@@ -434,14 +491,14 @@ function pumpEchoQueue() {
       callObject.setLocalAudio(true);
       log('Mic unmuted (watchdog, queue empty)');
     }
-  }, 15000);
+  }, watchdogMs);
 
   log('Echo sending (serialized): ' + text.substring(0, 80) + '...');
   sendInteraction('conversation.echo', {
     modality: 'text',
     text: text,
-    inference_id: 'echo_' + Date.now(),
-    done: true
+    inference_id: 'echo_' + (++echoCounter),
+    done: 'true'
   });
 }
 
@@ -461,8 +518,7 @@ function sendEcho(text) {
 // Send a text response as if the LLM generated it
 function sendRespond(text) {
   return sendInteraction('conversation.respond', {
-    text: text,
-    done: true
+    text: text
   });
 }
 
@@ -494,17 +550,31 @@ function setMicMuted(muted) {
 }
 
 // === CLEANUP ===
-function leaveRoom() {
+async function leaveRoom() {
   echoTextQueue = [];
+  pendingEchos = [];
   echoInFlight = false;
   if (echoWatchdog) {
     clearTimeout(echoWatchdog);
     echoWatchdog = null;
   }
+  // Null srcObject before DOM removal — prevents Safari/WKWebView memory leak
+  const video = document.getElementById('remote-video');
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.remove();
+  }
   if (callObject) {
-    callObject.leave();
-    callObject.destroy();
-    callObject = null;
+    const co = callObject;
+    callObject = null;        // nil out before async work to prevent re-entry
+    isJoined = false;
+    try {
+      await co.leave();
+    } catch (e) {
+      log('leave() error (may already be left): ' + e.message);
+    }
+    co.destroy();
   }
 }
 

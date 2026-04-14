@@ -8,6 +8,9 @@
 //
 
 import SwiftUI
+import os
+
+private let canvasLog = Logger(subsystem: "com.mercycog.VoiceMiniCog", category: "Canvas")
 
 // MARK: - AvatarAssessmentCanvas
 
@@ -19,14 +22,18 @@ struct AvatarAssessmentCanvas: View {
     /// but phase content is not rendered — prevents WelcomePhaseView.onAppear
     /// from firing the welcome echo before the user taps Start.
     var isActive: Bool
+    /// When true and `isActive` is false, still pass Daily URL into the avatar zone so
+    /// `TavusCVIView` stays mounted across Home → Start (avoids WKWebView teardown races).
+    /// Must be false while another screen (e.g. caregiver) hosts its own `TavusCVIView`.
+    var warmTavusWebViewOnHome: Bool = false
     @Bindable var assessmentState: AssessmentState
     var tavusService: TavusService
     let onComplete: () -> Void
     let onCancel: () -> Void
 
     @State private var layoutManager = AvatarLayoutManager()
-    // Pause sheet removed — End Session button replaces it
     @State private var avatarDismissed = false
+    @State private var isCancelling = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: Body
@@ -38,16 +45,16 @@ struct AvatarAssessmentCanvas: View {
 
             ZStack {
                 // MARK: Layer 1 — Unified background gradient
-                // Light #F8F9FA on left → dark #080808 on right,
+                // Light content on left → dark avatar on right,
                 // gradient stop animated with avatarWidthRatio.
                 LinearGradient(
                     stops: [
-                        .init(color: Color(hex: "#F8F9FA"), location: 0.0),
+                        .init(color: AssessmentTheme.Content.background, location: 0.0),
                         .init(
-                            color: Color(hex: "#F8F9FA"),
+                            color: AssessmentTheme.Content.background,
                             location: 1.0 - layoutManager.avatarWidthRatio
                         ),
-                        .init(color: Color(hex: "#080808"), location: 1.0)
+                        .init(color: AssessmentTheme.canvasDark, location: 1.0)
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
@@ -72,7 +79,7 @@ struct AvatarAssessmentCanvas: View {
                         Color.clear
                             .frame(width: contentWidth)
                             .onAppear {
-                                print("[Canvas] Phase content SUPPRESSED — isActive=false, waiting for user to start assessment")
+                                canvasLog.debug("Phase content suppressed — isActive=false, waiting for user to start assessment")
                             }
                     }
 
@@ -95,21 +102,29 @@ struct AvatarAssessmentCanvas: View {
             if active {
                 layoutManager.flowType = flowType
                 layoutManager.currentPhase = .welcome
-                print("[Canvas] Assessment STARTED — phase set to .welcome")
+                isCancelling = false
+                canvasLog.debug("Assessment started — phase set to .welcome")
             }
         }
         .onChange(of: flowType) { _, newFlow in
+            // flowType is `let` on this view, so it only changes when the parent
+            // reconstructs the canvas (i.e., a new session). Guard ensures no
+            // accidental mid-session reset if SwiftUI re-evaluates the parent body.
             guard isActive else { return }
             layoutManager.flowType = newFlow
             layoutManager.currentPhase = .welcome
         }
         .onChange(of: sessionID) { _, _ in
-            // New assessment started — reset to welcome regardless of flow type.
-            // Only act if isActive, otherwise this is just a UUID refresh at init.
+            // New assessment started — reset dismissed state and cancel guard.
+            // Skip phase reset when isActive also changed in the same render
+            // cycle (the isActive handler already set .welcome).
             guard isActive else { return }
-            layoutManager.flowType = flowType
-            layoutManager.currentPhase = .welcome
+            if layoutManager.currentPhase != .welcome {
+                layoutManager.flowType = flowType
+                layoutManager.currentPhase = .welcome
+            }
             avatarDismissed = false
+            isCancelling = false
         }
     }
 
@@ -118,8 +133,9 @@ struct AvatarAssessmentCanvas: View {
     @ViewBuilder
     private var contentZone: some View {
         VStack(spacing: 0) {
-            // Progress track — 60pt top padding for safe area
-            progressTrackPlaceholder
+            // Progress track — 60pt top padding for safe area.
+            // No horizontal padding so the track spans the full content width.
+            progressTrack
                 .padding(.top, 60)
 
             // Phase-specific content — crossfade + subtle upward drift
@@ -141,14 +157,23 @@ struct AvatarAssessmentCanvas: View {
                     )
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
 
-            // End Session — hidden during phases where it lives on the avatar/clinician panel only.
-            if ![AssessmentPhaseID.clockDrawing, .wordRegistration, .wordRecall, .verbalFluency]
+            // End Session — clock drawing has its own button in the avatar zone.
+            // Active testing phases (wordRegistration, wordRecall, verbalFluency)
+            // hide the regular button to prevent accidental patient taps, but show
+            // an examiner-only long-press exit so the clinician always has a way out.
+            if layoutManager.currentPhase == .clockDrawing {
+                // Avatar zone provides its own End Session button
+            } else if [AssessmentPhaseID.wordRegistration, .wordRecall, .verbalFluency]
                 .contains(layoutManager.currentPhase) {
+                examinerLongPressExit
+                    .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            } else {
                 endSessionButton
+                    .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
             }
         }
-        .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .padding(.bottom, 24)
     }
 
@@ -182,7 +207,7 @@ struct AvatarAssessmentCanvas: View {
 
     // MARK: - Progress Track
 
-    private var progressTrackPlaceholder: some View {
+    private var progressTrack: some View {
         ProgressTrackView(layoutManager: layoutManager)
     }
 
@@ -190,7 +215,11 @@ struct AvatarAssessmentCanvas: View {
 
     private var endSessionButton: some View {
         Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            guard !isCancelling else { return }
+            isCancelling = true
+            let haptic = UIImpactFeedbackGenerator(style: .light)
+            haptic.prepare()
+            haptic.impactOccurred()
             onCancel()
         } label: {
             HStack(spacing: 6) {
@@ -204,18 +233,47 @@ struct AvatarAssessmentCanvas: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Examiner Long-Press Exit
+
+    /// Subtle exit control for active testing phases where a regular button
+    /// could be tapped accidentally by the patient. Requires a deliberate
+    /// 2-second long press to trigger — examiner-only interaction.
+    private var examinerLongPressExit: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "xmark.circle")
+                .font(.system(size: 12))
+            Text("Hold to End Session")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .foregroundStyle(Color(hex: "#DC2626").opacity(0.5))
+        .onLongPressGesture(minimumDuration: 2.0) {
+            guard !isCancelling else { return }
+            isCancelling = true
+            let haptic = UIImpactFeedbackGenerator(style: .medium)
+            haptic.prepare()
+            haptic.impactOccurred()
+            onCancel()
+        }
+    }
+
     // MARK: - Avatar Zone
 
     @ViewBuilder
     private func avatarZone(width: CGFloat, height: CGFloat) -> some View {
-        // Only hand the Daily URL to the WebView while this canvas is the active
-        // screen. Pre-warm may fill `activeConversation` on Home — if we passed
-        // the URL while `isActive` is false, TavusCVIView would join immediately
-        // and the replica often speaks before the user taps Start.
-        let roomURL = isActive ? tavusService.activeConversation?.conversation_url : nil
+        // Mount TavusCVIView whenever we have a URL and (assessment active OR Home warm
+        // path). Omit URL while an inactive canvas shares the session with another
+        // screen that embeds its own `TavusCVIView` (e.g. caregiver).
+        let roomURL: String? = {
+            guard let u = tavusService.activeConversation?.conversation_url, !avatarDismissed else { return nil }
+            if isActive { return u }
+            if warmTavusWebViewOnHome { return u }
+            return nil
+        }()
+        let deferDailyJoin = warmTavusWebViewOnHome && !isActive
         AvatarZoneView(
             layoutManager: layoutManager,
-            conversationURL: avatarDismissed ? nil : roomURL,
+            conversationURL: roomURL, // avatarDismissed already handled in roomURL closure
+            deferDailyRoomJoin: deferDailyJoin,
             isConnecting: avatarDismissed ? false : tavusService.isCreatingConversation,
             errorMessage: avatarDismissed ? nil : tavusService.lastError,
             width: width,
@@ -224,7 +282,7 @@ struct AvatarAssessmentCanvas: View {
                 Task {
                     do {
                         _ = try await tavusService.createConversation(
-                            conversationName: "MercyCog Assessment \(Date().formatted(date: .abbreviated, time: .shortened))"
+                            conversationName: TavusService.defaultConversationName()
                         )
                     } catch {
                         tavusService.lastError = error.localizedDescription
@@ -238,7 +296,11 @@ struct AvatarAssessmentCanvas: View {
             onDoneDrawing: {
                 layoutManager.advanceToNextPhase()
             },
-            onEndSession: onCancel
+            onEndSession: {
+                guard !isCancelling else { return }
+                isCancelling = true
+                onCancel()
+            }
         )
         .frame(width: width, height: height)
     }
@@ -247,10 +309,13 @@ struct AvatarAssessmentCanvas: View {
 // MARK: - Preview
 
 #Preview {
+    // TavusService.shared is a singleton with private init — safe in previews
+    // because no API calls fire unless preWarm() is explicitly called.
     AvatarAssessmentCanvas(
         flowType: .quick,
         sessionID: UUID(),
         isActive: true,
+        warmTavusWebViewOnHome: false,
         assessmentState: AssessmentState(),
         tavusService: TavusService.shared,
         onComplete: {},

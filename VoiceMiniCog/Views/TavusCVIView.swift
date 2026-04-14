@@ -31,6 +31,10 @@ extension Notification.Name {
     static let tavusDailyRoomJoined = Notification.Name("tavusDailyRoomJoined")
     /// Mute/unmute the patient's microphone in the Daily call
     static let tavusMicMuteRequest = Notification.Name("tavusMicMuteRequest")
+    /// Request to interrupt avatar speech and clear the echo queue
+    static let tavusInterruptRequest = Notification.Name("tavusInterruptRequest")
+    /// Fired when the Daily WebRTC connection drops mid-session (left-meeting or fatal error)
+    static let tavusConnectionLost = Notification.Name("tavusConnectionLost")
 }
 
 // MARK: - CLINICAL-UI
@@ -39,6 +43,10 @@ extension Notification.Name {
 
 struct TavusCVIView: UIViewRepresentable {
     let conversationURL: String
+    /// When true with a pre-warmed session on Home, load the bridge but do **not** call `joinRoom`
+    /// until this becomes false (assessment active). Prevents Tavus from speaking unprompted
+    /// (e.g. "hello") while `isActive` is still false.
+    var deferDailyRoomJoinUntilAssessmentActive: Bool = false
     var onAvatarEvent: ((TavusAvatarEvent) -> Void)?
 
     func makeUIView(context: Context) -> WKWebView {
@@ -49,9 +57,13 @@ struct TavusCVIView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
 
-        // Register Swift message handler for JS → Swift bridge
+        // Register Swift message handler for JS → Swift bridge.
+        // Fix #5: use WeakScriptHandler to break the retain cycle:
+        // WKWebView → config → userContentController → handler → coordinator → webView
         let contentController = config.userContentController
-        contentController.add(context.coordinator, name: "tavusBridge")
+        let weakHandler = WeakScriptHandler()
+        weakHandler.delegate = context.coordinator
+        contentController.add(weakHandler, name: "tavusBridge")
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
@@ -63,6 +75,7 @@ struct TavusCVIView: UIViewRepresentable {
         // Store reference for sending JS commands later
         context.coordinator.webView = webView
         context.coordinator.conversationURL = conversationURL
+        context.coordinator.deferDailyRoomJoinUntilAssessmentActive = deferDailyRoomJoinUntilAssessmentActive
         context.coordinator.onAvatarEvent = onAvatarEvent
 
         let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
@@ -83,13 +96,22 @@ struct TavusCVIView: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        // No-op: conversation URL doesn't change during a session
+        let coordinator = context.coordinator
+        coordinator.conversationURL = conversationURL
+        coordinator.webView = webView
+        coordinator.deferDailyRoomJoinUntilAssessmentActive = deferDailyRoomJoinUntilAssessmentActive
+        coordinator.onAvatarEvent = onAvatarEvent
+        // Fix #4: single join dispatch — attemptJoinIfPossible handles all cases
+        // including the deferred→active transition.
+        coordinator.attemptJoinIfPossible()
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
-        let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
-        print("[TavusCVI] dismantleUIView — WKWebView \(ptr) DESTROYED")
-        cviLog.info("dismantleUIView — WKWebView \(ptr, privacy: .public) DESTROYED")
+        // Fix #6: remove script message handler to break any residual strong refs
+        // and prevent JS messages from firing on a stale coordinator.
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "tavusBridge")
+        coordinator.webView = nil
+        cviLog.info("dismantleUIView — WKWebView DESTROYED, script handler removed")
     }
 
     func makeCoordinator() -> Coordinator {
@@ -102,10 +124,27 @@ struct TavusCVIView: UIViewRepresentable {
         var webView: WKWebView?
         var conversationURL: String?
         var onAvatarEvent: ((TavusAvatarEvent) -> Void)?
+        /// When true, `didFinish` loads bridge JS only — Daily `joinRoom` waits until assessment is active.
+        var deferDailyRoomJoinUntilAssessmentActive = false
         private var hasJoined = false
+        /// True after first successful `didFinish` for the bridge document — `sendEcho` / `sendContextUpdate` exist in JS.
+        private var isBridgeDocumentReady = false
+        /// Ops received before the bridge script is executable (race with Welcome `onAppear`).
+        private var pendingUntilDocumentReady: [PendingBridgeOp] = []
+        /// Serializes WK `callAsyncJavaScript` so `overwrite_context` cannot overlap `sendEcho` (H2).
+        private var bridgeExecutionChain: Task<Void, Never>?
         private var contextObserver: NSObjectProtocol?
         private var echoObserver: NSObjectProtocol?
         private var muteObserver: NSObjectProtocol?
+        private var interruptObserver: NSObjectProtocol?
+
+        private enum PendingBridgeOp {
+            case context(String)
+            case echo(String)
+            case interrupt
+            case micMuted(Bool)
+            case sensitivity(pause: String, interrupt: String)
+        }
 
         override init() {
             super.init()
@@ -139,6 +178,13 @@ struct TavusCVIView: UIViewRepresentable {
                     self?.setMicMuted(muted)
                 }
             }
+            interruptObserver = NotificationCenter.default.addObserver(
+                forName: .tavusInterruptRequest,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.sendInterrupt()
+            }
         }
 
         deinit {
@@ -150,6 +196,120 @@ struct TavusCVIView: UIViewRepresentable {
             }
             if let observer = muteObserver {
                 NotificationCenter.default.removeObserver(observer)
+            }
+            if let observer = interruptObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            bridgeExecutionChain?.cancel()
+            bridgeExecutionChain = nil
+        }
+
+        /// Run bridge JS strictly one-at-a-time on the main actor.
+        private func enqueueBridgeJS(
+            _ label: String,
+            _ body: @escaping @MainActor () async throws -> Void
+        ) {
+            let previous = bridgeExecutionChain
+            bridgeExecutionChain = Task { @MainActor [weak self] in
+                if let previous {
+                    await previous.value
+                }
+                guard self != nil else { return }
+                do {
+                    try await body()
+                } catch {
+                    cviLog.error("\(label) failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+
+        private func enqueueOrDefer(_ op: PendingBridgeOp) {
+            if !isBridgeDocumentReady {
+                pendingUntilDocumentReady.append(op)
+                return
+            }
+            switch op {
+            case .context(let s): runSendContextUpdate(s)
+            case .echo(let s): runSendEcho(s)
+            case .interrupt: runSendInterrupt()
+            case .micMuted(let m): runSetMicMuted(m)
+            case .sensitivity(let p, let i): runSetSensitivity(pause: p, interrupt: i)
+            }
+        }
+
+        /// Run deferred ops in one serialized `callAsyncJavaScript` chain (no nested `enqueueBridgeJS` per op).
+        private func performPendingOpsInlineSequential() async throws {
+            guard let webView else { return }
+            let batch = pendingUntilDocumentReady
+            pendingUntilDocumentReady.removeAll()
+            guard !batch.isEmpty else { return }
+            for op in batch {
+                switch op {
+                case .context(let text):
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendContextUpdate(text);",
+                        arguments: ["text": text],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                case .echo(let text):
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendEcho(text);",
+                        arguments: ["text": text],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                case .interrupt:
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendInterrupt();",
+                        arguments: [:],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                case .micMuted(let muted):
+                    _ = try await webView.callAsyncJavaScript(
+                        "setMicMuted(muted);",
+                        arguments: ["muted": muted],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                case .sensitivity(let pause, let interrupt):
+                    _ = try await webView.callAsyncJavaScript(
+                        "setSensitivity(p, i);",
+                        arguments: ["p": pause, "i": interrupt],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                }
+            }
+        }
+
+        /// Consolidated join entry point — handles both immediate and deferred-from-Home paths.
+        /// Fix #1: hasJoined set inside closure after guards pass, not before.
+        /// Fix #2: performPendingOps only runs after successful join.
+        /// Fix #4: single method replaces attemptJoinIfPossible + beginDailyJoinIfReady.
+        func attemptJoinIfPossible() {
+            guard !deferDailyRoomJoinUntilAssessmentActive else { return }
+            guard isBridgeDocumentReady, !hasJoined else { return }
+            guard webView != nil, let url = conversationURL else { return }
+            hasJoined = true
+            cviLog.info("attemptJoinIfPossible — joining room")
+            enqueueBridgeJS("joinRoomAndFlush") { [weak self] in
+                guard let self, let webView = self.webView else { return }
+                do {
+                    _ = try await webView.callAsyncJavaScript(
+                        "await joinRoom(url);",
+                        arguments: ["url": url],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                    // Fix #2: only flush pending ops after a successful join.
+                    try await self.performPendingOpsInlineSequential()
+                } catch {
+                    cviLog.error("joinRoom failed: \(error.localizedDescription, privacy: .public)")
+                    // Join failed — allow retry on next attemptJoinIfPossible call.
+                    self.hasJoined = false
+                }
             }
         }
 
@@ -186,30 +346,14 @@ struct TavusCVIView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
-            guard !hasJoined, let url = conversationURL else {
-                print("[TavusCVI] didFinish — webView \(ptr), already joined or no URL")
-                cviLog.info("didFinish — webView \(ptr, privacy: .public), already joined or no URL")
-                return
+            self.webView = webView
+            if !isBridgeDocumentReady {
+                isBridgeDocumentReady = true
             }
-            hasJoined = true
-            print("[TavusCVI] didFinish — webView \(ptr), joining room")
-            cviLog.info("didFinish — webView \(ptr, privacy: .public), joining room")
-
-            // joinRoom is async in the bridge JS — use callAsyncJavaScript
-            // with parameterized argument to avoid URL injection.
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "await joinRoom(url);",
-                        arguments: ["url": url],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("joinRoom failed: \(error.localizedDescription, privacy: .public)")
-                }
-            }
+            cviLog.info("didFinish — bridge document ready")
+            // Delegate to the single join path — it handles all cases
+            // (already joined, no URL, deferred, ready to join).
+            attemptJoinIfPossible()
         }
 
         // MARK: JS → Swift Message Handler
@@ -236,14 +380,34 @@ struct TavusCVIView: UIViewRepresentable {
                 NotificationCenter.default.post(name: .tavusDailyRoomJoined, object: nil)
 
             case "left":
-                print("[TavusCVI] Left Daily room")
                 cviLog.info("Left Daily room")
                 onAvatarEvent?(.left)
+                // Fix #14: only post connectionLost if the leave was unexpected
+                // (hasJoined still true = we didn't intend to leave).
+                // A clean session end calls leaveRoom() which sets hasJoined = false
+                // before the left event arrives.
+                if hasJoined {
+                    hasJoined = false
+                    NotificationCenter.default.post(name: .tavusConnectionLost, object: nil)
+                }
 
             case "error":
                 let msg = json["message"] as? String ?? "Unknown"
+                // Daily `network-connection` with `event: connected` (signaling + SFU) is normal setup noise;
+                // the bridge posts it as `type: error` for diagnostics — do not surface as a user-facing error.
+                if msg.hasPrefix("network-connection:"), msg.contains("\"event\":\"connected\"") {
+                    cviLog.debug("Bridge (network ok): \(msg, privacy: .public)")
+                    return
+                }
                 print("[TavusCVI] Bridge error: \(msg)")
                 cviLog.error("Bridge error: \(msg, privacy: .public)")
+                if !msg.hasPrefix("nonfatal-error:") {
+                    NotificationCenter.default.post(
+                        name: .tavusConnectionLost,
+                        object: nil,
+                        userInfo: ["message": msg]
+                    )
+                }
                 onAvatarEvent?(.error(msg))
 
             case "tavusEvent":
@@ -281,99 +445,109 @@ struct TavusCVIView: UIViewRepresentable {
 
         /// Update the avatar's conversation context (tells it what phase/state we're in)
         func sendContextUpdate(_ context: String) {
-            guard let webView else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "sendContextUpdate(text);",
-                        arguments: ["text": context],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("Context update failed: \(error.localizedDescription, privacy: .public)")
-                }
-            }
+            enqueueOrDefer(.context(context))
         }
 
         /// Make the avatar speak exact text (bypasses LLM — for clinical prompts)
         func sendEcho(_ text: String) {
-            guard let webView else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "sendEcho(text);",
-                        arguments: ["text": text],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("Echo failed: \(error.localizedDescription, privacy: .public)")
-                }
-            }
+            enqueueOrDefer(.echo(text))
         }
 
         /// Interrupt the avatar (stop speaking immediately)
         func sendInterrupt() {
-            guard let webView else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "sendInterrupt();",
-                        arguments: [:],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("Interrupt failed: \(error.localizedDescription, privacy: .public)")
-                }
-            }
+            enqueueOrDefer(.interrupt)
         }
 
         /// Mute or unmute the patient's microphone via the Daily JS bridge
         func setMicMuted(_ muted: Bool) {
-            guard let webView else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "setMicMuted(muted);",
-                        arguments: ["muted": muted],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("setMicMuted failed: \(error.localizedDescription, privacy: .public)")
-                }
-            }
+            enqueueOrDefer(.micMuted(muted))
         }
 
         /// Adjust turn-taking sensitivity
         func setSensitivity(pause: String, interrupt: String) {
-            guard let webView else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await webView.callAsyncJavaScript(
-                        "setSensitivity(p, i);",
-                        arguments: ["p": pause, "i": interrupt],
-                        in: nil,
-                        contentWorld: .page
-                    )
-                } catch {
-                    cviLog.error("setSensitivity failed: \(error.localizedDescription, privacy: .public)")
-                }
+            enqueueOrDefer(.sensitivity(pause: pause, interrupt: interrupt))
+        }
+
+        private func runSendContextUpdate(_ context: String) {
+            enqueueBridgeJS("Context update") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "sendContextUpdate(text);",
+                    arguments: ["text": context],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        }
+
+        private func runSendEcho(_ text: String) {
+            enqueueBridgeJS("Echo") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "sendEcho(text);",
+                    arguments: ["text": text],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        }
+
+        private func runSendInterrupt() {
+            enqueueBridgeJS("Interrupt") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "sendInterrupt();",
+                    arguments: [:],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        }
+
+        private func runSetMicMuted(_ muted: Bool) {
+            enqueueBridgeJS("setMicMuted") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "setMicMuted(muted);",
+                    arguments: ["muted": muted],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        }
+
+        private func runSetSensitivity(pause: String, interrupt: String) {
+            enqueueBridgeJS("setSensitivity") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "setSensitivity(p, i);",
+                    arguments: ["p": pause, "i": interrupt],
+                    in: nil,
+                    contentWorld: .page
+                )
             }
         }
 
         // MARK: Navigation Error Handling
+
+        /// Fix #3 + #7: reset all bridge state on navigation failure so a reload
+        /// starts from a clean slate. Without this, isBridgeDocumentReady stays
+        /// true and stale pendingUntilDocumentReady ops replay on the new page.
+        private func resetBridgeState() {
+            hasJoined = false
+            isBridgeDocumentReady = false
+            pendingUntilDocumentReady.removeAll()
+            bridgeExecutionChain?.cancel()
+            bridgeExecutionChain = nil
+        }
 
         func webView(
             _ webView: WKWebView,
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
-            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
-            cviLog.error("Navigation failed — webView \(ptr, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            hasJoined = false  // allow rejoin on next successful navigation
+            cviLog.error("Navigation failed: \(error.localizedDescription, privacy: .public)")
+            resetBridgeState()
         }
 
         func webView(
@@ -381,9 +555,8 @@ struct TavusCVIView: UIViewRepresentable {
             didFail navigation: WKNavigation!,
             withError error: Error
         ) {
-            let ptr = String(format: "%p", unsafeBitCast(webView, to: Int.self))
-            cviLog.error("Load failed — webView \(ptr, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            hasJoined = false  // allow rejoin on next successful navigation
+            cviLog.error("Load failed: \(error.localizedDescription, privacy: .public)")
+            resetBridgeState()
         }
     }
 }
@@ -419,7 +592,13 @@ func avatarSetContext(_ context: String) {
 /// patient responses. This eliminates the regression risk of forgetting to
 /// append the rule at each individual call site.
 func avatarSetAssessmentContext(_ context: String) {
-    avatarSetContext(context + " " + LeftPaneSpeechCopy.examinerNeverCorrectPatient)
+    // Fix #13: guard against doubling if the caller's context already includes the rule.
+    let rule = LeftPaneSpeechCopy.examinerNeverCorrectPatient
+    if context.contains(rule) {
+        avatarSetContext(context)
+    } else {
+        avatarSetContext(context + " " + rule)
+    }
 }
 
 /// Mute or unmute the patient's microphone in the active Daily call.
@@ -428,6 +607,16 @@ func avatarSetMicMuted(_ muted: Bool) {
         name: .tavusMicMuteRequest,
         object: nil,
         userInfo: ["muted": muted]
+    )
+}
+
+/// Interrupt the avatar — stops current speech and clears the echo queue.
+/// Call this at the start of every phase onAppear to prevent stale echoes
+/// from the previous phase overlapping with the new phase's first instruction.
+func avatarInterrupt() {
+    NotificationCenter.default.post(
+        name: .tavusInterruptRequest,
+        object: nil
     )
 }
 
@@ -441,4 +630,19 @@ enum TavusAvatarEvent {
     case replicaStoppedSpeaking
     case userStartedSpeaking
     case userStoppedSpeaking
+}
+
+// MARK: - Weak Script Handler (Fix #5)
+
+/// Breaks the WKUserContentController → Coordinator retain cycle.
+/// WKUserContentController holds a strong reference to its WKScriptMessageHandler;
+/// without this proxy, Coordinator (and hence the WKWebView) would never deallocate.
+private class WeakScriptHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        delegate?.userContentController(userContentController, didReceive: message)
+    }
 }
