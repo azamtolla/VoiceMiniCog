@@ -209,6 +209,7 @@ class LeftPaneSpeechCopyTests: XCTestCase {
 
 // MARK: - WordRecallScorer Plural Normalization
 
+@MainActor
 final class WordRecallScorerPluralTests: XCTestCase {
 
     func testRegularPluralNormalized() {
