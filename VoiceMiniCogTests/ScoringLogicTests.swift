@@ -1210,6 +1210,54 @@ class QmciScoringTests: XCTestCase {
         XCTAssertEqual(decoded.cdtPivotCorrect, true)
         XCTAssertEqual(decoded.totalScore, original.totalScore)
     }
+
+    // MARK: - ReportReadiness Tests
+
+    func testReportReadinessNotReadyWhenIncomplete() {
+        let state = QmciState()
+        state.isComplete = false
+        XCTAssertEqual(state.reportReadiness, .notReady)
+    }
+
+    func testReportReadinessPendingWhenNoCDTReview() {
+        let state = QmciState()
+        state.isComplete = true
+        state.cdtReviewed = false
+        state.clinicianDecisionWorkup = nil
+        XCTAssertEqual(state.reportReadiness, .pendingClinician)
+    }
+
+    func testReportReadinessCompleteWhenAllGatesMet() {
+        let state = QmciState()
+        state.isComplete = true
+        state.cdtReviewed = true
+        state.clinicianDecisionWorkup = true
+        XCTAssertEqual(state.reportReadiness, .complete)
+    }
+
+    func testReportReadinessAllowsZeroFifteenCDT() {
+        let state = QmciState()
+        state.isComplete = true
+        state.cdtReviewed = true
+        state.cdtNumbersPlaced = Array(repeating: false, count: 12)
+        state.cdtHandsScore = 0
+        state.cdtPivotCorrect = false
+        state.clinicianDecisionWorkup = false
+        XCTAssertEqual(state.cdtComputedScore, 0)
+        XCTAssertEqual(state.reportReadiness, .complete)
+    }
+
+    func testPendingReviewCountTracksAllRequiredFields() {
+        let state = QmciState()
+        state.isComplete = true
+        state.cdtReviewed = false
+        state.clinicianDecisionWorkup = nil
+        XCTAssertEqual(state.pendingReviewCount, 2)
+        state.cdtReviewed = true
+        XCTAssertEqual(state.pendingReviewCount, 1)
+        state.clinicianDecisionWorkup = true
+        XCTAssertEqual(state.pendingReviewCount, 0)
+    }
 }
 
 // MARK: - Composite Risk Matrix

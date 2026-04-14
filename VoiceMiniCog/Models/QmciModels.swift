@@ -214,6 +214,15 @@ let LOGICAL_MEMORY_STORIES: [LogicalMemoryStory] = [
     ),
 ]
 
+// MARK: - Report Readiness
+
+enum ReportReadiness: String, Codable {
+    case notReady
+    case pendingClinician
+    case complete
+    case finalized
+}
+
 // MARK: - Qmci State
 
 @Observable
@@ -308,6 +317,26 @@ final class QmciState: Codable {
     var clinicianDecisionWorkup: Bool? = nil
     var clinicianDecisionRepeat: Bool? = nil
     var clinicianDecisionTimestamp: Date? = nil
+
+    /// Explicit clinician confirmation that the clock drawing has been reviewed
+    /// and scored. Separates "not yet scored" from "scored 0/15" — without this,
+    /// severely impaired patients (legitimate 0/15) would block report finalization.
+    var cdtReviewed: Bool = false
+
+    var reportReadiness: ReportReadiness {
+        guard isComplete else { return .notReady }
+        guard cdtReviewed, clinicianDecisionWorkup != nil else {
+            return .pendingClinician
+        }
+        return .complete
+    }
+
+    var pendingReviewCount: Int {
+        var count = 0
+        if !cdtReviewed { count += 1 }
+        if clinicianDecisionWorkup == nil { count += 1 }
+        return count
+    }
 
     // MARK: - QMCI 15-point Clock Drawing (manual clinician scoring)
     //
