@@ -411,7 +411,7 @@ struct PCPReportView: View {
     @ViewBuilder
     private func orientationScoreRow(index i: Int, state q: QmciState) -> some View {
         let rawScore: Int? = (i < q.orientationScores.count) ? q.orientationScores[i] : nil
-        let currentScore = rawScore ?? 2
+        let currentScore = rawScore ?? 0
 
         VStack(alignment: .leading, spacing: 6) {
             Text(ORIENTATION_ITEMS[i].question)
@@ -1026,7 +1026,7 @@ struct PCPReportView: View {
         switch subtest {
         case .orientation: return q.orientationScore
         case .registration: return q.registrationScore
-        case .clockDrawing: return q.clockDrawingScore
+        case .clockDrawing: return q.effectiveClockDrawingScore
         case .verbalFluency: return q.verbalFluencyScore
         case .logicalMemory: return q.logicalMemoryScore
         case .delayedRecall: return q.delayedRecallScore
