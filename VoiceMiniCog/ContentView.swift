@@ -2,16 +2,21 @@
 //  ContentView.swift
 //  VoiceMiniCog
 //
-//  Main routing: Home (three cards) → Avatar Assessment / Caregiver / Extended → Report
+//  Main routing: MA Handoff → Patient Home (Tap to Begin) → Avatar Assessment → Report.
+//  Clinician Dashboard is a parallel path entered via a 5-tap chord on the
+//  brain icon in Patient Home (passcode-gated).
 //
 
 import SwiftUI
 
 enum AppScreen {
+    case maHandoff
     case home
+    case clinicianDashboard
     case avatarAssessment
     case caregiverAssessment
     case report
+    case partialReport     // autonomous abandonment → partial PDF preview
 
     static func screen(for phase: Phase, state: AssessmentState? = nil) -> AppScreen {
         switch phase {
@@ -27,12 +32,25 @@ enum AppScreen {
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var currentScreen: AppScreen = .home
+
+    // Default to MA handoff on first launch so the nurse configures
+    // patient + language BEFORE the iPad is handed to the patient. The
+    // MA's "Hand iPad to Patient" tap flips to .home (Tap to Begin).
+    @State private var currentScreen: AppScreen = .maHandoff
     @State private var flowType: AssessmentFlowType = .quick
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
     @State private var sessionID = UUID()
     @State private var dailyCallManager = DailyCallManager()
+
+    /// Observer handle for .sessionAbandoned so we can detach on disappear.
+    @State private var abandonmentObserver: NSObjectProtocol?
+
+    /// Currently-active phase (tracked so caregiver flags know which Phase
+    /// to attribute). Updated by the assessment canvas via state mutations.
+    private var activeClinicalPhase: Phase {
+        assessmentState.currentPhase
+    }
 
     var body: some View {
         ZStack {
@@ -59,13 +77,13 @@ struct ContentView: View {
                     dailyCallManager.leave()
                     TavusService.shared.cancelPreWarm()
                     Task { await TavusService.shared.endConversation() }
-                    currentScreen = .home
+                    currentScreen = .maHandoff
                 }
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
             .allowsHitTesting(currentScreen == .avatarAssessment)
 
-            // MARK: Caregiver QDRS — created on demand, shares pre-warmed conversation
+            // MARK: Caregiver QDRS — separate view
             if currentScreen == .caregiverAssessment {
                 CaregiverAssessmentView(
                     assessmentState: assessmentState,
@@ -74,54 +92,75 @@ struct ContentView: View {
                         AssessmentPersistence.clear()
                         TavusService.shared.cancelPreWarm()
                         Task { await TavusService.shared.endConversation() }
-                        currentScreen = .home
+                        currentScreen = .maHandoff
                     },
                     onCancel: {
                         AssessmentPersistence.clear()
                         TavusService.shared.cancelPreWarm()
                         Task { await TavusService.shared.endConversation() }
-                        currentScreen = .home
+                        currentScreen = .maHandoff
                     }
                 )
             }
 
-            // MARK: Home
-            if currentScreen == .home {
-                NavigationStack {
-                    HomeView(
-                        onSelectFlow: { selectedFlow in
-                            startAssessment(flowType: selectedFlow)
-                        },
-                        onResume: {
-                            if let restored = AssessmentPersistence.restore() {
-                                assessmentState = restored
-                                flowType = AssessmentPersistence.restoreFlowType()
-                                sessionID = UUID() // Fix #5: fresh session key for Daily
-                                if flowType == .caregiver {
-                                    currentScreen = .caregiverAssessment
-                                } else {
-                                    currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
-                                }
-                            }
-                        }
-                    )
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button { showSettings = true } label: {
-                                Image(systemName: "gearshape")
-                            }
-                        }
+            // MARK: MA Handoff (first screen each session)
+            if currentScreen == .maHandoff {
+                MAHandoffView(
+                    flowType: $flowType,
+                    onHandoffConfirmed: { patientID in
+                        // Handoff timestamp already persisted by MAHandoffView.
+                        // Patient-facing HomeView takes over until they tap.
+                        currentScreen = .home
+                    },
+                    onCancel: {
+                        currentScreen = .clinicianDashboard
                     }
-                    .sheet(isPresented: $showSettings) {
-                        settingsSheet
-                    }
-                }
-                .onAppear {
-                    TavusService.shared.preWarm()
-                }
+                )
             }
 
-            // MARK: Report
+            // MARK: Patient Home (single Tap to Begin)
+            if currentScreen == .home {
+                HomeView(
+                    onSelectFlow: { selectedFlow in
+                        startAssessment(flowType: selectedFlow)
+                    },
+                    onResume: {
+                        if let restored = AssessmentPersistence.restore() {
+                            assessmentState = restored
+                            flowType = AssessmentPersistence.restoreFlowType()
+                            sessionID = UUID()
+                            if flowType == .caregiver {
+                                currentScreen = .caregiverAssessment
+                            } else {
+                                currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
+                            }
+                        }
+                    },
+                    onOpenClinicianDashboard: {
+                        currentScreen = .clinicianDashboard
+                    }
+                )
+                .onAppear { TavusService.shared.preWarm() }
+            }
+
+            // MARK: Clinician Dashboard (5-tap chord → PIN gate)
+            if currentScreen == .clinicianDashboard {
+                ClinicianDashboardView(
+                    currentState: assessmentState,
+                    flowType: $flowType,
+                    onExit: {
+                        currentScreen = .home
+                    },
+                    onExportPDF: { data in
+                        presentSharedPDF(data: data)
+                    },
+                    onGoToMAHandoff: {
+                        currentScreen = .maHandoff
+                    }
+                )
+            }
+
+            // MARK: Report (full)
             if currentScreen == .report {
                 NavigationStack {
                     PCPReportView(
@@ -130,7 +169,7 @@ struct ContentView: View {
                             assessmentState.reset()
                             AssessmentPersistence.clear()
                             TavusService.shared.cancelPreWarm()
-                            currentScreen = .home
+                            currentScreen = .maHandoff
                         },
                         onFinalize: {
                             assessmentState.qmciState.clinicianDecisionTimestamp = Date()
@@ -138,43 +177,121 @@ struct ContentView: View {
                             assessmentState.reset()
                             AssessmentPersistence.clear()
                             TavusService.shared.cancelPreWarm()
-                            currentScreen = .home
+                            currentScreen = .maHandoff
                         }
                     )
                 }
             }
+
+            // MARK: Partial Report (autonomous abandonment flow)
+            if currentScreen == .partialReport {
+                PartialReportPreview(
+                    reason: AssessmentPersistence.shutdownReason ?? .unknown,
+                    completed: AssessmentPersistence.completedSubtests,
+                    abandonedAt: AssessmentPersistence.abandonedAt,
+                    policy: AssessmentPersistence.partialScorePolicy,
+                    onExport: {
+                        let pdf = PartialScoreReport.generate(
+                            state: assessmentState,
+                            reason: AssessmentPersistence.shutdownReason ?? .unknown,
+                            completed: AssessmentPersistence.completedSubtests,
+                            policy: AssessmentPersistence.partialScorePolicy,
+                            abandonedAt: AssessmentPersistence.abandonedAt
+                        )
+                        presentSharedPDF(data: pdf)
+                    },
+                    onDone: {
+                        AssessmentPersistence.clear()
+                        assessmentState.reset()
+                        currentScreen = .maHandoff
+                    }
+                )
+            }
         }
         .animation(.easeInOut(duration: 0.3), value: currentScreen)
+        .onAppear(perform: registerAbandonmentObserver)
+        .onDisappear {
+            if let obs = abandonmentObserver {
+                NotificationCenter.default.removeObserver(obs)
+                abandonmentObserver = nil
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
-            // Fix #15: save only on .background (true "user left the app" signal).
-            // .inactive fires on Control Center, incoming calls, Face ID — saving
-            // mid-render could overwrite valid state with a partially-mutated copy.
-            if newPhase == .background, currentScreen != .home {
+            if newPhase == .background, currentScreen != .home, currentScreen != .maHandoff {
                 AssessmentPersistence.save(assessmentState, flowType: flowType)
             }
         }
+    }
+
+    // MARK: - Session abandonment listener
+
+    private func registerAbandonmentObserver() {
+        guard abandonmentObserver == nil else { return }
+        abandonmentObserver = NotificationCenter.default.addObserver(
+            forName: .sessionAbandoned,
+            object: nil,
+            queue: .main
+        ) { [assessmentState] note in
+            MainActor.assumeIsolated {
+                let rawReason = note.userInfo?["reason"] as? String
+                let reason = rawReason.flatMap(SessionShutdownReason.init(rawValue:)) ?? .unknown
+                // Collect completed subtests from the current state.
+                let completed = completedSubtests(from: assessmentState)
+                AssessmentPersistence.recordAbandonment(
+                    reason: reason,
+                    completedSubtests: completed,
+                    policy: .flagForClinicianReview
+                )
+                dailyCallManager.leave()
+                TavusService.shared.cancelPreWarm()
+                Task { await TavusService.shared.endConversation() }
+                // Route to partial report if this was a partial session.
+                if reason.isPartial {
+                    currentScreen = .partialReport
+                }
+            }
+        }
+    }
+
+    /// Which QMCI subtests have observable results in current state. Used to
+    /// populate the partial-report "completed" list when the session aborts.
+    private func completedSubtests(from state: AssessmentState) -> [Phase] {
+        var out: [Phase] = []
+        let q = state.qmciState
+        if q.orientationScores.contains(where: { $0 != nil }) { out.append(.qmciOrientation) }
+        if !q.registrationRecalledWords.isEmpty { out.append(.qmciRegistration) }
+        if q.clockDrawingScore > 0 { out.append(.qmciClockDrawing) }
+        if q.verbalFluencyScore > 0 { out.append(.qmciVerbalFluency) }
+        if !q.logicalMemoryRecalledUnits.isEmpty { out.append(.qmciLogicalMemory) }
+        if !q.delayedRecallWords.isEmpty { out.append(.qmciDelayedRecall) }
+        return out
     }
 
     // MARK: - Start Assessment
 
     private func startAssessment(flowType selectedFlow: AssessmentFlowType) {
         AssessmentPersistence.clear()
+        // Preserve MA-handoff audit fields — clear() wipes them by design.
         assessmentState = AssessmentState()
         flowType = selectedFlow
         sessionID = UUID()
 
+        // Inject longitudinal patient context into the avatar at session
+        // start (intro phase ONLY — never prior scores).
+        if let patientID = AssessmentPersistence.lastHandoffPatientID,
+           let header = LongitudinalPatientStore.shared.conversationContextHeader(for: patientID) {
+            // Post as a pending context update; DailyCallManager will execute
+            // it once the room joins.
+            avatarSetContext(header)
+        }
+
         if selectedFlow == .caregiver {
-            // Caregiver → dedicated QDRS view (no cognitive subtest shell)
             assessmentState.qdrsState.respondentType = .informant
             currentScreen = .caregiverAssessment
         } else {
-            // Quick / Extended → shared cognitive assessment canvas
             currentScreen = .avatarAssessment
         }
 
-        // Fallback: if pre-warm never ran or failed, start fresh conversation.
-        // Guard also checks isCreatingConversation to avoid racing with an
-        // in-flight preWarm Task.
         if TavusService.shared.activeConversation == nil, !TavusService.shared.isCreatingConversation {
             Task {
                 do {
@@ -211,90 +328,83 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Settings
+    // MARK: - PDF share
 
-    @State private var tavusAPIKey: String = KeychainHelper.read(key: "tavus_api_key") ?? ""
-    @State private var tavusPersonaId: String = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
-    @State private var tavusReplicaId: String = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
-    @State private var tavusVoiceIsolation: TavusVoiceIsolation =
-        TavusVoiceIsolation(rawValue: UserDefaults.standard.string(forKey: "tavus_voice_isolation") ?? "near") ?? .near
-
-    private var settingsSheet: some View {
-        NavigationStack {
-            Form {
-                Section("Tavus Avatar") {
-                    SecureField("API Key", text: $tavusAPIKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(size: 14, design: .monospaced))
-
-                    TextField("Persona ID", text: $tavusPersonaId)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(size: 14, design: .monospaced))
-
-                    TextField("Replica ID", text: $tavusReplicaId)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(size: 14, design: .monospaced))
-
-                    Picker("Participant voice isolation", selection: $tavusVoiceIsolation) {
-                        ForEach(TavusVoiceIsolation.allCases) { mode in
-                            Text(mode.settingsLabel).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Button("Save Tavus Settings") {
-                        KeychainHelper.save(key: "tavus_api_key", value: tavusAPIKey)
-                        UserDefaults.standard.set(tavusPersonaId, forKey: "tavus_persona_id")
-                        UserDefaults.standard.set(tavusReplicaId, forKey: "tavus_replica_id")
-                        UserDefaults.standard.set(tavusVoiceIsolation.rawValue, forKey: "tavus_voice_isolation")
-                        TavusService.shared.invalidateVoiceIsolationSyncCache()
-                        // Cancel any pre-warmed conversation — it snapshotted the
-                        // old persona settings. A fresh preWarm will run on the
-                        // next home screen .onAppear with the updated persona.
-                        TavusService.shared.cancelPreWarm()
-                        Task {
-                            await TavusService.shared.syncVoiceIsolationToPersonaIfNeeded(personaId: tavusPersonaId)
-                        }
-                        showSettings = false
-                    }
-                    .foregroundColor(MCDesign.Colors.primary700)
-                }
-
-                if TavusService.shared.voiceIsolationSyncFailed {
-                    Section {
-                        Label("Voice isolation failed to sync — background noise may interrupt the avatar. Try saving again or check the API key.",
-                              systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
-                            .font(.footnote)
-                    }
-                }
-
-                Section("About") {
-                    LabeledContent("App", value: "MercyCognitive")
-                    LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
-                    LabeledContent("Assessment", value: "Qmci + QDRS + Tavus CVI")
-                }
-            }
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { showSettings = false }
-                }
-            }
-            .onAppear {
-                // Fix #8: re-read ALL settings on sheet open, not just voice isolation.
-                tavusAPIKey = KeychainHelper.read(key: "tavus_api_key") ?? ""
-                tavusPersonaId = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
-                tavusReplicaId = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
-                let raw = UserDefaults.standard.string(forKey: "tavus_voice_isolation") ?? "near"
-                tavusVoiceIsolation = TavusVoiceIsolation(rawValue: raw) ?? .near
-            }
+    private func presentSharedPDF(data: Data) {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MercyCognitive-Report-\(Int(Date().timeIntervalSince1970)).pdf")
+        try? data.write(to: url, options: .atomic)
+        let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.windows.first?.rootViewController {
+            activity.popoverPresentationController?.sourceView = root.view
+            activity.popoverPresentationController?.sourceRect = CGRect(
+                x: root.view.bounds.midX, y: root.view.bounds.midY, width: 0, height: 0
+            )
+            activity.popoverPresentationController?.permittedArrowDirections = []
+            root.present(activity, animated: true)
         }
-        .presentationDetents([.medium])
+    }
+}
+
+// MARK: - Partial-report preview screen
+
+private struct PartialReportPreview: View {
+    let reason: SessionShutdownReason
+    let completed: [Phase]
+    let abandonedAt: Date?
+    let policy: AssessmentPersistence.PartialScorePolicy
+    let onExport: () -> Void
+    let onDone: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Assessment Incomplete")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(.red)
+
+            Text("This session ended before all QMCI subtests completed. The result is NOT scorable against O'Caoimh 2012 norms. You may export a partial-session report for clinical reference only.")
+                .font(.system(size: 16))
+                .foregroundColor(.secondary)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Reason: \(reason.rawValue.replacingOccurrences(of: "_", with: " "))")
+                    .font(.system(size: 16, weight: .semibold))
+                if let at = abandonedAt {
+                    Text("Ended at: \(at.formatted(date: .abbreviated, time: .standard))")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                Text("Subtests completed: \(completed.count)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.red.opacity(0.06)))
+
+            HStack(spacing: 12) {
+                Button {
+                    onExport()
+                } label: {
+                    Label("Export Partial PDF", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    onDone()
+                } label: {
+                    Text("Done")
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Spacer()
+        }
+        .padding(32)
     }
 }
 
