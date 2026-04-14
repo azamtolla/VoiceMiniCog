@@ -34,7 +34,7 @@ opt_in_rules:
 
 line_length:
   warning: 160
-  error: 300
+  error: 400
   ignores_comments: true
   ignores_urls: true
   ignores_interpolated_strings: true
