@@ -17,8 +17,6 @@ struct PCPReportView: View {
     @State private var showShareSheet = false
     @State private var pdfData: Data?
     @State private var isClockScoringExpanded: Bool = true
-    @State private var deferWorkupExplicit: Bool = false
-    @State private var repeatNoneExplicit: Bool = false
 
     var body: some View {
         ScrollView {
@@ -44,6 +42,11 @@ struct PCPReportView: View {
 
                 // 5b. Clinical Decision (required for finalization)
                 clinicalDecisionSection
+
+                // ASR Review (only if semantic substitutions exist)
+                if !state.qmciState.recallSemanticSubstitutions.isEmpty {
+                    asrReviewSection
+                }
 
                 // 6. Depression Screen
                 if state.phq2State.isComplete {
@@ -825,7 +828,7 @@ struct PCPReportView: View {
         return reportCard(title: "Clinical Decision", icon: "stethoscope", accentColor: MCDesign.Colors.primary700) {
             VStack(alignment: .leading, spacing: 16) {
 
-                // 1. QMCI Classification display
+                // 1. Score + classification
                 HStack {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("\(q.totalScore)")
@@ -835,9 +838,7 @@ struct PCPReportView: View {
                             .font(.system(size: 14))
                             .foregroundColor(MCDesign.Colors.textTertiary)
                     }
-
                     Spacer()
-
                     Text(q.classification.rawValue)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
@@ -847,45 +848,75 @@ struct PCPReportView: View {
                         .cornerRadius(7)
                 }
 
-                // 2. Age-adjusted score (only if age provided)
+                // 2. Age-adjusted (if demographics entered)
                 if age > 0 {
                     let adjScore = q.adjustedScore(age: age, educationYears: edu)
                     let adjClass = q.adjustedClassification(age: age, educationYears: edu)
+                    let reasons = q.adjustmentReasons(age: age, educationYears: edu)
 
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("AGE-ADJUSTED")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundColor(MCDesign.Colors.textTertiary)
-                                .tracking(0.6)
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text("\(adjScore)")
-                                    .font(.system(size: 20, weight: .bold))
-                                    .foregroundColor(scoreColor(adjClass))
-                                Text("/ 100")
-                                    .font(.system(size: 12))
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("AGE-ADJUSTED")
+                                    .font(.system(size: 10, weight: .semibold))
                                     .foregroundColor(MCDesign.Colors.textTertiary)
+                                    .tracking(0.6)
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text("\(adjScore)")
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(scoreColor(adjClass))
+                                    Text("/ 100")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(MCDesign.Colors.textTertiary)
+                                }
                             }
+                            Spacer()
+                            Text(adjClass.rawValue)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(scoreColor(adjClass))
+                                .cornerRadius(6)
                         }
-
-                        Spacer()
-
-                        Text(adjClass.rawValue)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(scoreColor(adjClass))
-                            .cornerRadius(6)
+                        ForEach(reasons, id: \.self) { reason in
+                            Text(reason)
+                                .font(.system(size: 11))
+                                .foregroundColor(MCDesign.Colors.textSecondary)
+                        }
                     }
                     .padding(10)
                     .background(MCDesign.Colors.surfaceInset)
                     .cornerRadius(8)
                 }
 
+                // 3. Risk signals
+                if !q.riskSignals.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(q.riskSignals.enumerated()), id: \.offset) { _, signal in
+                            HStack(spacing: 8) {
+                                Image(systemName: signal.severity == .critical ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(signal.severity == .critical ? MCDesign.Colors.error : MCDesign.Colors.warning)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(signal.domain)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(MCDesign.Colors.textPrimary)
+                                    Text(signal.finding)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(MCDesign.Colors.textSecondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(MCDesign.Colors.errorSurface.opacity(0.3))
+                    .cornerRadius(8)
+                }
+
                 Divider()
 
-                // 3. Recommend workup? — Yes / No / Defer
+                // 4. Recommend workup?
                 VStack(alignment: .leading, spacing: 8) {
                     Text("RECOMMEND WORKUP?")
                         .font(.system(size: 11, weight: .semibold))
@@ -895,37 +926,31 @@ struct PCPReportView: View {
                     HStack(spacing: 10) {
                         clinicalToggleButton(
                             label: "Yes",
-                            isSelected: q.clinicianDecisionWorkup == true,
+                            isSelected: q.clinicianDecisionWorkup == .yes,
                             accentColor: MCDesign.Colors.primary700
                         ) {
-                            q.clinicianDecisionWorkup = true
+                            q.clinicianDecisionWorkup = .yes
                             q.clinicianDecisionTimestamp = Date()
-                            deferWorkupExplicit = false
                         }
-
                         clinicalToggleButton(
                             label: "No",
-                            isSelected: q.clinicianDecisionWorkup == false,
+                            isSelected: q.clinicianDecisionWorkup == .no,
                             accentColor: MCDesign.Colors.primary700
                         ) {
-                            q.clinicianDecisionWorkup = false
+                            q.clinicianDecisionWorkup = .no
                             q.clinicianDecisionTimestamp = Date()
-                            deferWorkupExplicit = false
                         }
-
                         clinicalToggleButton(
                             label: "Defer",
-                            isSelected: deferWorkupExplicit,
+                            isSelected: q.clinicianDecisionWorkup == .deferRepeat,
                             accentColor: MCDesign.Colors.primary700
                         ) {
-                            q.clinicianDecisionWorkup = nil
+                            q.clinicianDecisionWorkup = .deferRepeat
                             q.clinicianDecisionTimestamp = Date()
-                            deferWorkupExplicit = true
                         }
                     }
 
-                    // Required field warning
-                    if q.clinicianDecisionWorkup == nil && !deferWorkupExplicit {
+                    if q.clinicianDecisionWorkup == nil {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 12))
@@ -939,7 +964,7 @@ struct PCPReportView: View {
 
                 Divider()
 
-                // 4. Repeat testing in: 6 mo / 12 mo / None
+                // 5. Repeat testing interval
                 VStack(alignment: .leading, spacing: 8) {
                     Text("REPEAT TESTING IN")
                         .font(.system(size: 11, weight: .semibold))
@@ -948,32 +973,58 @@ struct PCPReportView: View {
 
                     HStack(spacing: 10) {
                         clinicalToggleButton(
-                            label: "6 months",
-                            isSelected: q.clinicianDecisionRepeat == true,
+                            label: "6 mo",
+                            isSelected: q.clinicianDecisionRepeat == .sixMonths,
                             accentColor: MCDesign.Colors.primary500
                         ) {
-                            q.clinicianDecisionRepeat = true
-                            repeatNoneExplicit = false
+                            q.clinicianDecisionRepeat = .sixMonths
                         }
-
                         clinicalToggleButton(
-                            label: "12 months",
-                            isSelected: q.clinicianDecisionRepeat == false,
+                            label: "12 mo",
+                            isSelected: q.clinicianDecisionRepeat == .twelveMonths,
                             accentColor: MCDesign.Colors.primary500
                         ) {
-                            q.clinicianDecisionRepeat = false
-                            repeatNoneExplicit = false
+                            q.clinicianDecisionRepeat = .twelveMonths
                         }
-
+                        clinicalToggleButton(
+                            label: "24 mo",
+                            isSelected: q.clinicianDecisionRepeat == .twentyFourMonths,
+                            accentColor: MCDesign.Colors.primary500
+                        ) {
+                            q.clinicianDecisionRepeat = .twentyFourMonths
+                        }
                         clinicalToggleButton(
                             label: "None",
-                            isSelected: repeatNoneExplicit,
+                            isSelected: q.clinicianDecisionRepeat == .some(RepeatInterval.none),
                             accentColor: MCDesign.Colors.primary500
                         ) {
-                            q.clinicianDecisionRepeat = nil
-                            repeatNoneExplicit = true
+                            q.clinicianDecisionRepeat = RepeatInterval.none
                         }
                     }
+                }
+
+                Divider()
+
+                // 6. ICD-10 suggestion
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("ICD-10 SUGGESTION")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.8)
+
+                    HStack(spacing: 8) {
+                        Text(q.icd10Suggestion.code)
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            .foregroundColor(MCDesign.Colors.primary700)
+                        Text("—")
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                        Text(q.icd10Suggestion.description)
+                            .font(.system(size: 14))
+                            .foregroundColor(MCDesign.Colors.textPrimary)
+                    }
+                    Text(q.icd10Suggestion.rationale)
+                        .font(.system(size: 11))
+                        .foregroundColor(MCDesign.Colors.textSecondary)
                 }
             }
         }
@@ -1000,6 +1051,109 @@ struct PCPReportView: View {
                 .cornerRadius(8)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - ASR Review
+
+    private var asrReviewSection: some View {
+        let q = state.qmciState
+
+        return reportCard(title: "Word Recall — ASR Review",
+                          icon: "waveform.badge.magnifyingglass",
+                          accentColor: MCDesign.Colors.primary700) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("The speech recognizer detected possible matches. Accept to credit the word, or reject.")
+                    .font(MCDesign.Fonts.reportCaption)
+                    .foregroundColor(MCDesign.Colors.textSecondary)
+
+                ForEach(Array(q.recallSemanticSubstitutions.enumerated()), id: \.offset) { _, sub in
+                    let override = q.recallClinicianOverrides[sub.target]
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 4) {
+                            Text("Patient said")
+                                .font(MCDesign.Fonts.reportCaption)
+                                .foregroundColor(MCDesign.Colors.textSecondary)
+                            Text("'\(sub.substitution)'")
+                                .font(MCDesign.Fonts.reportBody.bold())
+                                .foregroundColor(MCDesign.Colors.textPrimary)
+                            Text("→ matched")
+                                .font(MCDesign.Fonts.reportCaption)
+                                .foregroundColor(MCDesign.Colors.textSecondary)
+                            Text("'\(sub.target)'")
+                                .font(MCDesign.Fonts.reportBody.bold())
+                                .foregroundColor(MCDesign.Colors.textPrimary)
+                        }
+
+                        HStack(spacing: 10) {
+                            Button(action: {
+                                q.recallClinicianOverrides[sub.target] = true
+                                if !q.delayedRecallWords.contains(sub.target) {
+                                    q.delayedRecallWords.append(sub.target)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                    Text("Accept")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .foregroundColor(override == true ? .white : MCDesign.Colors.success)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(override == true ? MCDesign.Colors.success : Color.clear)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(MCDesign.Colors.success, lineWidth: 1.5)
+                                )
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+
+                            Button(action: {
+                                q.recallClinicianOverrides[sub.target] = false
+                                q.delayedRecallWords.removeAll { $0 == sub.target }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                    Text("Reject")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .foregroundColor(override == false ? .white : MCDesign.Colors.error)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(override == false ? MCDesign.Colors.error : Color.clear)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(MCDesign.Colors.error, lineWidth: 1.5)
+                                )
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+                        }
+                    }
+                    .padding(10)
+                    .background(MCDesign.Colors.surfaceInset)
+                    .cornerRadius(8)
+                }
+
+                Divider()
+
+                // Live delayed recall score
+                HStack {
+                    Text("Delayed Recall Score:")
+                        .font(MCDesign.Fonts.reportBody)
+                        .foregroundColor(MCDesign.Colors.textPrimary)
+                    Spacer()
+                    Text("\(q.delayedRecallScore)/20")
+                        .font(.system(size: 18, weight: .bold, design: .monospaced))
+                        .foregroundColor(MCDesign.Colors.primary700)
+                }
+            }
+        }
     }
 
     // MARK: - PHQ-2

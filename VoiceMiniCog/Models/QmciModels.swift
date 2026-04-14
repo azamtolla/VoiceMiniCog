@@ -223,6 +223,41 @@ enum ReportReadiness: String, Codable {
     case finalized
 }
 
+// MARK: - Clinical Decision Enums
+
+enum WorkupDecision: String, Codable, CaseIterable {
+    case yes         = "Recommend Workup"
+    case no          = "No Workup Indicated"
+    case deferRepeat = "Defer — Repeat Testing First"
+}
+
+enum RepeatInterval: String, Codable, CaseIterable {
+    case sixMonths    = "6 Months"
+    case twelveMonths = "12 Months"
+    case twentyFourMonths = "24 Months"
+    case none         = "None"
+}
+
+// MARK: - Clinical Risk Signals (computed, not persisted)
+
+struct ClinicalRiskSignal {
+    let domain: String
+    let finding: String
+    let severity: Severity
+
+    enum Severity: String {
+        case info = "Info"
+        case warning = "Warning"
+        case critical = "Critical"
+    }
+}
+
+struct ICD10Suggestion {
+    let code: String
+    let description: String
+    let rationale: String
+}
+
 // MARK: - Qmci State
 
 @Observable
@@ -314,9 +349,12 @@ final class QmciState: Codable {
     var clockScoreOverrideBy: String? = nil
     var clockScoreOverrideTimestamp: Date? = nil
 
-    var clinicianDecisionWorkup: Bool? = nil
-    var clinicianDecisionRepeat: Bool? = nil
+    var clinicianDecisionWorkup: WorkupDecision? = nil
+    var clinicianDecisionRepeat: RepeatInterval? = nil
     var clinicianDecisionTimestamp: Date? = nil
+
+    /// Free-text clinical notes entered by the clinician in the report view.
+    var aiObservations: [String] = []
 
     /// Explicit clinician confirmation that the clock drawing has been reviewed
     /// and scored. Separates "not yet scored" from "scored 0/15" — without this,
@@ -336,6 +374,87 @@ final class QmciState: Codable {
         if !cdtReviewed { count += 1 }
         if clinicianDecisionWorkup == nil { count += 1 }
         return count
+    }
+
+    // MARK: - Computed Clinical Signals (not persisted)
+
+    var riskSignals: [ClinicalRiskSignal] {
+        var signals: [ClinicalRiskSignal] = []
+
+        if totalScore < 54 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Global Cognition",
+                finding: "QMCI score \(totalScore)/100 falls in dementia range (<54)",
+                severity: .critical
+            ))
+        } else if totalScore < 67 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Global Cognition",
+                finding: "QMCI score \(totalScore)/100 suggests possible MCI (54-66)",
+                severity: .warning
+            ))
+        }
+
+        if delayedRecallScore <= 4 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Memory",
+                finding: "Delayed recall \(delayedRecallScore)/20 — significant encoding deficit",
+                severity: .critical
+            ))
+        } else if delayedRecallScore <= 8 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Memory",
+                finding: "Delayed recall \(delayedRecallScore)/20 — below expected",
+                severity: .warning
+            ))
+        }
+
+        if effectiveClockDrawingScore <= 5 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Visuospatial/Executive",
+                finding: "Clock drawing \(effectiveClockDrawingScore)/15 — significant impairment",
+                severity: .critical
+            ))
+        } else if effectiveClockDrawingScore <= 10 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Visuospatial/Executive",
+                finding: "Clock drawing \(effectiveClockDrawingScore)/15 — below expected",
+                severity: .warning
+            ))
+        }
+
+        if verbalFluencyScore <= 8 {
+            signals.append(ClinicalRiskSignal(
+                domain: "Language/Executive",
+                finding: "Verbal fluency \(verbalFluencyScore)/20 — reduced word generation",
+                severity: .warning
+            ))
+        }
+
+        return signals
+    }
+
+    var icd10Suggestion: ICD10Suggestion {
+        switch classification {
+        case .dementiaRange:
+            return ICD10Suggestion(
+                code: "G31.84",
+                description: "Mild cognitive impairment, so stated",
+                rationale: "QMCI \(totalScore)/100, dementia range. Confirm with comprehensive evaluation."
+            )
+        case .mciProbable:
+            return ICD10Suggestion(
+                code: "G31.84",
+                description: "Mild cognitive impairment, so stated",
+                rationale: "QMCI \(totalScore)/100, MCI range. Screen positive — further evaluation recommended."
+            )
+        case .normal:
+            return ICD10Suggestion(
+                code: "R41.81",
+                description: "Age-related cognitive decline",
+                rationale: "QMCI \(totalScore)/100, normal range. Routine follow-up per clinical judgment."
+            )
+        }
     }
 
     // MARK: - QMCI 15-point Clock Drawing (manual clinician scoring)
@@ -460,6 +579,16 @@ final class QmciState: Codable {
         if educationYears < 12 { reasons.append("Education-adjusted: +4 for <12 years") }
         return reasons
     }
+    /// Record the clinician's clinical decision with timestamp.
+    func recordClinicalDecision(workup: WorkupDecision, repeat interval: RepeatInterval?, note: String? = nil) {
+        clinicianDecisionWorkup = workup
+        clinicianDecisionRepeat = interval
+        clinicianDecisionTimestamp = Date()
+        if let note, !note.isEmpty {
+            aiObservations.append(note)
+        }
+    }
+
     var currentStory: LogicalMemoryStory {
         LOGICAL_MEMORY_STORIES[logicalMemoryStoryIndex % LOGICAL_MEMORY_STORIES.count]
     }
@@ -499,6 +628,8 @@ final class QmciState: Codable {
         case clockDrawingImagePNG, clockStrokeEvents, clockPauseEvents
         case clockScoreOverrideBy, clockScoreOverrideTimestamp
         case clinicianDecisionWorkup, clinicianDecisionRepeat, clinicianDecisionTimestamp
+        case cdtReviewed
+        case aiObservations
     }
 
     required init(from decoder: Decoder) throws {
@@ -597,9 +728,28 @@ final class QmciState: Codable {
         clockPauseEvents = try c.decodeIfPresent([ClockPauseEvent].self, forKey: .clockPauseEvents) ?? []
         clockScoreOverrideBy = try c.decodeIfPresent(String.self, forKey: .clockScoreOverrideBy)
         clockScoreOverrideTimestamp = try c.decodeIfPresent(Date.self, forKey: .clockScoreOverrideTimestamp)
-        clinicianDecisionWorkup = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionWorkup)
-        clinicianDecisionRepeat = try c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionRepeat)
+        // cdtReviewed (new field, default false for old data)
+        cdtReviewed = try c.decodeIfPresent(Bool.self, forKey: .cdtReviewed) ?? false
+
+        // Clinical decisions — backward-compatible: try new enum first, fall back to legacy Bool
+        if let decision = try? c.decodeIfPresent(WorkupDecision.self, forKey: .clinicianDecisionWorkup) {
+            clinicianDecisionWorkup = decision
+        } else if let legacy = try? c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionWorkup) {
+            clinicianDecisionWorkup = legacy ? .yes : .no
+        } else {
+            clinicianDecisionWorkup = nil
+        }
+
+        if let interval = try? c.decodeIfPresent(RepeatInterval.self, forKey: .clinicianDecisionRepeat) {
+            clinicianDecisionRepeat = interval
+        } else if let legacy = try? c.decodeIfPresent(Bool.self, forKey: .clinicianDecisionRepeat) {
+            clinicianDecisionRepeat = legacy ? .twelveMonths : RepeatInterval.none
+        } else {
+            clinicianDecisionRepeat = nil
+        }
+
         clinicianDecisionTimestamp = try c.decodeIfPresent(Date.self, forKey: .clinicianDecisionTimestamp)
+        aiObservations = try c.decodeIfPresent([String].self, forKey: .aiObservations) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -665,9 +815,11 @@ final class QmciState: Codable {
         try c.encode(clockPauseEvents, forKey: .clockPauseEvents)
         try c.encodeIfPresent(clockScoreOverrideBy, forKey: .clockScoreOverrideBy)
         try c.encodeIfPresent(clockScoreOverrideTimestamp, forKey: .clockScoreOverrideTimestamp)
+        try c.encode(cdtReviewed, forKey: .cdtReviewed)
         try c.encodeIfPresent(clinicianDecisionWorkup, forKey: .clinicianDecisionWorkup)
         try c.encodeIfPresent(clinicianDecisionRepeat, forKey: .clinicianDecisionRepeat)
         try c.encodeIfPresent(clinicianDecisionTimestamp, forKey: .clinicianDecisionTimestamp)
+        try c.encode(aiObservations, forKey: .aiObservations)
     }
 
     init() { selectTestVersion() }
@@ -767,9 +919,11 @@ final class QmciState: Codable {
         clockPauseEvents = []
         clockScoreOverrideBy = nil
         clockScoreOverrideTimestamp = nil
+        cdtReviewed = false
         clinicianDecisionWorkup = nil
         clinicianDecisionRepeat = nil
         clinicianDecisionTimestamp = nil
+        aiObservations = []
 
         selectTestVersion()
     }
