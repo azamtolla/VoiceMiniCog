@@ -740,6 +740,22 @@ struct PCPReportView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            Divider().padding(.vertical, 4)
+
+            Toggle(isOn: Binding(
+                get: { state.qmciState.cdtReviewed },
+                set: { state.qmciState.cdtReviewed = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("I have reviewed and scored this clock drawing")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Required before report can be finalized")
+                        .font(.system(size: 12))
+                        .foregroundStyle(MCDesign.Colors.textTertiary)
+                }
+            }
+            .tint(MCDesign.Colors.success)
         }
     }
 
@@ -1291,7 +1307,9 @@ struct PCPReportView: View {
     // MARK: - Actions
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
+        let canFinalize = state.qmciState.reportReadiness == .complete || state.qmciState.reportReadiness == .finalized
+
+        return VStack(spacing: 12) {
             Button(action: {
                 pdfData = PDFReportGenerator.generate(from: state)
                 showShareSheet = true
@@ -1311,6 +1329,8 @@ struct PCPReportView: View {
                 )
                 .cornerRadius(12)
             }
+            .disabled(!canFinalize)
+            .opacity(canFinalize ? 1.0 : 0.5)
 
             Button(action: onFinalize) {
                 HStack(spacing: 8) {
@@ -1323,6 +1343,15 @@ struct PCPReportView: View {
                 .frame(height: 52)
                 .background(MCDesign.Colors.primary700)
                 .cornerRadius(12)
+            }
+            .disabled(!canFinalize)
+            .opacity(canFinalize ? 1.0 : 0.5)
+
+            if state.qmciState.pendingReviewCount > 0 {
+                Label("\(state.qmciState.pendingReviewCount) required field(s) remaining",
+                      systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(MCDesign.Colors.warning)
             }
 
             Button(action: onRestart) {
