@@ -46,7 +46,7 @@ enum LeftPaneSpeechCopy {
 
     static let wordRegistrationSubtitle = "I will say some words.\nRepeat them back when asked."
 
-    static let wordRegistrationIntro = "I'm going to say five words. Listen carefully and try to remember them. I'll ask you to recall them later. Ready?"
+    static let wordRegistrationIntro = "I'm going to say five words. Listen carefully and try to remember them."
 
     /// Spoken alone before each target word (auditory-only registration; one echo per segment).
     /// No trailing period — the per-word echoes provide pacing; a period here
@@ -103,11 +103,20 @@ enum LeftPaneSpeechCopy {
 
     static let clockDrawingStop = "Please stop drawing now."
 
+    /// Tavus `overwrite_context` for the clock-drawing phase only (not the aloud clock instruction string).
+    /// Must not contradict `conversation.echo`: a prior version led with “remain silent / do not speak,” which
+    /// caused the replica to skip scripted echoes (instruction + stop) entirely.
+    static let clockDrawingTavusBehaviorContext = """
+    You are administering the Clock Drawing subtest. When the app sends a conversation.echo instruction, you MUST speak that text aloud immediately, verbatim, with clear pacing — including the initial clock instruction and the stop-drawing prompt. \
+    Between those scripted echoes, observe silently with a neutral expression: no coaching, no hints, no commentary on the drawing, and no back-and-forth chat. \
+    Do not confirm or critique whether the clock is correct.
+    """
+
     // MARK: - Subtest 4: Delayed Recall (20 pts, 30 sec)
 
     static let delayedRecallTitle = "Word Recall"
 
-    static let delayedRecallPrompt = "A few minutes ago I named five words. Name as many of those words as you can remember."
+    static let delayedRecallPrompt = "Earlier, I read you some words and asked you to hold onto them. Now I'd like you to tell me as many of those words as you can remember. Take your time — just say each one when it comes to you."
 
     static let delayedRecallOnScreen = "Recall the 5 words from earlier."
 
@@ -115,7 +124,13 @@ enum LeftPaneSpeechCopy {
     static let delayedRecallPatientSubtitle = "Take your time."
 
     /// Single follow-up after patient indicates completion or 60s silence
-    static let delayedRecallAnyOthers = "Any others?"
+    static let delayedRecallAnyOthers = "Are there any other words that come to mind?"
+
+    /// Tavus `overwrite_context` for delayed word recall (echo text remains `delayedRecallPrompt` / `delayedRecallAnyOthers`).
+    static let delayedRecallTavusBehaviorContext = """
+    You are administering delayed word recall. Whenever the app sends echo text, speak it aloud immediately and verbatim — main prompt, follow-up, and any other scripted echoes. \
+    Do not add words before or after the echoed text. Between echoes, listen silently without coaching or feedback on word correctness.
+    """
 
     // MARK: - Subtest 5: Verbal Fluency (20 pts, 60 sec)
 
@@ -154,6 +169,11 @@ enum LeftPaneSpeechCopy {
     // MARK: - Closing
 
     static let closingThankYou = "That concludes our assessment. Thank you for your time and cooperation today. Your clinician will review the results and discuss them with you at your next visit."
+
+    /// Avatar context for the completion phase — no scoring or correction rules needed.
+    /// Used with `avatarSetContext` (not `avatarSetAssessmentContext`) because the
+    /// "never correct patient" rule is irrelevant at the terminal thank-you screen.
+    static let completionContext = "The cognitive assessment is now complete. You are delivering a brief closing thank-you. Do not ask any questions or provide any feedback about performance. Simply thank the patient for their participation."
 
     // MARK: - QDRS (Caregiver Flow)
 

@@ -33,6 +33,8 @@ struct CaregiverAssessmentView: View {
     @State private var selectedAnswer: QDRSAnswer? = nil
     @State private var animateContent = false
     @State private var isPressed: [QDRSAnswer: Bool] = [:]
+    @State private var answerTransitionWork: DispatchWorkItem?
+    @State private var speakNextQuestionWork: DispatchWorkItem?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let questions = QDRS_QUESTIONS
@@ -49,9 +51,9 @@ struct CaregiverAssessmentView: View {
                 // Background gradient (light left → dark right)
                 LinearGradient(
                     stops: [
-                        .init(color: Color(hex: "#F8F9FA"), location: 0.0),
-                        .init(color: Color(hex: "#F8F9FA"), location: 1.0 - avatarWidthRatio),
-                        .init(color: Color(hex: "#111111"), location: 1.0)
+                        .init(color: AssessmentTheme.Content.background, location: 0.0),
+                        .init(color: AssessmentTheme.Content.background, location: 1.0 - avatarWidthRatio),
+                        .init(color: AssessmentTheme.Avatar.gradientEdge, location: 1.0)
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
@@ -70,6 +72,12 @@ struct CaregiverAssessmentView: View {
         }
         .ignoresSafeArea()
         .statusBarHidden()
+        .onDisappear {
+            answerTransitionWork?.cancel()
+            answerTransitionWork = nil
+            speakNextQuestionWork?.cancel()
+            speakNextQuestionWork = nil
+        }
     }
 
     // MARK: - Left Panel Router
@@ -143,6 +151,7 @@ struct CaregiverAssessmentView: View {
 
             // Begin button
             MCPrimaryButton("Begin Questionnaire", icon: "play.fill", color: AssessmentTheme.Phase.qdrs) {
+                avatarInterrupt()
                 withAnimation(.easeInOut(duration: 0.35)) {
                     flowState = .questions(index: 0)
                 }
@@ -296,6 +305,7 @@ struct CaregiverAssessmentView: View {
             Spacer()
 
             MCPrimaryButton("Done", icon: "checkmark", color: AssessmentTheme.Phase.results) {
+                avatarInterrupt()
                 onComplete()
             }
             .padding(.horizontal, 32)
@@ -354,29 +364,45 @@ struct CaregiverAssessmentView: View {
     // MARK: - Logic
 
     private func selectAnswer(_ answer: QDRSAnswer, questionIndex: Int) {
+        // Cancel any in-flight transition from a previous rapid tap
+        answerTransitionWork?.cancel()
+        speakNextQuestionWork?.cancel()
+
         selectedAnswer = answer
         assessmentState.qdrsState.answers[questionIndex] = answer
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        let transitionWork = DispatchWorkItem { [self] in
+            // Guard: if the work item was cancelled (e.g. view disappeared), bail out
+            guard answerTransitionWork?.isCancelled == false else { return }
+
             if questionIndex < questions.count - 1 {
                 let nextIndex = questionIndex + 1
+                // Reset answer + pressed state synchronously before the transition animation
                 selectedAnswer = nil
+                isPressed = [:]
                 withAnimation(.easeInOut(duration: 0.3)) {
                     flowState = .questions(index: nextIndex)
                 }
                 assessmentState.qdrsState.currentIndex = nextIndex
                 // Avatar speaks next question in sync with left panel transition
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                let speakWork = DispatchWorkItem {
+                    guard speakNextQuestionWork?.isCancelled == false else { return }
                     avatarSpeak(questions[nextIndex].voicePrompt)
                 }
+                speakNextQuestionWork = speakWork
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: speakWork)
             } else {
                 assessmentState.qdrsState.isComplete = true
+                // Reset answer + pressed state synchronously before the transition animation
                 selectedAnswer = nil
+                isPressed = [:]
                 withAnimation(.easeInOut(duration: 0.3)) {
                     flowState = .complete
                 }
             }
         }
+        answerTransitionWork = transitionWork
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: transitionWork)
     }
 
     private func dotColor(for index: Int, current: Int) -> Color {

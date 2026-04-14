@@ -19,6 +19,8 @@ import SwiftUI
 struct AvatarZoneView: View {
     let layoutManager: AvatarLayoutManager
     let conversationURL: String?
+    /// Home warm path: keep WKWebView but do not join Daily until assessment starts (see `TavusCVIView`).
+    var deferDailyRoomJoin: Bool = false
     var isConnecting: Bool = false
     var errorMessage: String? = nil
     let width: CGFloat
@@ -35,6 +37,9 @@ struct AvatarZoneView: View {
 
     /// Clock panel: hide the connecting / Waiting chip once Daily has joined (or session already live).
     @State private var clockPanelFeedReady = false
+
+    /// Mid-session connection lost — set when `.tavusConnectionLost` fires.
+    @State private var isConnectionLost = false
 
     private var isClockDrawing: Bool {
         layoutManager.currentPhase == .clockDrawing
@@ -65,7 +70,10 @@ struct AvatarZoneView: View {
             //    region matches the video content, not the full-zone container.
             Group {
                 if let url = conversationURL {
-                    TavusCVIView(conversationURL: url)
+                    TavusCVIView(
+                        conversationURL: url,
+                        deferDailyRoomJoinUntilAssessmentActive: deferDailyRoomJoin
+                    )
                         .padding(isClockDrawing ? 0 : 16)
                         .frame(width: isClockDrawing ? circleDiam : nil,
                                height: isClockDrawing ? circleDiam : nil)
@@ -138,6 +146,26 @@ struct AvatarZoneView: View {
                         .padding(.bottom, 20)
                 }
             }
+
+            // 6. Mid-session connection lost overlay
+            if isConnectionLost {
+                VStack(spacing: 12) {
+                    Image(systemName: "wifi.slash")
+                        .font(.system(size: 32))
+                        .foregroundStyle(isClockDrawing ? Color(hex: "#6B7280") : Color.white.opacity(0.6))
+                    Text("Avatar connection lost")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(isClockDrawing ? Color(hex: "#374151") : Color.white.opacity(0.7))
+                    Text("The assessment can continue without the avatar.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(isClockDrawing ? Color(hex: "#6B7280") : Color.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background((isClockDrawing ? Color.white : Color.black).opacity(0.85))
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.3), value: isConnectionLost)
+            }
         }
         .animation(.spring(duration: 0.55, bounce: 0.15), value: layoutManager.currentPhase)
         .onChange(of: layoutManager.avatarBehavior) { _, newBehavior in
@@ -150,16 +178,27 @@ struct AvatarZoneView: View {
         .onChange(of: layoutManager.currentPhase) { _, _ in
             refreshClockPanelFeedReady()
         }
-        .onChange(of: conversationURL) { _, _ in
-            refreshClockPanelFeedReady()
-        }
         .onChange(of: isConnecting) { _, _ in
             refreshClockPanelFeedReady()
         }
         .onReceive(NotificationCenter.default.publisher(for: .tavusDailyRoomJoined)) { _ in
-            if layoutManager.currentPhase == .clockDrawing {
-                clockPanelFeedReady = true
+            // Fix #6: set unconditionally — Daily joins at session start, usually
+            // before clock drawing. The old guard on .clockDrawing missed the
+            // notification in the common flow. refreshClockPanelFeedReady handles
+            // resetting when leaving clock drawing.
+            clockPanelFeedReady = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tavusConnectionLost)) { _ in
+            isConnectionLost = true
+            // Fix #8: mute mic so patient doesn't speak into dead channel
+            avatarSetMicMuted(true)
+        }
+        // Fix #7: reset connection-lost overlay when a new conversation URL arrives
+        .onChange(of: conversationURL) { oldURL, newURL in
+            if oldURL == nil, newURL != nil {
+                isConnectionLost = false
             }
+            refreshClockPanelFeedReady()
         }
     }
 
@@ -186,7 +225,8 @@ struct AvatarZoneView: View {
             if !clockPanelFeedReady {
                 HStack(spacing: 10) {
                     WaveformBars(
-                        isActive: true,
+                        // Fix #13: only animate when avatar is actually speaking
+                        isActive: layoutManager.avatarBehavior == .speaking || layoutManager.avatarBehavior == .narrating,
                         color: layoutManager.avatarBehavior == .speaking
                             ? Color(hex: "#34C759")
                             : AssessmentTheme.Phase.welcome

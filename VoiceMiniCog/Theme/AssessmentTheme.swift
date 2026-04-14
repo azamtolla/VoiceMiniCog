@@ -45,13 +45,16 @@ enum AssessmentTheme {
         )
     }
 
-    // MARK: Split-Screen Gradient (avatar dark → content light)
+    // MARK: Split-Screen Canvas Colors
 
-    /// Unified horizontal gradient: #080808 on the right → #F8F9FA on the left.
+    /// Dark edge of the split-screen canvas gradient: #080808
+    static let canvasDark = Color(hex: "#080808")
+
+    /// Unified horizontal gradient: canvasDark on the right → Content.background on the left.
     static let splitGradient = LinearGradient(
         stops: [
-            .init(color: Color(hex: "#080808"), location: 0.0),
-            .init(color: Color(hex: "#F8F9FA"), location: 1.0)
+            .init(color: canvasDark, location: 0.0),
+            .init(color: Content.background, location: 1.0)
         ],
         startPoint: .trailing,
         endPoint: .leading

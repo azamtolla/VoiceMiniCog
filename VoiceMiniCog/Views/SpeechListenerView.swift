@@ -16,7 +16,7 @@ struct SpeechListenerView: View {
     var onTranscript: ((String) -> Void)? = nil  // called on every partial result
     let onDone: (String) -> Void             // called with final transcript
 
-    @State private var speech = SpeechService()
+    @StateObject private var speech = SpeechService()
     @State private var hasStarted = false
     @State private var autoStopTimer: Timer?
 
@@ -156,7 +156,7 @@ struct SpeechListenerView: View {
 struct CompactSpeechListener: View {
     let onTranscript: (String) -> Void
 
-    @State private var speech = SpeechService()
+    @StateObject private var speech = SpeechService()
     @State private var isActive = false
 
     var body: some View {
