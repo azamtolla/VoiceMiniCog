@@ -105,7 +105,6 @@ final class DailyCallManager: NSObject {
     deinit {
         // Observers and tasks are cleaned up on leave() / main actor context.
         // Cannot call main-actor methods from deinit (nonisolated context).
-        log.info("DailyCallManager deinit")
     }
 
     // MARK: - Lifecycle
@@ -157,15 +156,18 @@ final class DailyCallManager: NSObject {
 
         // Join with default settings — mic/camera controlled via setInputEnabled after join
         client.join(url: url) { [weak self] result in
-            guard let self else { return }
-            switch result {
-            case .success:
-                log.info("Join successful")
-                self.onJoinSucceeded()
-            case .failure(let error):
-                log.error("Join failed: \(error.localizedDescription, privacy: .public)")
-                NotificationCenter.default.post(name: .tavusConnectionLost, object: nil,
-                                                userInfo: ["message": error.localizedDescription])
+            // Daily's completion may run on a background thread — hop to MainActor.
+            Task { @MainActor in
+                guard let self else { return }
+                switch result {
+                case .success:
+                    log.info("Join successful")
+                    self.onJoinSucceeded()
+                case .failure(let error):
+                    log.error("Join failed: \(error.localizedDescription, privacy: .public)")
+                    NotificationCenter.default.post(name: .tavusConnectionLost, object: nil,
+                                                    userInfo: ["message": error.localizedDescription])
+                }
             }
         }
     }
@@ -183,8 +185,10 @@ final class DailyCallManager: NSObject {
         remoteVideoTrack = nil
 
         client.leave { result in
-            if case .failure(let err) = result {
-                log.error("leave failed: \(err.localizedDescription, privacy: .public)")
+            Task { @MainActor in
+                if case .failure(let err) = result {
+                    log.error("leave failed: \(err.localizedDescription, privacy: .public)")
+                }
             }
         }
         log.info("leave — disconnecting")
@@ -244,8 +248,10 @@ final class DailyCallManager: NSObject {
             return
         }
         client.sendAppMessage(json: data, to: .all) { result in
-            if case .failure(let err) = result {
-                log.error("sendAppMessage failed: \(err.localizedDescription, privacy: .public)")
+            Task { @MainActor in
+                if case .failure(let err) = result {
+                    log.error("sendAppMessage failed: \(err.localizedDescription, privacy: .public)")
+                }
             }
         }
         log.info("Sent: \(eventType, privacy: .public)")
