@@ -1,0 +1,49 @@
+name: Build & Test
+
+on:
+  pull_request:
+    branches: [main, v1-pilot]
+  push:
+    branches: [main, v1-pilot]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Xcode Build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Build (iPad Simulator)
+        run: |
+          xcodebuild build \
+            -scheme VoiceMiniCog \
+            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty --color && exit ${PIPESTATUS[0]}
+
+  test:
+    name: Unit Tests
+    runs-on: macos-15
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -scheme VoiceMiniCog \
+            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty --color && exit ${PIPESTATUS[0]}
