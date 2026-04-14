@@ -116,6 +116,8 @@ struct ContentView: View {
                             currentScreen = .home
                         },
                         onFinalize: {
+                            assessmentState.qmciState.clinicianDecisionTimestamp = Date()
+                            AssessmentPersistence.save(assessmentState, flowType: flowType)
                             assessmentState.reset()
                             AssessmentPersistence.clear()
                             TavusService.shared.cancelPreWarm()
@@ -130,8 +132,7 @@ struct ContentView: View {
             // Fix #15: save only on .background (true "user left the app" signal).
             // .inactive fires on Control Center, incoming calls, Face ID — saving
             // mid-render could overwrite valid state with a partially-mutated copy.
-            if newPhase == .background,
-               currentScreen != .home, currentScreen != .report {
+            if newPhase == .background, currentScreen != .home {
                 AssessmentPersistence.save(assessmentState, flowType: flowType)
             }
         }
