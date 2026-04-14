@@ -97,31 +97,26 @@ struct AvatarAssessmentCanvas: View {
         )
         .onChange(of: isActive) { _, active in
             // Only initialize the phase when the user explicitly starts.
-            // The canvas onAppear fires at app launch (always in hierarchy)
-            // — setting currentPhase there would prime WelcomePhaseView
-            // before the user taps Start.
             if active {
                 layoutManager.flowType = flowType
                 layoutManager.currentPhase = .welcome
                 isCancelling = false
                 canvasLog.debug("Assessment started — phase set to .welcome")
 
-                // Daily SDK: configure URL and join when assessment starts
+                // Daily SDK: unlock deferred join and attempt join now.
+                // configure() was already called when the URL became available.
                 dailyCallManager.deferJoinUntilAssessmentActive = false
                 if let url = tavusService.activeConversation?.conversation_url {
                     dailyCallManager.configure(url: url)
-                    dailyCallManager.joinIfReady()
                 }
-            } else {
-                dailyCallManager.deferJoinUntilAssessmentActive = true
+                dailyCallManager.joinIfReady()
             }
         }
         .onChange(of: tavusService.activeConversation?.conversation_url) { _, url in
             // Pre-warm: conversation URL becomes available while on Home.
-            // Configure DailyCallManager but don't join (deferred).
+            // Configure only — join is deferred until user starts assessment.
             if let url {
                 dailyCallManager.configure(url: url)
-                dailyCallManager.joinIfReady()
             }
         }
         .onChange(of: flowType) { _, newFlow in

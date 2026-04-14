@@ -36,7 +36,8 @@ final class DailyCallManager: NSObject {
     private var roomURL: URL?
 
     /// When true, `joinIfReady()` is a no-op — delays join until assessment starts.
-    var deferJoinUntilAssessmentActive = false
+    /// Defaults to true so pre-warm conversations don't join Daily until the user taps Start.
+    var deferJoinUntilAssessmentActive = true
 
     // MARK: - Daily SDK
 
@@ -130,8 +131,10 @@ final class DailyCallManager: NSObject {
             log.info("joinIfReady — no URL configured")
             return
         }
-        guard callState != .joined else {
-            log.info("joinIfReady — already joined")
+        // Block if a CallClient already exists (joining or joined).
+        // Prevents duplicate joins that confuse Tavus's replica state.
+        guard callClient == nil else {
+            log.info("joinIfReady — CallClient already exists (state: \(self.callState.rawValue, privacy: .public))")
             return
         }
 
@@ -489,72 +492,88 @@ final class DailyCallManager: NSObject {
 // MARK: - CallClientDelegate
 
 extension DailyCallManager: CallClientDelegate {
-    func callClient(_ callClient: CallClient, callStateUpdated state: CallState) {
-        self.callState = state
-        log.info("Call state: \(state.rawValue, privacy: .public)")
-
-        if state == .left {
-            remoteVideoTrack = nil
-            NotificationCenter.default.post(name: .tavusConnectionLost, object: nil)
+    nonisolated func callClient(_ callClient: CallClient, callStateUpdated state: CallState) {
+        Task { @MainActor in
+            self.callState = state
+            log.info("Call state: \(state.rawValue, privacy: .public)")
+            if state == .left {
+                self.remoteVideoTrack = nil
+                NotificationCenter.default.post(name: .tavusConnectionLost, object: nil)
+            }
         }
     }
 
-    func callClient(_ callClient: CallClient, participantJoined participant: Participant) {
-        guard !participant.info.isLocal else { return }
-        log.info("Participant joined: \(participant.id.description, privacy: .public)")
-        remoteVideoTrack = participant.media?.camera.track
+    nonisolated func callClient(_ callClient: CallClient, participantJoined participant: Participant) {
+        let isLocal = participant.info.isLocal
+        let track = participant.media?.camera.track
+        let idDescription = participant.id.description
+        Task { @MainActor in
+            guard !isLocal else { return }
+            log.info("Participant joined: \(idDescription, privacy: .public)")
+            self.remoteVideoTrack = track
+        }
     }
 
-    func callClient(_ callClient: CallClient, participantUpdated participant: Participant) {
-        if participant.info.isLocal { return }
-        remoteVideoTrack = participant.media?.camera.track
+    nonisolated func callClient(_ callClient: CallClient, participantUpdated participant: Participant) {
+        let isLocal = participant.info.isLocal
+        let track = participant.media?.camera.track
+        Task { @MainActor in
+            if isLocal { return }
+            self.remoteVideoTrack = track
+        }
     }
 
-    func callClient(_ callClient: CallClient, participantLeft participant: Participant,
+    nonisolated func callClient(_ callClient: CallClient, participantLeft participant: Participant,
                     withReason reason: ParticipantLeftReason) {
-        guard !participant.info.isLocal else { return }
-        log.info("Participant left: \(participant.id.description, privacy: .public)")
-        remoteVideoTrack = nil
+        let isLocal = participant.info.isLocal
+        let idDescription = participant.id.description
+        Task { @MainActor in
+            guard !isLocal else { return }
+            log.info("Participant left: \(idDescription, privacy: .public)")
+            self.remoteVideoTrack = nil
+        }
     }
 
     /// Receive Tavus CVI events via Daily's data channel.
-    func callClient(_ callClient: CallClient, appMessageAsJson jsonData: Data,
+    nonisolated func callClient(_ callClient: CallClient, appMessageAsJson jsonData: Data,
                     from participantID: ParticipantID) {
         guard let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
               let eventType = json["event_type"] as? String
         else { return }
 
-        log.debug("App message: \(eventType, privacy: .public)")
+        Task { @MainActor in
+            log.debug("App message: \(eventType, privacy: .public)")
 
-        switch eventType {
-        case "conversation.replica.started_speaking":
-            replicaIsSpeaking = true
-            NotificationCenter.default.post(name: .avatarStartedSpeaking, object: nil)
-            handleReplicaStartedSpeaking()
+            switch eventType {
+            case "conversation.replica.started_speaking":
+                self.replicaIsSpeaking = true
+                NotificationCenter.default.post(name: .avatarStartedSpeaking, object: nil)
+                self.handleReplicaStartedSpeaking()
 
-        case "conversation.replica.stopped_speaking":
-            replicaIsSpeaking = false
-            NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)
-            handleReplicaStoppedSpeaking()
+            case "conversation.replica.stopped_speaking":
+                self.replicaIsSpeaking = false
+                NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)
+                self.handleReplicaStoppedSpeaking()
 
-        case "conversation.user.started_speaking":
-            NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
+            case "conversation.user.started_speaking":
+                NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
 
-        case "conversation.user.stopped_speaking":
-            NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)
-            handleUserStoppedSpeaking()
+            case "conversation.user.stopped_speaking":
+                NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)
+                self.handleUserStoppedSpeaking()
 
-        case "system.replica_joined":
-            log.info("Replica joined")
+            case "system.replica_joined":
+                log.info("Replica joined")
 
-        case "system.replica_present":
-            break // Heartbeat — ignore
+            case "system.replica_present":
+                break // Heartbeat — ignore
 
-        case "conversation.utterance":
-            log.debug("Utterance event received")
+            case "conversation.utterance":
+                log.debug("Utterance event received")
 
-        default:
-            log.debug("Unhandled event: \(eventType, privacy: .public)")
+            default:
+                log.debug("Unhandled event: \(eventType, privacy: .public)")
+            }
         }
     }
 }
