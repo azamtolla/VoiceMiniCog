@@ -7,13 +7,23 @@
 
 import Foundation
 import AVFoundation
+import os.log
 
 @Observable
 class ElevenLabsService: NSObject {
     // Configuration - matching React defaults
-    var apiKey: String = ""  // Set via settings or hardcode for testing
+    /// API key for ElevenLabs. Use `setAPIKey(_:)` to update.
+    /// In production, store this in the iOS Keychain rather than in memory.
+    private(set) var apiKey: String = ""
     var voiceId: String = "EXAVITQu4vr4xnSDxMaL"  // "Sarah" - calm, professional
     var modelId: String = "eleven_turbo_v2_5"
+
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "VoiceMiniCog", category: "ElevenLabs")
+
+    /// Set the ElevenLabs API key. In production, prefer loading from Keychain.
+    func setAPIKey(_ key: String) {
+        apiKey = key
+    }
 
     // Voice settings matching React
     let stability: Double = 0.65
@@ -38,7 +48,9 @@ class ElevenLabsService: NSObject {
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
         } catch {
-            print("[ElevenLabs] Audio session setup failed: \(error)")
+            #if DEBUG
+            logger.error("Audio session setup failed: \(error.localizedDescription)")
+            #endif
         }
     }
 
@@ -49,7 +61,9 @@ class ElevenLabsService: NSObject {
         setupAudioSession()
 
         guard !apiKey.isEmpty else {
-            print("[ElevenLabs] No API key - falling back to system TTS")
+            #if DEBUG
+            logger.info("No API key configured — falling back to system TTS")
+            #endif
             await speakWithSystemTTS(text)
             return
         }
@@ -61,7 +75,9 @@ class ElevenLabsService: NSObject {
             let audioData = try await fetchAudio(for: text)
             try await playAudio(audioData)
         } catch {
-            print("[ElevenLabs] Error: \(error). Falling back to system TTS")
+            #if DEBUG
+            logger.error("TTS error: \(error.localizedDescription). Falling back to system TTS")
+            #endif
             errorMessage = error.localizedDescription
             await speakWithSystemTTS(text)
         }
