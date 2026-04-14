@@ -17,6 +17,7 @@ struct PCPReportView: View {
     @State private var showShareSheet = false
     @State private var pdfData: Data?
     @State private var isClockScoringExpanded: Bool = true
+    @State private var isGeneratingPDF = false
 
     var body: some View {
         ScrollView {
@@ -628,6 +629,7 @@ struct PCPReportView: View {
                         set: { newValue in
                             q.cdtHandsScore = newValue
                             q.recomputeClockDrawingScore()
+                            computeResults()
                         }
                     )) {
                         Text("0").tag(0)
@@ -644,6 +646,7 @@ struct PCPReportView: View {
                         set: { newValue in
                             q.cdtPivotCorrect = newValue
                             q.recomputeClockDrawingScore()
+                            computeResults()
                         }
                     )
                 )
@@ -675,6 +678,7 @@ struct PCPReportView: View {
                             if q.cdtInvalidNumbersCount > 0 {
                                 q.cdtInvalidNumbersCount -= 1
                                 q.recomputeClockDrawingScore()
+                                computeResults()
                             }
                         }) {
                             Image(systemName: "minus.circle.fill")
@@ -694,6 +698,7 @@ struct PCPReportView: View {
                         Button(action: {
                             q.cdtInvalidNumbersCount += 1
                             q.recomputeClockDrawingScore()
+                            computeResults()
                         }) {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 22))
@@ -771,6 +776,7 @@ struct PCPReportView: View {
             guard q.cdtNumbersPlaced.indices.contains(index) else { return }
             q.cdtNumbersPlaced[index].toggle()
             q.recomputeClockDrawingScore()
+            computeResults()
         }) {
             HStack(spacing: 6) {
                 Image(systemName: isChecked ? "checkmark.square.fill" : "square")
@@ -832,6 +838,7 @@ struct PCPReportView: View {
         q.cdtPivotCorrect = false
         q.cdtInvalidNumbersCount = 0
         q.recomputeClockDrawingScore()
+        computeResults()
     }
 
     // MARK: - Clinical Decision
@@ -1311,12 +1318,25 @@ struct PCPReportView: View {
 
         return VStack(spacing: 12) {
             Button(action: {
-                pdfData = PDFReportGenerator.generate(from: state)
-                showShareSheet = true
+                guard !isGeneratingPDF else { return }
+                isGeneratingPDF = true
+                Task(priority: .userInitiated) { @MainActor in
+                    let data = PDFReportGenerator.generate(from: state)
+                    pdfData = data
+                    isGeneratingPDF = false
+                    showShareSheet = true
+                }
             }) {
                 HStack(spacing: 8) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share Report")
+                    if isGeneratingPDF {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(MCDesign.Colors.primary700)
+                        Text("Generating...")
+                    } else {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share Report")
+                    }
                 }
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(MCDesign.Colors.primary700)
@@ -1329,7 +1349,7 @@ struct PCPReportView: View {
                 )
                 .cornerRadius(12)
             }
-            .disabled(!canFinalize)
+            .disabled(!canFinalize || isGeneratingPDF)
             .opacity(canFinalize ? 1.0 : 0.5)
 
             Button(action: onFinalize) {
