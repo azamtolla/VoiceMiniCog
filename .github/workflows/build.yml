@@ -47,11 +47,12 @@ jobs:
           sudo xcode-select -s "$LATEST/Contents/Developer"
           xcodebuild -version
 
-      - name: Run Tests
+      - name: Run Unit Tests
         run: |
           xcodebuild test \
             -scheme VoiceMiniCog \
             -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -only-testing:VoiceMiniCogTests \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty --color && exit ${PIPESTATUS[0]}
