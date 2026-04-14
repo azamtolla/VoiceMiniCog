@@ -20,11 +20,14 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
-      - name: Build (iPad Simulator)
+      - name: List available simulators
+        run: xcrun simctl list devices available | head -40
+
+      - name: Build (iOS Simulator)
         run: |
           xcodebuild build \
             -scheme VoiceMiniCog \
-            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty --color && exit ${PIPESTATUS[0]}
@@ -43,7 +46,7 @@ jobs:
         run: |
           xcodebuild test \
             -scheme VoiceMiniCog \
-            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -destination 'platform=iOS Simulator,name=iPad Air 13-inch (M3)' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty --color && exit ${PIPESTATUS[0]}
