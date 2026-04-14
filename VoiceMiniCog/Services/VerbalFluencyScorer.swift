@@ -2,7 +2,7 @@
 //  VerbalFluencyScorer.swift
 //  VoiceMiniCog
 //
-//  @Observable service for real-time verbal fluency scoring.
+//  ObservableObject service for real-time verbal fluency scoring.
 //  Ingests a live ASR transcript, matches words against a static animal
 //  lexicon (~300 entries with semantic subcategory tags), collapses plurals,
 //  handles compound names, and produces clinical metrics:
@@ -15,8 +15,8 @@
 //  Static lexicon = fast, deterministic, defensible, reproducible.
 //
 
+import Combine
 import Foundation
-import Observation
 
 // MARK: - Animal Semantic Category
 
@@ -42,24 +42,23 @@ enum AnimalCategory: String, Codable, CaseIterable {
 
 // MARK: - Verbal Fluency Scorer
 
-@Observable
-class VerbalFluencyScorer {
+class VerbalFluencyScorer: ObservableObject {
 
     // MARK: Public Outputs
 
     /// Unique valid animals in order named.
-    private(set) var validAnimals: [String] = []
+    @Published private(set) var validAnimals: [String] = []
     /// Words the patient repeated (already credited).
-    private(set) var repetitions: [String] = []
+    @Published private(set) var repetitions: [String] = []
     /// Non-animal words the patient said.
-    private(set) var intrusions: [String] = []
+    @Published private(set) var intrusions: [String] = []
     /// Every recognized animal-class token in spoken order (valid + repeats),
     /// preserving the verbatim sequence for clinician review.
-    private(set) var allWordsInOrder: [String] = []
+    @Published private(set) var allWordsInOrder: [String] = []
     /// Timestamp of each valid animal relative to timer start.
-    private(set) var wordTimestamps: [(word: String, secondsFromStart: TimeInterval)] = []
+    @Published private(set) var wordTimestamps: [(word: String, secondsFromStart: TimeInterval)] = []
     /// Category sequence for cluster/switch analysis.
-    private(set) var categorySequence: [AnimalCategory] = []
+    @Published private(set) var categorySequence: [AnimalCategory] = []
 
     var count: Int { validAnimals.count }
 
@@ -68,6 +67,7 @@ class VerbalFluencyScorer {
     private var timerStart: Date?
     private var processedTokens: Set<String> = []
     private var lastProcessedLength: Int = 0
+    private var lastProcessedTokenCount: Int = 0
 
     // MARK: Lifecycle
 
@@ -81,6 +81,7 @@ class VerbalFluencyScorer {
         categorySequence = []
         processedTokens = []
         lastProcessedLength = 0
+        lastProcessedTokenCount = 0
     }
 
     // MARK: Real-Time Transcript Processing
@@ -113,8 +114,8 @@ class VerbalFluencyScorer {
             }
         }
 
-        // Check single tokens
-        for token in tokens {
+        // Check single tokens — only iterate tokens not yet processed
+        for token in tokens[lastProcessedTokenCount...] {
             let normalized = normalizePlural(token)
             guard normalized.count > 1 else { continue }
             guard !processedTokens.contains(normalized) else {
@@ -137,6 +138,8 @@ class VerbalFluencyScorer {
             // contains many filler words; intrusion detection would need
             // more sophisticated NLP. Leave intrusions empty for now.
         }
+
+        lastProcessedTokenCount = tokens.count
     }
 
     private func addValidAnimal(_ name: String, category: AnimalCategory, at time: TimeInterval) {
@@ -219,7 +222,11 @@ class VerbalFluencyScorer {
             }
         }
         clusters.append(currentSize)
-        return Double(clusters.reduce(0, +)) / Double(clusters.count)
+        // Per Troyer et al., only runs of 2+ consecutive same-category items
+        // count as clusters. Singletons (size == 1) are excluded.
+        let trueClusters = clusters.filter { $0 >= 2 }
+        guard !trueClusters.isEmpty else { return nil }
+        return Double(trueClusters.reduce(0, +)) / Double(trueClusters.count)
     }
 
     /// Switch count — number of transitions between semantic categories.

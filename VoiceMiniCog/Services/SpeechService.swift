@@ -8,20 +8,22 @@
 import Foundation
 import Speech
 import AVFoundation
+import Combine
 
-@Observable
-class SpeechService {
+class SpeechService: ObservableObject {
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioEngine: AVAudioEngine?
+    /// Retained as instance property so iOS doesn't deallocate it mid-utterance.
+    private var synthesizer: AVSpeechSynthesizer?
 
-    var transcript: String = ""
-    var isListening: Bool = false
-    var errorMessage: String? = nil
+    @Published var transcript: String = ""
+    @Published var isListening: Bool = false
+    @Published var errorMessage: String? = nil
 
     // Authorization status
-    var isAuthorized: Bool = false
+    @Published var isAuthorized: Bool = false
 
     // Check if running on simulator
     private var isSimulator: Bool {
@@ -43,8 +45,12 @@ class SpeechService {
 
     func requestAuthorization() async -> Bool {
         return await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { status in
-                DispatchQueue.main.async {
+            SFSpeechRecognizer.requestAuthorization { [weak self] status in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else {
+                        continuation.resume(returning: false)
+                        return
+                    }
                     switch status {
                     case .authorized:
                         self.isAuthorized = true
@@ -117,8 +123,8 @@ class SpeechService {
             }
 
             // Install tap on input
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-                self.recognitionRequest?.append(buffer)
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+                self?.recognitionRequest?.append(buffer)
             }
 
             // Start audio engine
@@ -161,23 +167,21 @@ class SpeechService {
     // MARK: - Stop Listening
 
     func stopListening() {
-        guard isListening else { return }
+        // Always clean up audio resources regardless of isListening flag.
+        // Handles error paths where startListening() threw after installing
+        // a tap but before setting isListening = true — without this, a
+        // dangling tap leaks the audio session lock.
+        if !isSimulator {
+            recognitionTask?.cancel()
+            recognitionTask = nil
 
-        // On simulator, just reset the flag
-        if isSimulator {
-            isListening = false
-            return
-        }
+            recognitionRequest?.endAudio()
+            recognitionRequest = nil
 
-        recognitionTask?.cancel()
-        recognitionTask = nil
-
-        recognitionRequest?.endAudio()
-        recognitionRequest = nil
-
-        if let audioEngine = audioEngine, audioEngine.isRunning {
-            audioEngine.stop()
-            audioEngine.inputNode.removeTap(onBus: 0)
+            if let audioEngine = audioEngine, audioEngine.isRunning {
+                audioEngine.stop()
+                audioEngine.inputNode.removeTap(onBus: 0)
+            }
         }
 
         isListening = false
@@ -194,15 +198,17 @@ class SpeechService {
     // TODO: Implement actual TTS using AVSpeechSynthesizer or ElevenLabs
 
     func speak(_ text: String) async {
-        let synthesizer = AVSpeechSynthesizer()
+        // Synthesizer stored as instance property to prevent deallocation
+        // mid-utterance (local vars are released at scope exit, silently
+        // stopping playback in release builds).
+        synthesizer = AVSpeechSynthesizer()
         let utterance = AVSpeechUtterance(string: text)
         utterance.rate = 0.5
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
 
-        await withCheckedContinuation { continuation in
-            // Simple synchronous speak for now
+        await withCheckedContinuation { [weak self] continuation in
             // TODO: Use delegate for proper async handling
-            synthesizer.speak(utterance)
+            self?.synthesizer?.speak(utterance)
 
             // Wait for estimated duration
             let duration = Double(text.count) * 0.06  // Rough estimate
