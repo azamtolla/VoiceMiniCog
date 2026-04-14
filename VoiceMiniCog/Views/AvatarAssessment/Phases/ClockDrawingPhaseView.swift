@@ -64,6 +64,7 @@ struct ClockDrawingPhaseView: View {
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
+                .accessibilityAddTraits(.isHeader)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
@@ -89,6 +90,7 @@ struct ClockDrawingPhaseView: View {
                         )
                         .foregroundColor(Color.gray.opacity(0.25))
                         .frame(width: guideSize, height: guideSize)
+                        .accessibilityHidden(true)
 
                     // SwiftUI Canvas — renders completed lines + current stroke
                     Canvas { context, _ in
@@ -97,6 +99,8 @@ struct ClockDrawingPhaseView: View {
                         }
                         drawStroke(currentLine, in: context)
                     }
+                    .accessibilityLabel("Clock drawing canvas. \(lines.count) strokes drawn.")
+                    .accessibilityHint("Draw a clock face showing the time ten past eleven.")
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in

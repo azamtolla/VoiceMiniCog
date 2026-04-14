@@ -38,12 +38,14 @@ struct CompletionPhaseView: View {
                     .font(.system(size: 40))
                     .foregroundStyle(AssessmentTheme.Phase.results)
             }
+            .accessibilityHidden(true)
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
             Text("Assessment Complete")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                .accessibilityAddTraits(.isHeader)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 

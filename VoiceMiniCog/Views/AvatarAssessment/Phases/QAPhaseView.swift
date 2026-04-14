@@ -59,19 +59,21 @@ struct QAPhaseView: View {
 
             VStack(spacing: 20) {
 
-                // Question counter
-                Text("\(currentIndex + 1) of \(totalQuestions)")
-                    .font(AssessmentTheme.Fonts.timerSmall)
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                    // Question counter
+                    Text("\(currentIndex + 1) of \(totalQuestions)")
+                        .font(AssessmentTheme.Fonts.timerSmall)
+                        .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                        .accessibilityLabel("Question \(currentIndex + 1) of \(totalQuestions)")
 
-                // Question text
-                Text(currentQuestionText)
-                    .font(AssessmentTheme.Fonts.question)
-                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
-                    .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-                    .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
+                    // Question text
+                    Text(currentQuestionText)
+                        .font(AssessmentTheme.Fonts.question)
+                        .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 8)
+                        .accessibilityAddTraits(.isHeader)
+                        .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                        .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
                 if phaseID == .orientation {
                     // Orientation: listening indicator (no buttons) — only after question audio completes
@@ -161,6 +163,9 @@ struct QAPhaseView: View {
                     .foregroundStyle(AssessmentTheme.Content.textSecondary)
             }
             .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Listening for your answer")
+            .accessibilityAddTraits(.updatesFrequently)
         }
     }
 
@@ -337,9 +342,12 @@ struct QAPhaseView: View {
                 Circle()
                     .fill(orientationDotColor(at: i))
                     .frame(width: 10, height: 10)
+                    .accessibilityHidden(true)
             }
             Spacer()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Orientation progress: question \(currentIndex + 1) of 5")
     }
 
     // MARK: - Data Helpers
