@@ -33,6 +33,7 @@ extension Notification.Name {
     static let tavusMicMuteRequest = Notification.Name("tavusMicMuteRequest")
     /// Request to interrupt avatar speech and clear the echo queue
     static let tavusInterruptRequest = Notification.Name("tavusInterruptRequest")
+    static let tavusRespondRequest = Notification.Name("tavusRespondRequest")
     /// Fired when the Daily WebRTC connection drops mid-session (left-meeting or fatal error)
     static let tavusConnectionLost = Notification.Name("tavusConnectionLost")
 }
@@ -57,6 +58,17 @@ struct TavusCVIView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.allowsAirPlayForMediaPlayback = true
 
+        // Allow WKWebView's WebContent process to access hardware decoders
+        let preferences = WKPreferences()
+        preferences.javaScriptCanOpenWindowsAutomatically = true
+        config.preferences = preferences
+
+        // Prevent iOS 15.4+ from upgrading Daily's WebRTC signaling
+        // connections, which can break the replica join handshake.
+        if #available(iOS 15.4, *) {
+            config.upgradeKnownHostsToHTTPS = false
+        }
+
         // Register Swift message handler for JS → Swift bridge.
         // Fix #5: use WeakScriptHandler to break the retain cycle:
         // WKWebView → config → userContentController → handler → coordinator → webView
@@ -66,6 +78,12 @@ struct TavusCVIView: UIViewRepresentable {
         contentController.add(weakHandler, name: "tavusBridge")
 
         let webView = WKWebView(frame: .zero, configuration: config)
+        // Daily.co's browser-compat check rejects WKWebView's default UA;
+        // declaring Safari makes Daily treat this as a supported iOS browser.
+        webView.customUserAgent = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        }
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.isScrollEnabled = false
@@ -137,6 +155,7 @@ struct TavusCVIView: UIViewRepresentable {
         private var echoObserver: NSObjectProtocol?
         private var muteObserver: NSObjectProtocol?
         private var interruptObserver: NSObjectProtocol?
+        private var respondObserver: NSObjectProtocol?
 
         private enum PendingBridgeOp {
             case context(String)
@@ -144,6 +163,7 @@ struct TavusCVIView: UIViewRepresentable {
             case interrupt
             case micMuted(Bool)
             case sensitivity(pause: String, interrupt: String)
+            case respond(String)
         }
 
         override init() {
@@ -185,6 +205,15 @@ struct TavusCVIView: UIViewRepresentable {
             ) { [weak self] _ in
                 self?.sendInterrupt()
             }
+            respondObserver = NotificationCenter.default.addObserver(
+                forName: .tavusRespondRequest,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                if let text = notification.userInfo?["text"] as? String, !text.isEmpty {
+                    self?.sendRespond(text)
+                }
+            }
         }
 
         deinit {
@@ -198,6 +227,9 @@ struct TavusCVIView: UIViewRepresentable {
                 NotificationCenter.default.removeObserver(observer)
             }
             if let observer = interruptObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            if let observer = respondObserver {
                 NotificationCenter.default.removeObserver(observer)
             }
             bridgeExecutionChain?.cancel()
@@ -234,6 +266,7 @@ struct TavusCVIView: UIViewRepresentable {
             case .interrupt: runSendInterrupt()
             case .micMuted(let m): runSetMicMuted(m)
             case .sensitivity(let p, let i): runSetSensitivity(pause: p, interrupt: i)
+            case .respond(let s): runSendRespond(s)
             }
         }
 
@@ -280,6 +313,13 @@ struct TavusCVIView: UIViewRepresentable {
                         in: nil,
                         contentWorld: .page
                     )
+                case .respond(let text):
+                    _ = try await webView.callAsyncJavaScript(
+                        "sendRespond(text);",
+                        arguments: ["text": text],
+                        in: nil,
+                        contentWorld: .page
+                    )
                 }
             }
         }
@@ -294,9 +334,17 @@ struct TavusCVIView: UIViewRepresentable {
             guard webView != nil, let url = conversationURL else { return }
             hasJoined = true
             cviLog.info("attemptJoinIfPossible — joining room")
-            enqueueBridgeJS("joinRoomAndFlush") { [weak self] in
+            enqueueBridgeJS("unlockAudio+joinRoomAndFlush") { [weak self] in
                 guard let self, let webView = self.webView else { return }
                 do {
+                    // Step 1: Unlock Web Audio API (iOS suspends AudioContexts by default)
+                    _ = try await webView.callAsyncJavaScript(
+                        "await unlockAudio();",
+                        arguments: [:],
+                        in: nil,
+                        contentWorld: .page
+                    )
+                    // Step 2: Join the Daily room
                     _ = try await webView.callAsyncJavaScript(
                         "await joinRoom(url);",
                         arguments: ["url": url],
@@ -453,6 +501,11 @@ struct TavusCVIView: UIViewRepresentable {
             enqueueOrDefer(.echo(text))
         }
 
+        /// Make the avatar speak exact text via conversation.respond (bypasses LLM — faster than echo)
+        func sendRespond(_ text: String) {
+            enqueueOrDefer(.respond(text))
+        }
+
         /// Interrupt the avatar (stop speaking immediately)
         func sendInterrupt() {
             enqueueOrDefer(.interrupt)
@@ -485,6 +538,18 @@ struct TavusCVIView: UIViewRepresentable {
                 guard let webView = self?.webView else { return }
                 _ = try await webView.callAsyncJavaScript(
                     "sendEcho(text);",
+                    arguments: ["text": text],
+                    in: nil,
+                    contentWorld: .page
+                )
+            }
+        }
+
+        private func runSendRespond(_ text: String) {
+            enqueueBridgeJS("Respond") { [weak self] in
+                guard let webView = self?.webView else { return }
+                _ = try await webView.callAsyncJavaScript(
+                    "sendRespond(text);",
                     arguments: ["text": text],
                     in: nil,
                     contentWorld: .page
@@ -569,6 +634,17 @@ func avatarSpeak(_ text: String) {
     guard !text.isEmpty else { return }
     NotificationCenter.default.post(
         name: .tavusEchoRequest,
+        object: nil,
+        userInfo: ["text": text]
+    )
+}
+
+/// Make the avatar speak exact text via conversation.respond (bypasses LLM — faster than echo).
+/// Use for scripted assessment prompts where the text is predetermined.
+func avatarRespond(_ text: String) {
+    guard !text.isEmpty else { return }
+    NotificationCenter.default.post(
+        name: .tavusRespondRequest,
         object: nil,
         userInfo: ["text": text]
     )

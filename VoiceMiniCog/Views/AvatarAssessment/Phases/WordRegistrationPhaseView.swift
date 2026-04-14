@@ -359,6 +359,7 @@ struct WordRegistrationPhaseView: View {
 
     @MainActor
     private func playRegistrationEchoSegment(_ text: String) async {
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             MainActor.assumeIsolated {
                 var didResume = false
@@ -387,6 +388,13 @@ struct WordRegistrationPhaseView: View {
         guard mode == .speaking, !didFinish else { return }
 
         avatarSetMicMuted(false)
+
+        // Failsafe: force mic open after 800ms in case Daily's gate didn't release
+        Task {
+            try? await Task.sleep(for: .milliseconds(800))
+            guard mode == .listening, !didFinish else { return }
+            avatarSetMicMuted(false)
+        }
 
         withAnimation(.easeInOut(duration: 0.25)) {
             mode = .listening

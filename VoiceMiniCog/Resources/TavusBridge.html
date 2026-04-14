@@ -38,24 +38,40 @@ video {
 // Custom Daily room page for MercyCognitive.
 // Gives Swift full control via evaluateJavaScript.
 
-let callObject = null;
-let conversationId = null;
-let isJoined = false;
-let pendingEchos = [];   // Queue for echo requests that arrive before room join
+// Use var (not let) so Web Inspector console can access state via window.*
+var callObject = null;
+var conversationId = null;
+var isJoined = false;
+var pendingEchos = [];   // Queue for echo requests that arrive before room join
 
 // Serialize conversation.echo — Word Registration (and any burst) can fire many
 // Swift echoes back-to-back; overlapping Tavus TTS freezes the replica video.
-let echoTextQueue = [];
-let echoInFlight = false;
-let echoWatchdog = null;
-let echoCounter = 0;     // Monotonic counter for inference_id (avoids same-ms collisions)
-let firstEchoSent = false;  // True after the first echo is sent — until then,
+var echoTextQueue = [];
+var echoInFlight = false;
+var echoWatchdog = null;
+var echoCounter = 0;     // Monotonic counter for inference_id (avoids same-ms collisions)
+var firstEchoSent = false;  // True after the first echo is sent — until then,
                              // remote audio is gated at the MediaStream level to
                              // suppress the Tavus persona greeting on room join.
 
 // Suppress false "unprompted speech" interrupts (see replica.started_speaking handler).
-let lastOverwriteContextMs = 0;   // overwrite_context often precedes a spurious started_speaking before Swift's echo lands.
-let lastEchoSlotReleasedMs = 0; // Between chained echoes, echoInFlight is briefly false while the next echo is still in flight on Tavus.
+var lastOverwriteContextMs = 0;   // overwrite_context often precedes a spurious started_speaking before Swift's echo lands.
+var lastEchoSlotReleasedMs = 0; // Between chained echoes, echoInFlight is briefly false while the next echo is still in flight on Tavus.
+
+// Post-join interrupt guard — blocks all auto-interrupts for 5s after join.
+// The silent audio unlock buffer + ambient mic noise can trigger
+// user.started_speaking immediately, killing the greeting utterance.
+var joinedAt = null;
+const INTERRUPT_GUARD_MS = 5000;
+
+function shouldAllowInterrupt() {
+  if (!joinedAt) return false;
+  if (Date.now() - joinedAt < INTERRUPT_GUARD_MS) {
+    log('Auto-interrupt: blocked (within ' + INTERRUPT_GUARD_MS + 'ms guard window)');
+    return false;
+  }
+  return true;
+}
 
 const status = document.getElementById('status');
 const container = document.getElementById('video-container');
@@ -112,13 +128,62 @@ async function joinRoom(roomUrl) {
   callObject.on('joined-meeting', async (evt) => {
     log('Joined meeting');
     status.textContent = '';
+    joinedAt = Date.now();
     notifySwift('joined', {});
 
-    // === CLINICAL AUDIO SETUP ===
+    // === CRITICAL PATH (synchronous — must not depend on await) ===
 
-    // 1. Enable Daily.js noise cancellation — filters ambient noise
-    //    (HVAC, chair squeaks, coughs) at the audio input level BEFORE
-    //    Tavus VAD even hears it.
+    // 1. Mute mic on join. Remote audio is gated at the MediaStream level
+    //    in updateVideoElements() (audio track not added until firstEchoSent).
+    callObject.setLocalAudio(false);
+    firstEchoSent = false;
+    log('Mic muted + remote audio gated at MediaStream level (waiting for first echo)');
+
+    // 2. Mark as joined and flush any pending echo requests
+    isJoined = true;
+    if (pendingEchos.length > 0) {
+      log('Flushing ' + pendingEchos.length + ' pending echo(s)');
+      const queued = pendingEchos;
+      pendingEchos = [];
+      for (const text of queued) {
+        sendEcho(text);
+      }
+    }
+
+    // 3. Reduce turn-taking sensitivity
+    setSensitivity('low', 'low');
+    log('Set clinical sensitivity: pause=low, interrupt=low');
+
+    // 4. Set global persona: neuropsychologist examiner
+    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
+    log('Set neuropsychologist persona context');
+
+    // 5. Send greeting trigger to transition replica from present → joined.
+    //    Enables audio output and sends the first echo to start the session.
+    setTimeout(() => {
+      log('Greeting trigger timer fired — conversationId=' + !!conversationId + ' callObject=' + !!callObject + ' isJoined=' + isJoined);
+      if (!conversationId || !callObject) {
+        log('Greeting trigger ABORTED — missing conversationId or callObject');
+        return;
+      }
+      // Enable remote audio — the greeting IS the first speech we want heard
+      firstEchoSent = true;
+      updateVideoElements();
+      log('Remote audio enabled (greeting trigger)');
+
+      const sent = sendInteraction('conversation.echo', {
+        modality: 'text',
+        text: 'Hello, please begin the assessment.',
+        inference_id: 'greeting_trigger',
+        done: 'true'
+      });
+      log('Greeting trigger result: ' + (sent ? 'SENT' : 'FAILED') + ' conversationId=' + conversationId);
+    }, 2000);
+
+    // === OPTIONAL ASYNC SETUP (may hang in WKWebView — must not block above) ===
+
+    // 6. Enable Daily.js noise cancellation — filters ambient noise
+    //    (HVAC, chair squeaks, coughs) at the audio input level.
     try {
       await callObject.updateInputSettings({
         audio: {
@@ -132,56 +197,20 @@ async function joinRoom(roomUrl) {
       });
       log('Audio input optimized: noise cancellation + echo + AGC');
     } catch(e) {
-      log('Audio input optimization failed: ' + e.message);
+      log('Audio input optimization failed (non-fatal): ' + e.message);
     }
 
-    // 1b. Request lowest simulcast layer to minimize memory + bandwidth.
-    //     Layer 0 = lowest quality; higher integers = higher quality.
+    // 7. Request lowest simulcast layer to minimize memory + bandwidth.
     try {
       await callObject.updateReceiveSettings({
         '*': { video: { layer: 0 } }
       });
       log('Receive quality set to lowest layer (memory conservation)');
     } catch(e) {
-      log('Receive settings failed: ' + e.message);
+      log('Receive settings failed (non-fatal): ' + e.message);
     }
 
-    // 1c. Optimize send settings (patient camera → Tavus)
-    try {
-      // No send settings needed — videoSource is false (no patient camera).
-      // Audio send uses Daily defaults which are fine for VAD input.
-      log('Send settings: video disabled, audio default');
-    } catch(e) {
-      log('Send settings skipped: ' + e.message);
-    }
-
-    // 2. Reduce turn-taking sensitivity as a second layer
-    setSensitivity('low', 'low');
-    log('Set clinical sensitivity: pause=low, interrupt=low');
-
-    // 3. Mute mic on join. Remote audio is gated at the MediaStream level
-    //    in updateVideoElements() (audio track not added until firstEchoSent).
-    //    This avoids the Tavus persona greeting being audible — without
-    //    requiring admin permissions that updateParticipant('*', {setAudio})
-    //    needs but a patient participant doesn't have.
-    callObject.setLocalAudio(false);
-    firstEchoSent = false;
-    log('Mic muted + remote audio gated at MediaStream level (waiting for first echo)');
-
-    // 4. Set global persona: neuropsychologist examiner
-    sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
-    log('Set neuropsychologist persona context');
-
-    // 5. Mark as joined and flush any pending echo requests
-    isJoined = true;
-    if (pendingEchos.length > 0) {
-      log('Flushing ' + pendingEchos.length + ' pending echo(s)');
-      const queued = pendingEchos;
-      pendingEchos = [];
-      for (const text of queued) {
-        sendEcho(text);
-      }
-    }
+    log('joined-meeting handler complete');
   });
 
   callObject.on('participant-joined', (evt) => {
@@ -237,6 +266,7 @@ async function joinRoom(roomUrl) {
           log('Auto-interrupt: skipped (echo queued or in flight — do not cut scripted prompt)');
           return;
         }
+        if (!shouldAllowInterrupt()) return;
         sendInteraction('conversation.interrupt', {});
         log('Auto-interrupt: suppressed LLM acknowledgment after patient speech');
       }
@@ -263,6 +293,7 @@ async function joinRoom(roomUrl) {
             log('Auto-interrupt: skipped (post-stopped_speaking gap — chained echo inbound)');
             return;
           }
+          if (!shouldAllowInterrupt()) return;
           sendInteraction('conversation.interrupt', {});
           log('Auto-interrupt: suppressed unprompted Tavus speech (no echo in-flight)');
         } else {
@@ -575,6 +606,41 @@ async function leaveRoom() {
       log('leave() error (may already be left): ' + e.message);
     }
     co.destroy();
+  }
+}
+
+// === WEB AUDIO UNLOCK FOR iOS ===
+// iOS suspends Web Audio API contexts by default. Daily.co uses Web Audio
+// internally for audio processing. This function must be called from a user
+// gesture (tap) before joinRoom() to unlock audio output on the device.
+async function unlockAudio() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      log('[unlockAudio] Web Audio API not available');
+      return false;
+    }
+
+    const ctx = new AudioContextClass();
+    log('[unlockAudio] AudioContext state: ' + ctx.state);
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+      log('[unlockAudio] AudioContext resumed from suspended state');
+    }
+
+    // Play a silent buffer to fully unlock iOS audio pipeline
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+
+    log('[unlockAudio] Silent buffer played - Web Audio unlocked');
+    return true;
+  } catch (error) {
+    log('[unlockAudio] Failed: ' + error.message);
+    return false;
   }
 }
 

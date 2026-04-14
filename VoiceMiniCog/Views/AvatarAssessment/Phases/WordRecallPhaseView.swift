@@ -205,6 +205,7 @@ struct WordRecallPhaseView: View {
 
     private func onPhaseAppear() {
         avatarInterrupt()
+        avatarSetMicMuted(true)   // Mute mic during prompt delivery
         withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
             contentVisible = true
         }

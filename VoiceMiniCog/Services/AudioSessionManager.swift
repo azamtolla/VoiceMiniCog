@@ -33,14 +33,14 @@ final class AudioSessionManager {
 
         let session = AVAudioSession.sharedInstance()
 
-        // .voiceChat: bidirectional audio with built-in echo cancellation.
+        // .videoChat: real-time bidirectional audio optimized for WebRTC —
+        // lower latency than .voiceChat and prevents iOS from ducking the
+        // Daily.co audio track when SpeechService activates.
         // .mixWithOthers: allows WebRTC and SpeechService to share the
-        // session without evicting each other — without this flag,
-        // whichever subsystem calls setCategory last wins exclusive
-        // ownership and silences the other.
+        // session without evicting each other.
         try session.setCategory(
             .playAndRecord,
-            mode: .voiceChat,
+            mode: .videoChat,
             options: [
                 .defaultToSpeaker,
                 .allowBluetoothHFP,

@@ -66,33 +66,35 @@ struct AvatarZoneView: View {
             // 2. Video / placeholders — ONE TavusCVIView when URL exists; layout + clip change with phase.
             //    Clock drawing: small circle at top, no colored ring.
             //    Standard: full-bleed rectangle with rounded corners.
-            //    clipShape MUST be applied before the expanding frame so the clip
-            //    region matches the video content, not the full-zone container.
+            //    WKWebView stays full-size so Daily.co never freezes; a SwiftUI
+            //    .mask() crops the visible region to circle or rounded rect.
             Group {
                 if let url = conversationURL {
                     TavusCVIView(
                         conversationURL: url,
                         deferDailyRoomJoinUntilAssessmentActive: deferDailyRoomJoin
                     )
-                        .padding(isClockDrawing ? 0 : 16)
-                        .frame(width: isClockDrawing ? circleDiam : nil,
-                               height: isClockDrawing ? circleDiam : nil)
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: isClockDrawing ? circleDiam / 2 : 16,
-                                style: .continuous
-                            )
-                        )
-                        .overlay {
-                            if isClockDrawing {
-                                Circle()
-                                    .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
-                            }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(layoutManager.avatarOpacity)
+                    .mask(alignment: isClockDrawing ? .top : .center) {
+                        if isClockDrawing {
+                            Circle()
+                                .frame(width: circleDiam, height: circleDiam)
+                                .padding(.top, 40)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        } else {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .padding(16)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity,
-                               alignment: isClockDrawing ? .top : .center)
-                        .padding(.top, isClockDrawing ? 40 : 0)
-                        .opacity(layoutManager.avatarOpacity)
+                    }
+                    .overlay(alignment: .top) {
+                        if isClockDrawing {
+                            Circle()
+                                .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
+                                .frame(width: circleDiam, height: circleDiam)
+                                .padding(.top, 40)
+                        }
+                    }
                 } else if isConnecting && connectingElapsed < connectionTimeout {
                     VStack(spacing: 12) {
                         ProgressView()

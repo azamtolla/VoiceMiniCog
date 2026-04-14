@@ -47,7 +47,16 @@ final class TavusService {
     // MARK: - Init
 
     private init() {
-        apiKey = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+        // Seed from launch argument -tavus_api_key if UserDefaults is empty
+        // (survives app reinstalls during development)
+        if let launchKey = UserDefaults.standard.string(forKey: "tavus_api_key"), !launchKey.isEmpty {
+            apiKey = launchKey
+        } else if let envKey = ProcessInfo.processInfo.environment["TAVUS_API_KEY"], !envKey.isEmpty {
+            apiKey = envKey
+            UserDefaults.standard.set(envKey, forKey: "tavus_api_key")
+        } else {
+            apiKey = ""
+        }
         personaId = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
         replicaId = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
 
@@ -266,7 +275,7 @@ final class TavusService {
     private var desiredConversationalFlow: ConversationalFlowSettings {
         ConversationalFlowSettings(
             voiceIsolation: voiceIsolation.rawValue,
-            turnTakingPatience: "high",
+            turnTakingPatience: "low",
             replicaInterruptibility: "low",
             turnDetectionModel: "sparrow-1"
         )
