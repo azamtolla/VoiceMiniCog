@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA112233445566770001B1C1 /* QMCIAvatarContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA112233445566770001A1A1 /* QMCIAvatarContext.swift */; };
+		AA112233445566770001B2C2 /* QMCIAvatarContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA112233445566770001A1A1 /* QMCIAvatarContext.swift */; };
+		AA112233445566770001B3C3 /* QMCIAvatarContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA112233445566770001A1A1 /* QMCIAvatarContext.swift */; };
 		02E0487592CC543560C532CC /* AvatarAssessmentCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */; };
 		036949F99E181575728F26B6 /* StoryRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA846899A275FB9CF27F8CA /* StoryRecallPhaseView.swift */; };
 		091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */; };
@@ -163,6 +166,7 @@
 		AA11223344556677000001A1 /* AssessmentPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPersistence.swift; sourceTree = "<group>"; };
 		AA11223344556677000002A2 /* PDFReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportGenerator.swift; sourceTree = "<group>"; };
 		AA11223344556677000003A3 /* QMCIScoringEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIScoringEngine.swift; sourceTree = "<group>"; };
+		AA112233445566770001A1A1 /* QMCIAvatarContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIAvatarContext.swift; sourceTree = "<group>"; };
 		AA11223344556677000004A4 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentViewModifiers.swift; sourceTree = "<group>"; };
 		AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeftPaneSpeechCopy.swift; sourceTree = "<group>"; };
 		AA11223344556677000006A6 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentCard.swift; sourceTree = "<group>"; };
@@ -286,6 +290,7 @@
 				AA11223344556677000001A1 /* AssessmentPersistence.swift */,
 				AA11223344556677000002A2 /* PDFReportGenerator.swift */,
 				AA11223344556677000003A3 /* QMCIScoringEngine.swift */,
+				AA112233445566770001A1A1 /* QMCIAvatarContext.swift */,
 				7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */,
 			);
 			path = Services;
@@ -543,6 +548,7 @@
 				BB11223344556677000001B1 /* AssessmentPersistence.swift in Sources */,
 				BB11223344556677000002B2 /* PDFReportGenerator.swift in Sources */,
 				BB11223344556677000003B3 /* QMCIScoringEngine.swift in Sources */,
+				AA112233445566770001B1C1 /* QMCIAvatarContext.swift in Sources */,
 				BB11223344556677000004B4 /* AssessmentViewModifiers.swift in Sources */,
 				BB11223344556677000005B5 /* LeftPaneSpeechCopy.swift in Sources */,
 				BB11223344556677000006B6 /* AssessmentCard.swift in Sources */,
@@ -577,6 +583,7 @@
 				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
 				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
 				75D35C24A82C4B8686EE441B /* WordRecallScorer.swift in Sources */,
+				AA112233445566770001B2C2 /* QMCIAvatarContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -603,6 +610,7 @@
 				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
 				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
 				75D35C24A82C4B8686EE441C /* WordRecallScorer.swift in Sources */,
+				AA112233445566770001B3C3 /* QMCIAvatarContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

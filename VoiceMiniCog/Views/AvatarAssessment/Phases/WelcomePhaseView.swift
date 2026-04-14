@@ -193,6 +193,14 @@ struct WelcomePhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            PhaseHeaderBadge(
+                phaseName: "Welcome",
+                icon: "waveform",
+                accentColor: AssessmentTheme.Phase.welcome
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
+
             Spacer()
 
             // MARK: Header
@@ -305,7 +313,7 @@ struct WelcomePhaseView: View {
             // Flow 4 fix: guard echo + context send so re-appear doesn't replay.
             guard !echoSent else { return }
             echoSent = true
-            avatarSetContext(LeftPaneSpeechCopy.welcomeTavusDeliveryContext)
+            avatarSetContext(QMCIAvatarContext.welcome)
             avatarSpeak(introScriptForEcho)
 
             if reduceMotion {

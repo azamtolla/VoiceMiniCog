@@ -56,6 +56,9 @@ struct WordRecallPhaseView: View {
     // Bug 5 fix: skip silence increment during avatar follow-up speech
     @State private var avatarIsSpeakingFollowUp = false
 
+    // Silence reinforce: fires 3s after prompt echo lands to reinforce avatar silence
+    @State private var recallSilenceWork: DispatchWorkItem?
+
     // Accessibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -94,6 +97,14 @@ struct WordRecallPhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+
+            PhaseHeaderBadge(
+                phaseName: "Word Recall",
+                icon: "brain.head.profile",
+                accentColor: AssessmentTheme.Phase.wordRecall
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
 
             Spacer()
 
@@ -200,7 +211,7 @@ struct WordRecallPhaseView: View {
 
         scorer.startScoring()
 
-        avatarSetAssessmentContext(LeftPaneSpeechCopy.delayedRecallTavusBehaviorContext)
+        avatarSetAssessmentContext(QMCIAvatarContext.delayedRecall)
 
         // Deliver the recall prompt via avatar after a 500ms settle delay
         let epoch = recallPromptSpeechEpoch
@@ -221,6 +232,8 @@ struct WordRecallPhaseView: View {
 
     private func onPhaseDisappear() {
         timerActive = false
+        recallSilenceWork?.cancel()
+        recallSilenceWork = nil
         // Bug 8 fix: guard stopListening with isListening
         if speechService.isListening {
             speechService.stopListening()
@@ -261,6 +274,16 @@ struct WordRecallPhaseView: View {
 
         resetSilenceTimer()
         timerActive = true
+
+        // Schedule silence reinforcement 3s after prompt echo lands
+        recallSilenceWork?.cancel()
+        let work = DispatchWorkItem { [layoutManager] in
+            // Guard via class reference (live state), not struct copy
+            guard layoutManager.currentPhase == .wordRecall else { return }
+            avatarSetAssessmentContext(QMCIAvatarContext.delayedRecallSilenceEnforce)
+        }
+        recallSilenceWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: work)
     }
 
     // MARK: - Speech Recognition
@@ -404,6 +427,8 @@ struct WordRecallPhaseView: View {
         guard phase != .done else { return }
         phase = .done
         timerActive = false
+        recallSilenceWork?.cancel()
+        recallSilenceWork = nil
         speechService.stopListening()
 
         // Flow 3 fix: write silenceBeforePromptMs if follow-up was never triggered

@@ -66,6 +66,14 @@ struct VerbalFluencyPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
+            PhaseHeaderBadge(
+                phaseName: "Verbal Fluency",
+                icon: "bubble.left.and.text.bubble.right.fill",
+                accentColor: AssessmentTheme.Phase.fluency
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
+
             Spacer()
 
             // MARK: Speech Bubble Icon (64pt)
@@ -116,13 +124,7 @@ struct VerbalFluencyPhaseView: View {
                 contentVisible = true
             }
             phaseStartTime = Date()
-            avatarSetAssessmentContext(
-                "You are a clinical neuropsychologist administering the QMCI Verbal Fluency subtest. " +
-                "Read the prompt exactly as provided. After saying 'Go', remain completely silent for 60 seconds. " +
-                "Do not react to what the patient says. Do not nod, acknowledge, or provide any feedback. " +
-                "Do not count animals or comment on the patient's performance. " +
-                "Speak only when sent echo commands."
-            )
+            avatarSetAssessmentContext(QMCIAvatarContext.verbalFluency)
             Task {
                 if !didRequestAuth {
                     _ = await speech.requestAuthorization()
@@ -177,6 +179,10 @@ struct VerbalFluencyPhaseView: View {
             if timeRemaining <= 0 {
                 finishFluency()
             } else {
+                // Mid-phase silence reinforcement at the 30-second mark
+                if timeRemaining == 30 {
+                    avatarSetAssessmentContext(QMCIAvatarContext.verbalFluencyMidpoint)
+                }
                 checkRePrompt()
             }
         }

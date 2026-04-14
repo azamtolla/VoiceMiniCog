@@ -50,6 +50,14 @@ struct ClockDrawingPhaseView: View {
     var body: some View {
         VStack(spacing: 12) {
 
+            PhaseHeaderBadge(
+                phaseName: "Clock Drawing",
+                icon: "clock.fill",
+                accentColor: AssessmentTheme.Phase.clockDrawing
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
+
             // 1. Instruction text
             Text(LeftPaneSpeechCopy.clockDrawingOnScreen)
                 .font(AssessmentTheme.Fonts.question)
@@ -153,7 +161,7 @@ struct ClockDrawingPhaseView: View {
             didPersistBiomarkers = false
             canvasStartTime = Date()
             lastStrokeEndTime = nil
-            avatarSetAssessmentContext(LeftPaneSpeechCopy.clockDrawingTavusBehaviorContext)
+            avatarSetAssessmentContext(QMCIAvatarContext.clockDrawing)
             avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
         }

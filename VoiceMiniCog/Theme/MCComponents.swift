@@ -309,6 +309,33 @@ struct MCIconCircle: View {
     }
 }
 
+// MARK: - Phase Header Badge
+
+/// Capsule badge shown at the top-left of each assessment phase's content panel.
+/// Displays the phase name in all-caps with a tinted SF Symbol icon.
+struct PhaseHeaderBadge: View {
+    let phaseName: String
+    let icon: String
+    let accentColor: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accentColor)
+            Text(phaseName.uppercased())
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(accentColor)
+                .tracking(1.0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(accentColor.opacity(0.10)))
+        .overlay(Capsule().stroke(accentColor.opacity(0.20), lineWidth: 1))
+        .animation(.easeInOut(duration: 0.3), value: phaseName)
+    }
+}
+
 // MARK: - State Chip
 
 /// Small pill showing assistant state (Speaking/Listening/Thinking).

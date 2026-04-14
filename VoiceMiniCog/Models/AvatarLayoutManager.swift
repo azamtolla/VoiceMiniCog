@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import UIKit
 import Observation
 
 // MARK: - AvatarBehavior
@@ -183,6 +184,8 @@ class AvatarLayoutManager {
         isTransitioning = true
         acknowledgeTask?.cancel()
         acknowledgeTask = nil
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
         withAnimation(.spring(duration: 0.55, bounce: 0.15)) {
             currentPhase = phase

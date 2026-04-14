@@ -74,6 +74,13 @@ enum AssessmentTheme {
         static let qdrs     = Color(hex: "#5E5CE6") // indigo
         static let results  = Color(hex: "#34C759") // green
 
+        // Verbose aliases used by PhaseHeaderBadge and QMCIAvatarContext wiring
+        static let orientation:   Color = orient
+        static let registration:  Color = register
+        static let clockDrawing:  Color = clock
+        static let storyRecall:   Color = story
+        static let wordRecall:    Color = recall
+
         /// Ordered array matching progress segment weights.
         static let all: [Color] = [
             welcome, orient, register, clock, fluency, story, recall, qdrs, results

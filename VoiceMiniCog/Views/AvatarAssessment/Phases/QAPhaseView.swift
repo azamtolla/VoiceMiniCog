@@ -41,6 +41,16 @@ struct QAPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
+            if phaseID == .orientation {
+                PhaseHeaderBadge(
+                    phaseName: "Orientation",
+                    icon: "location.fill",
+                    accentColor: AssessmentTheme.Phase.orientation
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 20).padding(.leading, 20)
+            }
+
             Spacer()
 
             VStack(spacing: 20) {
@@ -91,9 +101,13 @@ struct QAPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetAssessmentContext(
-                "You are a clinical neuropsychologist administering the \(phaseID.displayName) portion of a standardized cognitive assessment. Speak with a calm, measured, professional tone. You speak ONLY the question text provided via echo commands — do not ad-lib or rephrase. Do not provide hints, feedback, or encouragement. If the patient asks to skip or seems confused, say calmly: 'Please take your time and answer as best you can.'"
-            )
+            if phaseID == .orientation {
+                avatarSetAssessmentContext(QMCIAvatarContext.orientation)
+            } else {
+                avatarSetAssessmentContext(
+                    "You are a clinical neuropsychologist administering the \(phaseID.displayName) portion of a standardized cognitive assessment. Speak with a calm, measured, professional tone. You speak ONLY the question text provided via echo commands — do not ad-lib or rephrase. Do not provide hints, feedback, or encouragement. If the patient asks to skip or seems confused, say calmly: 'Please take your time and answer as best you can.'"
+                )
+            }
             speakQuestion(currentVoicePrompt)
         }
         .onChange(of: currentIndex) { _, _ in

@@ -17,6 +17,14 @@ struct CompletionPhaseView: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            PhaseHeaderBadge(
+                phaseName: "Complete",
+                icon: "checkmark.circle.fill",
+                accentColor: AssessmentTheme.Phase.results
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
+
             Spacer()
 
             // Checkmark icon
@@ -68,7 +76,7 @@ struct CompletionPhaseView: View {
 
             // Use avatarSetContext directly — completion phase does not need
             // the "never correct patient" rule that avatarSetAssessmentContext appends.
-            avatarSetContext(LeftPaneSpeechCopy.completionContext)
+            avatarSetContext(QMCIAvatarContext.completion)
 
             // Small delay ensures the interrupt notification is processed
             // before the speak notification, guaranteeing ordering.

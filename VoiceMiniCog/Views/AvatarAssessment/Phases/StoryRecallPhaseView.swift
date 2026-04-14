@@ -103,11 +103,7 @@ struct StoryRecallPhaseView: View {
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSetAssessmentContext(
-                "You are administering story learning and recall. Speak only echo text from the app. " +
-                "Read the story slowly, approximately one second per word, with a brief pause at each comma and period. " +
-                "Do not rush. Pacing is critical for accurate scoring."
-            )
+            avatarSetAssessmentContext(QMCIAvatarContext.storyRecall)
             // Initialize the scoring flags to match the current story's unit count.
             if recalledFlags.count != scoringUnits.count {
                 recalledFlags = Array(repeating: false, count: scoringUnits.count)
@@ -152,6 +148,14 @@ struct StoryRecallPhaseView: View {
 
     private var listeningOrRecallingView: some View {
         VStack(spacing: 0) {
+
+            PhaseHeaderBadge(
+                phaseName: "Story Recall",
+                icon: "book.fill",
+                accentColor: AssessmentTheme.Phase.storyRecall
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
 
             Spacer()
 

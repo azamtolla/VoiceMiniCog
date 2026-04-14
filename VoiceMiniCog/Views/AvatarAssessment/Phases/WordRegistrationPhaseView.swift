@@ -96,6 +96,14 @@ struct WordRegistrationPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
+            PhaseHeaderBadge(
+                phaseName: "Word Registration",
+                icon: "brain",
+                accentColor: AssessmentTheme.Phase.registration
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20).padding(.leading, 20)
+
             Spacer()
 
             // MARK: Ear Icon (64pt)
@@ -155,13 +163,7 @@ struct WordRegistrationPhaseView: View {
                 contentVisible = true
             }
             phaseStartTime = Date()
-            avatarSetAssessmentContext(
-                "You are a clinical neuropsychologist administering the QMCI Word Registration subtest. " +
-                "Speak ONLY the exact text sent via echo commands, one short echo at a time. " +
-                "Do not add words between echoes. Do not provide feedback on the patient's recall. " +
-                "If the patient speaks between echoes, respond briefly: 'Let us continue.' " +
-                "Maintain a calm, professional tone throughout."
-            )
+            avatarSetAssessmentContext(QMCIAvatarContext.wordRegistrationWithTrial(1, previousScore: nil))
             Task {
                 if !didRequestAuth {
                     _ = await speech.requestAuthorization()
@@ -520,11 +522,17 @@ struct WordRegistrationPhaseView: View {
                 self.finishRegistration()
             }
         } else if trial < totalTrials {
+            // Send updated context with trial number and previous score
+            let nextTrial = trial + 1
+            let prevScore = result.recalled.count
+            avatarSetAssessmentContext(
+                QMCIAvatarContext.wordRegistrationWithTrial(nextTrial, previousScore: prevScore)
+            )
             // B10 fix: use cancellable DispatchWorkItem for retry lead-in.
             retryWork?.cancel()
             let work = DispatchWorkItem { [self] in
                 guard !self.didFinish else { return }
-                self.runTrial(trial + 1)
+                self.runTrial(nextTrial)
             }
             retryWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + retryLeadIn, execute: work)
