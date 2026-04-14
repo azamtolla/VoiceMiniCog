@@ -57,7 +57,13 @@ final class TavusService {
         // (encrypted at rest). One-time on first launch after this update.
         if let legacyKey = UserDefaults.standard.string(forKey: "tavus_api_key"), !legacyKey.isEmpty {
             KeychainHelper.save(key: Self.keychainAPIKeyName, value: legacyKey)
-            UserDefaults.standard.removeObject(forKey: "tavus_api_key")
+            // Only remove from UserDefaults if Keychain read-back confirms the save succeeded.
+            // Prevents silent key loss if SecItemAdd fails.
+            if KeychainHelper.read(key: Self.keychainAPIKeyName) != nil {
+                UserDefaults.standard.removeObject(forKey: "tavus_api_key")
+            } else {
+                print("[Tavus] ⚠️ Keychain migration failed — keeping key in UserDefaults as fallback")
+            }
         }
 
         // Load API key: Keychain > environment variable > empty

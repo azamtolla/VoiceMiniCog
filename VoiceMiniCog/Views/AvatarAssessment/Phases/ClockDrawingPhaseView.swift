@@ -29,7 +29,7 @@ struct ClockDrawingPhaseView: View {
 
     @State private var lines: [[CGPoint]] = []
     @State private var currentLine: [CGPoint] = []
-    @State private var timeRemaining = 180 // QMCI protocol allows up to 3 minutes (Shulman administration). Hidden from patient.
+    @State private var timeRemaining = 60 // exactly 1 minute per QMCI
     @State private var timer: Timer?
     @State private var contentVisible = false
 

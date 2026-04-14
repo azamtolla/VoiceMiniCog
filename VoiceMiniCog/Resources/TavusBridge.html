@@ -505,10 +505,10 @@ function pumpEchoQueue() {
   const longFormEcho =
     text.indexOf('<speak') !== -1 ||
     text.length > 280;
-  // Tightened from 120s → 45s for long-form echoes. 120s left the UI
-  // frozen for 2 minutes on a dropped stopped_speaking event; 45s is
-  // still generous for even the longest SSML welcome block (~20s TTS).
-  const watchdogMs = longFormEcho ? 45000 : 10000;
+  // Long-form SSML echoes (welcome intro) can take 60-70s with breaks.
+  // 90s gives generous headroom without the old 120s freeze problem.
+  // Short clips (individual words, prompts) use a tight 10s watchdog.
+  const watchdogMs = longFormEcho ? 90000 : 10000;
 
   echoWatchdog = setTimeout(() => {
     log('Echo watchdog: no stopped_speaking after ' + watchdogMs + 'ms — releasing slot + notifying Swift');
