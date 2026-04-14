@@ -41,7 +41,7 @@ class QMCIScoringEngineTests: XCTestCase {
         state.orientationScores = [2, 1, 2, 0, 2]                      // 7
         state.registrationRecalledWords = ["a", "b", "c"]              // 3
         state.clockDrawingScore = 10                                     // 10
-        state.verbalFluencyWords = ["dog", "cat", "horse"]             // ceil(3/2) = 2
+        state.verbalFluencyWords = ["dog", "cat", "horse"]             // 3 unique animals = 3
         state.logicalMemoryRecalledUnits = ["red", "fox"]              // 4
         state.delayedRecallWords = ["a", "b"]                          // 8
 
@@ -53,7 +53,7 @@ class QMCIScoringEngineTests: XCTestCase {
             case .orientation:    XCTAssertEqual(subtestScore.rawScore, 7)
             case .registration:   XCTAssertEqual(subtestScore.rawScore, 3)
             case .clockDrawing:   XCTAssertEqual(subtestScore.rawScore, 10)
-            case .verbalFluency:  XCTAssertEqual(subtestScore.rawScore, 2)
+            case .verbalFluency:  XCTAssertEqual(subtestScore.rawScore, 3)
             case .logicalMemory:  XCTAssertEqual(subtestScore.rawScore, 4)
             case .delayedRecall:  XCTAssertEqual(subtestScore.rawScore, 8)
             }

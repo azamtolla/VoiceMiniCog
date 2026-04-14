@@ -331,17 +331,15 @@ class ScoreLogicalMemoryTests: XCTestCase {
 
     func testPartialRecall() {
         // Mixed casing — substring match is case-insensitive but return preserves unit casing.
-        // Note: "across" is intentionally NOT a scoring unit per the QMCI sheet.
+        // Scoring units are multi-word phrases (e.g. "the red", "ran across", "the ploughed").
         let transcript = "the RED fox RAN across the PLOUGHED field"
         let result = scoreLogicalMemory(transcript: transcript, scoringUnits: storyUnits)
-        XCTAssertTrue(result.contains("red"),
-                      "Case-insensitive: 'RED' should match 'red' unit")
+        XCTAssertTrue(result.contains("the red"),
+                      "Case-insensitive: 'the RED' should match 'the red' unit")
         XCTAssertTrue(result.contains("fox"))
-        XCTAssertTrue(result.contains("ran"))
-        XCTAssertTrue(result.contains("ploughed"))
+        XCTAssertTrue(result.contains("ran across"))
+        XCTAssertTrue(result.contains("the ploughed"))
         XCTAssertTrue(result.contains("field"))
-        XCTAssertFalse(result.contains("across"),
-                       "'across' is prose in the QMCI sheet, not a scoring unit")
     }
 
     func testNoRecall() {

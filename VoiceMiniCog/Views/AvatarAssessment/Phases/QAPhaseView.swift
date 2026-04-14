@@ -146,6 +146,13 @@ struct QAPhaseView: View {
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             finishQuestionSpeechIfNeeded(epoch: questionSpeechEpoch)
         }
+        .onDisappear {
+            // Clean up SpeechService and pending tasks to avoid dangling
+            // AVAudioEngine taps and SFSpeechRecognitionTask after view exits.
+            speech.stopListening()
+            orientationAutoAdvanceTask?.cancel()
+            orientationAutoAdvanceTask = nil
+        }
     }
 
     // MARK: - Orientation Listening Area
