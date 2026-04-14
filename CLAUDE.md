@@ -1,5 +1,59 @@
 # CLAUDE.md — VoiceMiniCog
 
+## Tech Stack
+
+- iOS 16+, SwiftUI + UIKit
+- Daily Client iOS SDK (https://github.com/daily-co/daily-client-ios) v0.37.0 via SPM
+- Tavus CVI REST API (https://tavusapi.com/v2)
+- Architecture: @Observable, async/await, NotificationCenter for avatar events
+
+## Daily SDK Key Classes
+
+- `CallClient` — join/leave rooms, send app messages, manage inputs (@MainActor)
+- `VideoView` — render participant video tracks natively (UIView)
+- `CallClientDelegate` — receive participant/track/appMessage events
+- `VideoTrack` — raw video track bound to VideoView
+- `sendAppMessage(json:to:)` — send Data to `.all` or `.participant(id)` for Tavus Interactions Protocol
+- `appMessageAsJson` — delegate method name for receiving app messages (NOT `appMessageAsData`)
+- `setInputEnabled(.microphone, Bool)` — toggle mic on/off
+
+## Tavus Integration Rules
+
+- POST to /v2/conversations to get conversation_url before joining Daily room
+- Use `sendAppMessage` with JSON matching Tavus Interactions Protocol:
+  - `conversation.echo` — make replica speak exact text (bypass LLM)
+  - `conversation.respond` — inject text as LLM response (faster than echo)
+  - `conversation.overwrite_llm_context` — set persona/phase context
+  - `conversation.interrupt` — stop replica mid-speech
+  - `conversation.sensitivity` — adjust turn-taking thresholds
+- Events received via `callClient(_:appMessageAsJson:from:)` delegate:
+  - `conversation.replica.started_speaking` / `stopped_speaking`
+  - `conversation.user.started_speaking` / `stopped_speaking`
+  - `system.replica_joined` / `system.replica_present`
+- Tavus replica is always a non-local participant
+- POST to /v2/conversations/{id}/end on session end
+- NEVER use WKWebView for Tavus — audio session conflicts, user agent issues, Web Audio unlock hacks
+
+## Key Architecture Files
+
+- `Services/DailyCallManager.swift` — CallClient wrapper with echo queue, auto-interrupt, mic gating
+- `Services/TavusService.swift` — REST API create/end conversation, pre-warm lifecycle
+- `Views/DailyVideoView.swift` — UIViewRepresentable VideoView wrapper
+- `Views/TavusHelpers.swift` — Notification names + helper functions (avatarSpeak, avatarSetContext, etc.)
+- `Services/AudioSessionManager.swift` — AVAudioSession .playAndRecord/.videoChat config
+- `Services/KeychainHelper.swift` — Secure API key storage
+
+## Avatar Communication Pattern
+
+Phase views communicate with the avatar via NotificationCenter helper functions:
+- `avatarSpeak(text)` — echo exact text
+- `avatarRespond(text)` — respond via LLM bypass (faster)
+- `avatarSetContext(context)` — update persona context
+- `avatarSetAssessmentContext(context)` — context + examiner-never-correct rule
+- `avatarSetMicMuted(muted)` — toggle patient mic
+- `avatarInterrupt()` — stop speech + clear echo queue
+Phase views NEVER call DailyCallManager directly — always through these helpers.
+
 ## Testing Rules
 
 - Project: plain `.xcodeproj` (no workspace). Scheme: `VoiceMiniCog`.
@@ -36,18 +90,11 @@ Then re-run `test-without-building`. Subsequent runs reuse the cached build via 
 
 ## Editing project.pbxproj
 
-**DO NOT** use the Python `pbxproj` library (`from pbxproj import XcodeProject`) to add or remove files. It corrupts file reference IDs — it wraps them in `"'...'"` nested quotes that Xcode can't parse, silently breaking the build.
+Agents may directly edit `project.pbxproj` to add or remove file references. Use raw text insertion of PBXFileReference + PBXBuildFile + PBXGroup entries with 24-character hex UUIDs matching the existing format in the file.
 
-**Safe approach for removing dead files:**
-```python
-# Read the raw text, find PBXFileReference entries for missing .swift files,
-# collect their IDs, then filter out all lines containing those IDs.
-# See the remove-dead-refs pattern used in the 2026-04-12 cleanup session.
-```
+**DO NOT** use the Python `pbxproj` library (`from pbxproj import XcodeProject`) — it corrupts file reference IDs by wrapping them in nested quotes.
 
-**Safe approach for adding files:** Use `pbxproj` library's `add_file()` ONLY (it generates valid new IDs). But do NOT call `project.save()` afterward if the project already has library-format IDs — the save mangles existing entries. Instead, add via Xcode IDE or by manually inserting PBXFileReference + PBXBuildFile entries matching the existing ID format.
-
-**Tech debt:** The project file contains mnemonic-style IDs (e.g., `COPY0001...`, `CARD0001...`, `SESS0001...`) from prior `pbxproj` library additions. These work but are non-standard. Normalizing to 24-char hex UUIDs is tracked for a future cleanup pass.
+**Safe approach:** Read the pbxproj, find the correct PBXGroup and PBXBuildFile sections, generate new 24-char hex UUIDs, and insert entries following the existing format. Always build after editing to verify the project file is valid.
 
 ## Multi-agent editing (Claude Code and Cursor)
 

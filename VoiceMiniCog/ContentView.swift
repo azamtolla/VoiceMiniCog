@@ -32,15 +32,16 @@ struct ContentView: View {
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
     @State private var sessionID = UUID()
+    @State private var dailyCallManager = DailyCallManager()
 
     var body: some View {
         ZStack {
-            // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy so WebView stays connected.
+            // MARK: Cognitive Assessment Canvas — ALWAYS in hierarchy.
             AvatarAssessmentCanvas(
                 flowType: flowType,
                 sessionID: sessionID,
                 isActive: currentScreen == .avatarAssessment,
-                warmTavusWebViewOnHome: currentScreen == .home,
+                dailyCallManager: dailyCallManager,
                 assessmentState: assessmentState,
                 tavusService: TavusService.shared,
                 onComplete: {
@@ -48,14 +49,14 @@ struct ContentView: View {
                     computeAllScores()
                     assessmentState.currentPhase = .report
                     AssessmentPersistence.clear()
+                    dailyCallManager.leave()
                     TavusService.shared.cancelPreWarm()
-                    // End the active Tavus conversation so the Daily room
-                    // is released immediately instead of waiting for server timeout.
                     Task { await TavusService.shared.endConversation() }
                     currentScreen = .report
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
+                    dailyCallManager.leave()
                     TavusService.shared.cancelPreWarm()
                     Task { await TavusService.shared.endConversation() }
                     currentScreen = .home

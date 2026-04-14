@@ -19,8 +19,7 @@ import SwiftUI
 struct AvatarZoneView: View {
     let layoutManager: AvatarLayoutManager
     let conversationURL: String?
-    /// Home warm path: keep WKWebView but do not join Daily until assessment starts (see `TavusCVIView`).
-    var deferDailyRoomJoin: Bool = false
+    let dailyCallManager: DailyCallManager
     var isConnecting: Bool = false
     var errorMessage: String? = nil
     let width: CGFloat
@@ -63,17 +62,13 @@ struct AvatarZoneView: View {
                 )
             }
 
-            // 2. Video / placeholders — ONE TavusCVIView when URL exists; layout + clip change with phase.
+            // 2. Video / placeholders — DailyVideoView renders the native Daily video track.
             //    Clock drawing: small circle at top, no colored ring.
             //    Standard: full-bleed rectangle with rounded corners.
-            //    WKWebView stays full-size so Daily.co never freezes; a SwiftUI
-            //    .mask() crops the visible region to circle or rounded rect.
+            //    Native VideoView stays full-size; SwiftUI .mask() crops the visible region.
             Group {
-                if let url = conversationURL {
-                    TavusCVIView(
-                        conversationURL: url,
-                        deferDailyRoomJoinUntilAssessmentActive: deferDailyRoomJoin
-                    )
+                if conversationURL != nil {
+                    DailyVideoView(track: dailyCallManager.remoteVideoTrack)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .opacity(layoutManager.avatarOpacity)
                     .mask(alignment: isClockDrawing ? .top : .center) {

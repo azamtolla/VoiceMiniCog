@@ -22,10 +22,8 @@ struct AvatarAssessmentCanvas: View {
     /// but phase content is not rendered — prevents WelcomePhaseView.onAppear
     /// from firing the welcome echo before the user taps Start.
     var isActive: Bool
-    /// When true and `isActive` is false, still pass Daily URL into the avatar zone so
-    /// `TavusCVIView` stays mounted across Home → Start (avoids WKWebView teardown races).
-    /// Must be false while another screen (e.g. caregiver) hosts its own `TavusCVIView`.
-    var warmTavusWebViewOnHome: Bool = false
+    /// DailyCallManager for native Daily SDK integration.
+    var dailyCallManager: DailyCallManager
     @Bindable var assessmentState: AssessmentState
     var tavusService: TavusService
     let onComplete: () -> Void
@@ -107,6 +105,23 @@ struct AvatarAssessmentCanvas: View {
                 layoutManager.currentPhase = .welcome
                 isCancelling = false
                 canvasLog.debug("Assessment started — phase set to .welcome")
+
+                // Daily SDK: configure URL and join when assessment starts
+                dailyCallManager.deferJoinUntilAssessmentActive = false
+                if let url = tavusService.activeConversation?.conversation_url {
+                    dailyCallManager.configure(url: url)
+                    dailyCallManager.joinIfReady()
+                }
+            } else {
+                dailyCallManager.deferJoinUntilAssessmentActive = true
+            }
+        }
+        .onChange(of: tavusService.activeConversation?.conversation_url) { _, url in
+            // Pre-warm: conversation URL becomes available while on Home.
+            // Configure DailyCallManager but don't join (deferred).
+            if let url {
+                dailyCallManager.configure(url: url)
+                dailyCallManager.joinIfReady()
             }
         }
         .onChange(of: flowType) { _, newFlow in
@@ -263,20 +278,16 @@ struct AvatarAssessmentCanvas: View {
 
     @ViewBuilder
     private func avatarZone(width: CGFloat, height: CGFloat) -> some View {
-        // Mount TavusCVIView whenever we have a URL and (assessment active OR Home warm
-        // path). Omit URL while an inactive canvas shares the session with another
-        // screen that embeds its own `TavusCVIView` (e.g. caregiver).
+        // Pass conversation URL for UI state (connecting spinner vs video).
+        // DailyCallManager handles join/leave lifecycle separately.
         let roomURL: String? = {
             guard let u = tavusService.activeConversation?.conversation_url, !avatarDismissed else { return nil }
-            if isActive { return u }
-            if warmTavusWebViewOnHome { return u }
-            return nil
+            return u
         }()
-        let deferDailyJoin = warmTavusWebViewOnHome && !isActive
         AvatarZoneView(
             layoutManager: layoutManager,
-            conversationURL: roomURL, // avatarDismissed already handled in roomURL closure
-            deferDailyRoomJoin: deferDailyJoin,
+            conversationURL: roomURL,
+            dailyCallManager: dailyCallManager,
             isConnecting: avatarDismissed ? false : tavusService.isCreatingConversation,
             errorMessage: avatarDismissed ? nil : tavusService.lastError,
             width: width,
@@ -331,7 +342,7 @@ struct AvatarAssessmentCanvas: View {
         flowType: .quick,
         sessionID: UUID(),
         isActive: true,
-        warmTavusWebViewOnHome: false,
+        dailyCallManager: DailyCallManager(),
         assessmentState: AssessmentState(),
         tavusService: TavusService.shared,
         onComplete: {},
