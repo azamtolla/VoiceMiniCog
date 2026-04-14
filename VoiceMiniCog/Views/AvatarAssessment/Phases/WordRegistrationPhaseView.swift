@@ -311,55 +311,21 @@ struct WordRegistrationPhaseView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: work)
     }
 
-    /// Plays intro → lead-in → each word → closing using separate Tavus echoes.
+    /// Sends the full word-registration script as a single SSML echo.
+    ///
+    /// **Why single-echo?**  The previous multi-segment chain (`playRegistrationEchoSegment`
+    /// per word) released `echoInFlight` between segments. During that gap the bridge's
+    /// auto-interrupt logic could fire (ambient mic noise → VAD → `user.stopped_speaking` →
+    /// interrupt), silently disrupting Tavus's TTS pipeline and causing the avatar to go mute.
+    ///
+    /// A single `<speak>` block with `<break>` tags keeps `echoInFlight = true` throughout,
+    /// the mic stays muted, and auto-interrupts cannot fire — matching the pattern already
+    /// used successfully by `WelcomePhaseView.introScriptForEcho`.
     @MainActor
     private func runRegistrationEchoChain(trial: Int) async {
-        if trial == 1 {
-            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationIntro)
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationWordsLeadIn)
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            for w in words {
-                guard !Task.isCancelled else { return }
-                await playRegistrationEchoSegment(w + ".")
-                guard !Task.isCancelled else { return }
-                try? await Task.sleep(for: .milliseconds(350))
-            }
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRepeat)
-        } else {
-            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRetryLeadIn)
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .milliseconds(300))
-            guard !Task.isCancelled else { return }
-            for w in words {
-                guard !Task.isCancelled else { return }
-                await playRegistrationEchoSegment(w + ".")
-                guard !Task.isCancelled else { return }
-                try? await Task.sleep(for: .milliseconds(350))
-            }
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRetryClosing)
-        }
+        let echoText = LeftPaneSpeechCopy.wordRegistrationEcho(words: words, trial: trial)
 
-        isChainingRegistrationEchos = false
-        registrationEchoResume = nil
-
-        guard !Task.isCancelled, !didFinish else { return }
-        beginListening()
-    }
-
-    @MainActor
-    private func playRegistrationEchoSegment(_ text: String) async {
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        // Send the single combined echo and wait for avatarDoneSpeaking.
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             MainActor.assumeIsolated {
                 var didResume = false
@@ -372,14 +338,22 @@ struct WordRegistrationPhaseView: View {
                     continuation.resume()
                 }
                 registrationEchoResume = finish
-                avatarSpeak(text)
+                avatarSpeak(echoText)
                 echoSafetyTask?.cancel()
+                // SSML echo may take 15-25s for intro + 5 words + pauses;
+                // 45s safety matches the bridge's long-form watchdog.
                 echoSafetyTask = Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(18))
+                    try? await Task.sleep(for: .seconds(45))
                     finish()
                 }
             }
         }
+
+        isChainingRegistrationEchos = false
+        registrationEchoResume = nil
+
+        guard !Task.isCancelled, !didFinish else { return }
+        beginListening()
     }
 
     // MARK: - Listening Phase

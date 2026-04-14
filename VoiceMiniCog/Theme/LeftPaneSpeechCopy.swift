@@ -61,6 +61,40 @@ enum LeftPaneSpeechCopy {
     /// Retry trial: closing prompt after the five words.
     static let wordRegistrationRetryClosing = "Now repeat them."
 
+    /// Single SSML echo for word registration — delivers intro, all 5 words with
+    /// clinical-grade inter-word pauses, and the repeat prompt in one atomic utterance.
+    ///
+    /// **Why single-echo?**  The previous multi-segment chain (`playRegistrationEchoSegment`
+    /// per word) left `echoInFlight = false` between segments. During that gap the bridge's
+    /// auto-interrupt logic could fire (ambient mic noise → VAD → `user.stopped_speaking` →
+    /// interrupt), silently disrupting Tavus's TTS pipeline and causing the avatar to go mute
+    /// for the remainder of word registration.
+    ///
+    /// A single `<speak>` block with `<break>` tags keeps `echoInFlight = true` throughout,
+    /// the mic stays muted, and auto-interrupts cannot fire — identical to how
+    /// `WelcomePhaseView.introScriptForEcho` already works.
+    static func wordRegistrationEcho(words: [String], trial: Int) -> String {
+        let wordItems = words.map { "\($0)." }.joined(separator: "<break time=\"1000ms\"/> ")
+        if trial == 1 {
+            return """
+            <speak>\
+            \(wordRegistrationIntro)<break time="700ms"/> \
+            \(wordRegistrationWordsLeadIn): <break time="500ms"/> \
+            \(wordItems)<break time="700ms"/> \
+            \(wordRegistrationRepeat)\
+            </speak>
+            """
+        } else {
+            return """
+            <speak>\
+            \(wordRegistrationRetryLeadIn)<break time="500ms"/> \
+            \(wordItems)<break time="700ms"/> \
+            \(wordRegistrationRetryClosing)\
+            </speak>
+            """
+        }
+    }
+
     /// Legacy single-utterance narration (kept for non-avatar flows / reference).
     static func wordRegistrationNarration(words: [String]) -> String {
         let wordList = words.joined(separator: " ... ")
