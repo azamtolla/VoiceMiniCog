@@ -113,10 +113,14 @@ struct AvatarAssessmentCanvas: View {
             }
         }
         .onChange(of: tavusService.activeConversation?.conversation_url) { _, url in
-            // Pre-warm: conversation URL becomes available while on Home.
-            // Configure only — join is deferred until user starts assessment.
+            // Conversation URL becomes available. Configure always.
+            // If assessment is already active (URL arrived after Start), trigger join.
             if let url {
                 dailyCallManager.configure(url: url)
+                if isActive {
+                    dailyCallManager.deferJoinUntilAssessmentActive = false
+                    dailyCallManager.joinIfReady()
+                }
             }
         }
         .onChange(of: flowType) { _, newFlow in
