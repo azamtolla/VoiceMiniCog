@@ -69,7 +69,7 @@ struct StoryRecallPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @ObservedObject var qmciState: QmciState
+    let qmciState: QmciState
 
     @State private var phase: StoryPhase = .listening
     @State private var contentVisible = false
@@ -99,6 +99,7 @@ struct StoryRecallPhaseView: View {
             }
         }
         .onAppear {
+            avatarInterrupt()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }

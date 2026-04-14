@@ -14,6 +14,7 @@
 //
 
 import SwiftUI
+import Combine
 
 // MARK: - VerbalFluencyPhaseView
 
@@ -22,7 +23,7 @@ struct VerbalFluencyPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @ObservedObject var qmciState: QmciState
+    let qmciState: QmciState
 
     private enum PhaseMode {
         case prompting  // Avatar delivering instructions
@@ -32,13 +33,15 @@ struct VerbalFluencyPhaseView: View {
 
     @State private var mode: PhaseMode = .prompting
     @State private var timeRemaining: Int = 60
-    @State private var timer: Timer?
+    @State private var timerActive = false
     @State private var contentVisible = false
+    @State private var didFinish = false
+    @State private var timingBegan = false
     @State private var hasStarted = false
 
     // Scoring
-    @State private var scorer = VerbalFluencyScorer()
-    @State private var speech = SpeechService()
+    @StateObject private var scorer = VerbalFluencyScorer()
+    @StateObject private var speech = SpeechService()
     @State private var didRequestAuth = false
 
     // Timing
@@ -50,6 +53,11 @@ struct VerbalFluencyPhaseView: View {
     // Re-prompt tracking
     @State private var rePromptUsed = false
     @State private var hasTranscriptActivity = false
+    @State private var rePromptUnmuteWork: DispatchWorkItem?
+
+    // Cancellable fallback dispatches
+    @State private var promptFallbackWork: DispatchWorkItem?
+    @State private var closingFallbackWork: DispatchWorkItem?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -86,6 +94,7 @@ struct VerbalFluencyPhaseView: View {
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
                 .accessibilityLabel("Time remaining: \(timeRemaining) seconds")
+                .accessibilityAddTraits(.updatesFrequently)
 
             // MARK: Live Count
             if mode == .timing || mode == .done {
@@ -102,6 +111,7 @@ struct VerbalFluencyPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
+            avatarInterrupt()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
@@ -120,13 +130,23 @@ struct VerbalFluencyPhaseView: View {
                 }
             }
             startPrompt()
-            UIAccessibility.post(notification: .screenChanged, argument: "Verbal fluency. Listen to the question and answer aloud.")
+            // Delay accessibility post until layout completes — posting
+            // synchronously in onAppear targets the previous view's focused element.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                UIAccessibility.post(notification: .screenChanged, argument: "Verbal fluency. Listen to the question and answer aloud.")
+            }
         }
         .onDisappear {
-            timer?.invalidate()
+            timerActive = false
             speech.stopListening()
+            rePromptUnmuteWork?.cancel()
+            rePromptUnmuteWork = nil
+            promptFallbackWork?.cancel()
+            promptFallbackWork = nil
+            closingFallbackWork?.cancel()
+            closingFallbackWork = nil
             // Only persist if timing actually began (not during prompt delivery)
-            if mode == .timing { persistTelemetry() }
+            if timingBegan && !didFinish { persistTelemetry() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             if mode == .prompting {
@@ -147,6 +167,18 @@ struct VerbalFluencyPhaseView: View {
             guard mode == .timing else { return }
             hasTranscriptActivity = true
             scorer.processTranscript(newTranscript)
+        }
+        .onReceive(
+            Timer.publish(every: 1.0, on: .main, in: .common)
+                .autoconnect()
+        ) { _ in
+            guard timerActive, mode == .timing else { return }
+            timeRemaining -= 1
+            if timeRemaining <= 0 {
+                finishFluency()
+            } else {
+                checkRePrompt()
+            }
         }
     }
 
@@ -212,16 +244,20 @@ struct VerbalFluencyPhaseView: View {
         // Fallback: if avatarDoneSpeaking never fires, begin timing after estimated TTS
         let wc = LeftPaneSpeechCopy.verbalFluencyPrompt.split(separator: " ").count
         let fallback = max(12.0, Double(wc) * 0.45 + 6.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + fallback) {
+        promptFallbackWork?.cancel()
+        let pfWork = DispatchWorkItem { [self] in
             guard self.speechEpoch == epoch, self.mode == .prompting else { return }
             self.beginTiming()
         }
+        promptFallbackWork = pfWork
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + fallback, execute: pfWork)
     }
 
     // MARK: - Timing
 
     private func beginTiming() {
         guard mode == .prompting else { return }
+        timingBegan = true
 
         withAnimation(.easeInOut(duration: 0.25)) {
             mode = .timing
@@ -232,27 +268,16 @@ struct VerbalFluencyPhaseView: View {
 
         // Start ASR
         scorer.startScoring()
+        speech.transcript = ""
         Task {
             do {
-                speech.transcript = ""
                 try await speech.startListening()
             } catch {
                 // Simulator or unauthorized — timer still runs
             }
         }
 
-        // 60-second countdown — use .common RunLoop mode so ticks fire
-        // during SwiftUI animations (countdown ring, etc.)
-        let t = Timer(timeInterval: 1.0, repeats: true) { _ in
-            self.timeRemaining -= 1
-            if self.timeRemaining <= 0 {
-                self.finishFluency()
-            } else {
-                self.checkRePrompt()
-            }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
+        timerActive = true
     }
 
     // MARK: - Re-Prompt
@@ -270,13 +295,18 @@ struct VerbalFluencyPhaseView: View {
             // from being captured by ASR.
             avatarSetMicMuted(true)
             avatarSpeak(LeftPaneSpeechCopy.verbalFluencyRePrompt)
-            // Unmute after re-prompt delivery and return to listening
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            // Unmute after re-prompt delivery and return to listening.
+            // Cancellable to prevent cross-phase audio contamination if
+            // finishFluency completes before the 3s delay elapses.
+            rePromptUnmuteWork?.cancel()
+            let work = DispatchWorkItem { [self] in
+                guard !self.didFinish else { return }
+                guard self.mode == .timing else { return }
                 avatarSetMicMuted(false)
-                if self.mode == .timing {
-                    self.layoutManager.setAvatarListening()
-                }
+                self.layoutManager.setAvatarListening()
             }
+            rePromptUnmuteWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: work)
         }
     }
 
@@ -284,8 +314,11 @@ struct VerbalFluencyPhaseView: View {
 
     private func finishFluency() {
         guard mode == .timing else { return }
+        didFinish = true
 
-        timer?.invalidate()
+        rePromptUnmuteWork?.cancel()
+        rePromptUnmuteWork = nil
+        timerActive = false
         speech.stopListening()
 
         // Process the final cleaned-up transcript before persisting — ASR
@@ -312,10 +345,13 @@ struct VerbalFluencyPhaseView: View {
         let epoch = closingUtteranceEpoch
         let wc = LeftPaneSpeechCopy.verbalFluencyClose.split(separator: " ").count
         let fallback = max(4.0, Double(wc) * 0.45 + 2.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + fallback) {
+        closingFallbackWork?.cancel()
+        let cfWork = DispatchWorkItem { [self] in
             guard self.closingUtteranceEpoch == epoch, self.mode == .done else { return }
             layoutManager.advanceToNextPhase()
         }
+        closingFallbackWork = cfWork
+        DispatchQueue.main.asyncAfter(deadline: .now() + fallback, execute: cfWork)
     }
 
     // MARK: - Telemetry Persistence

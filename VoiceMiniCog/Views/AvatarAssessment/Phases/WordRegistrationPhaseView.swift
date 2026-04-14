@@ -32,7 +32,7 @@ struct WordRegistrationPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @ObservedObject var qmciState: QmciState
+    let qmciState: QmciState
 
     // Phase state machine
     private enum PhaseMode {
@@ -47,22 +47,22 @@ struct WordRegistrationPhaseView: View {
     @State private var contentVisible: Bool = false
     @State private var hasStarted: Bool = false
 
-    // Bug 2 fix: synchronous finish guard — checked before any async/animated work.
+    // Synchronous finish guard — checked before any async/animated work.
     @State private var didFinish: Bool = false
 
     // Timing
     @State private var phaseStartTime: Date = Date()
     @State private var listeningStartTime: Date? = nil
-    // Bug 7/8 fix: nil until first transcript change, not Date() at listening start.
+    // nil until first transcript change — prevents silence detection firing before any speech.
     @State private var lastTranscriptChangeTime: Date? = nil
     @State private var silenceTimer: Timer? = nil
 
     // Speech recognition
-    @State private var speech = SpeechService()
+    @StateObject private var speech = SpeechService()
     @State private var didRequestAuth: Bool = false
     @State private var previousTranscript: String = ""
 
-    // Bug 6 fix: monotonic epoch counter (never set to currentTrial).
+    // Monotonic epoch counter (never set equal to currentTrial).
     @State private var trialSpeechEpoch: Int = 0
 
     /// Tavus delivers registration as several short echoes; resume next chunk on `avatarDoneSpeaking`.
@@ -70,16 +70,20 @@ struct WordRegistrationPhaseView: View {
     @State private var isChainingRegistrationEchos = false
     @State private var trialOrchestration: Task<Void, Never>?
 
-    // Bug 9 fix: stored safety task handle for cancellation.
+    // Stored safety task handle for cancellation.
     @State private var echoSafetyTask: Task<Void, Never>?
-    // Bug 10 fix: cancellable fallback work item.
+    // Cancellable fallback work item for the echo-chain 120s watchdog.
     @State private var chainFallbackWork: DispatchWorkItem?
+    // B5 fix: cancellable handle for the advanceToNextPhase dispatch.
+    @State private var advanceWork: DispatchWorkItem?
+    // B10 fix: cancellable handle for the retry-trial lead-in dispatch.
+    @State private var retryWork: DispatchWorkItem?
 
     // Timing constants
     private let totalTrials = 3
     /// Seconds after the last transcript change before treating the patient as done speaking.
     private let silenceThreshold: TimeInterval = 4
-    /// Minimum time before silence detection activates (Bug 7: prevents ASR init delay from ending trial).
+    /// Minimum listen window before silence detection activates (prevents ASR init delay from ending trial).
     private let minimumListenWindow: TimeInterval = 8
     private let maxListeningPerTrial: TimeInterval = 45
     private let phaseCeiling: TimeInterval = 240      // 4 minutes total
@@ -127,7 +131,7 @@ struct WordRegistrationPhaseView: View {
 
             // MARK: Progress Circles (5 anonymous slots)
             HStack(spacing: 14) {
-                ForEach(0..<5, id: \.self) { index in
+                ForEach(0..<words.count, id: \.self) { index in
                     RegistrationProgressCircle(
                         filled: index < currentTrialRecalled.count,
                         accentColor: Color(hex: "#34C759")
@@ -142,6 +146,11 @@ struct WordRegistrationPhaseView: View {
             Spacer().frame(height: 16)
         }
         .onAppear {
+            avatarInterrupt()
+            // B21 fix: put avatar into a defined waiting state immediately so
+            // the 0.5s gap before runTrial(1) doesn't leave it in limbo.
+            layoutManager.avatarBehavior = .waiting
+
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
@@ -162,6 +171,12 @@ struct WordRegistrationPhaseView: View {
             if words.isEmpty {
                 qmciState.selectWordList()
             }
+            // B11 fix: pre-populate registrationTrialWords with 3 empty slots
+            // so bounds-checked writes in runTrial/endListeningForTrial never
+            // silently no-op on an under-sized array.
+            if qmciState.registrationTrialWords.count < totalTrials {
+                qmciState.registrationTrialWords = Array(repeating: [], count: totalTrials)
+            }
             startTrialSequence()
         }
         .onDisappear {
@@ -171,9 +186,16 @@ struct WordRegistrationPhaseView: View {
             echoSafetyTask = nil
             chainFallbackWork?.cancel()
             chainFallbackWork = nil
+            advanceWork?.cancel()           // B5 fix
+            advanceWork = nil
+            retryWork?.cancel()             // B10 fix
+            retryWork = nil
             registrationEchoResume = nil
             silenceTimer?.invalidate()
+            silenceTimer = nil              // B9 fix
             speech.stopListening()
+            // B20 fix: only persist duration here (single authoritative write).
+            // finishRegistration() no longer writes registrationPhaseDuration.
             qmciState.registrationPhaseDuration = Date().timeIntervalSince(phaseStartTime)
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
@@ -183,9 +205,7 @@ struct WordRegistrationPhaseView: View {
                 resume?()
                 return
             }
-            // Bug 1 fix: don't open listening if we're finishing up.
             guard !didFinish else { return }
-            // Bug 6 fix: compare against captured epoch, not currentTrial.
             guard mode == .speaking, trialSpeechEpoch >= 1 else { return }
             beginListening()
         }
@@ -213,8 +233,10 @@ struct WordRegistrationPhaseView: View {
     private func startTrialSequence() {
         guard !hasStarted else { return }
         hasStarted = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.runTrial(1)
+        trialOrchestration = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, !didFinish else { return }
+            runTrial(1)
         }
     }
 
@@ -232,10 +254,10 @@ struct WordRegistrationPhaseView: View {
             return
         }
 
-        // Bug 6 fix: monotonic epoch increment.
+        // Monotonic epoch increment for stale-notification rejection.
         trialSpeechEpoch += 1
 
-        // Bug 8 fix: reset lastTranscriptChangeTime so stale timestamps don't trigger silence.
+        // Reset so stale timestamps don't trigger premature silence detection.
         lastTranscriptChangeTime = nil
 
         withAnimation(.easeOut(duration: 0.25)) {
@@ -251,26 +273,20 @@ struct WordRegistrationPhaseView: View {
         }
 
         speech.stopListening()
+        // B7 fix: reset transcript state synchronously (before the async Task
+        // in beginListening), so the timer-driven applyTranscriptUpdate poll
+        // never sees a stale transcript from the previous trial.
         speech.transcript = ""
         previousTranscript = ""
 
         layoutManager.setAvatarSpeaking()
 
-        // Cancel orphaned safety task from previous trial — prevents a stale
-        // 55-second timeout from nilling registrationEchoResume and cancelling
-        // echoSafetyTask after they've been reassigned to the new trial.
+        // Cancel orphaned safety task from previous trial.
         echoSafetyTask?.cancel()
         echoSafetyTask = nil
 
         // Set isChainingRegistrationEchos SYNCHRONOUSLY before creating the
-        // Task. The Task body executes asynchronously on the main actor's
-        // cooperative executor; a WKScriptMessageHandler callback delivering a
-        // stale avatarDoneSpeaking can run between runTrial returning and the
-        // Task body starting. Without this guard, that stale notification
-        // passes the (mode == .speaking, trialSpeechEpoch >= 1) check and
-        // calls beginListening() prematurely — desynchronising the echo chain
-        // and triggering cascading state corruption through orphaned safety
-        // tasks.
+        // Task to close the race window with stale avatarDoneSpeaking notifications.
         isChainingRegistrationEchos = true
         registrationEchoResume = nil
 
@@ -279,7 +295,7 @@ struct WordRegistrationPhaseView: View {
             await self.runRegistrationEchoChain(trial: trial)
         }
 
-        // Bug 10 fix: use cancellable DispatchWorkItem.
+        // 120s fallback watchdog.
         chainFallbackWork?.cancel()
         let work = DispatchWorkItem { [self] in
             guard self.trialSpeechEpoch >= 1, self.mode == .speaking, !self.didFinish else { return }
@@ -296,37 +312,42 @@ struct WordRegistrationPhaseView: View {
     /// Plays intro → lead-in → each word → closing using separate Tavus echoes.
     @MainActor
     private func runRegistrationEchoChain(trial: Int) async {
-        // isChainingRegistrationEchos is already set true in runTrial
-        // (synchronously, before this Task was created) to close the race
-        // window with stale avatarDoneSpeaking notifications.
-
         if trial == 1 {
             await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationIntro)
-            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
             await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationWordsLeadIn)
-            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
             for w in words {
-                if Task.isCancelled { break }
+                guard !Task.isCancelled else { return }
                 await playRegistrationEchoSegment(w + ".")
-                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: .milliseconds(350))
             }
-            if !Task.isCancelled {
-                await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRepeat)
-            }
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRepeat)
         } else {
             await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRetryLeadIn)
-            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
             for w in words {
-                if Task.isCancelled { break }
+                guard !Task.isCancelled else { return }
                 await playRegistrationEchoSegment(w + ".")
-                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: .milliseconds(350))
             }
-            if !Task.isCancelled {
-                await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRetryClosing)
-            }
+            guard !Task.isCancelled else { return }
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            await playRegistrationEchoSegment(LeftPaneSpeechCopy.wordRegistrationRetryClosing)
         }
 
-        // Bug 11 fix: clear chaining flag before calling beginListening.
         isChainingRegistrationEchos = false
         registrationEchoResume = nil
 
@@ -334,16 +355,9 @@ struct WordRegistrationPhaseView: View {
         beginListening()
     }
 
-    // Bug 9 fix: store and cancel safety task.
     @MainActor
     private func playRegistrationEchoSegment(_ text: String) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            // Both call sites (avatarDoneSpeaking onReceive + safety Task) run
-            // on MainActor, so MainActor.assumeIsolated is correct here. The
-            // nested function inherits the nonisolated context of the
-            // continuation closure — assumeIsolated bridges back to @MainActor
-            // without introducing async hops that would break the
-            // synchronous resume/cancel coordination.
             MainActor.assumeIsolated {
                 var didResume = false
                 let finish = { [self] in
@@ -358,14 +372,6 @@ struct WordRegistrationPhaseView: View {
                 avatarSpeak(text)
                 echoSafetyTask?.cancel()
                 echoSafetyTask = Task { @MainActor in
-                    // 18s safety: the JS watchdog fires at 15s and synthesizes
-                    // avatarDoneSpeaking, so this only fires if BOTH the real
-                    // stopped_speaking AND the watchdog notification are lost.
-                    // Must be > 15s so the watchdog resolves the continuation
-                    // first; if safety fired earlier, the watchdog's late
-                    // avatarDoneSpeaking would corrupt the next segment.
-                    // Old value (55s) caused a perceived freeze when Tavus
-                    // delayed or dropped stopped_speaking on the final echo.
                     try? await Task.sleep(for: .seconds(18))
                     finish()
                 }
@@ -378,27 +384,26 @@ struct WordRegistrationPhaseView: View {
     private func beginListening() {
         guard mode == .speaking, !didFinish else { return }
 
+        avatarSetMicMuted(false)
+
         withAnimation(.easeInOut(duration: 0.25)) {
             mode = .listening
         }
         layoutManager.setAvatarListening()
 
         listeningStartTime = Date()
-        // Bug 7 fix: don't set lastTranscriptChangeTime here — let first transcript change set it.
-        // This prevents silence detection from firing before any speech is possible.
 
-        // Start ASR
+        // B7 fix: transcript state is reset synchronously in runTrial before
+        // reaching here, so we only need to (re)start ASR.
         Task {
             do {
-                speech.transcript = ""
-                previousTranscript = ""
                 try await speech.startListening()
             } catch {
-                // Simulator or unauthorized — listening window still elapses
+                // Simulator or unauthorized — listening window still elapses normally.
             }
         }
 
-        // Start silence/timeout monitor (common mode so it keeps firing during scrolling / UI).
+        // Start silence/timeout monitor (.common mode keeps firing during scroll/UI).
         silenceTimer?.invalidate()
         let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
             self.checkListeningTimeout()
@@ -440,21 +445,18 @@ struct WordRegistrationPhaseView: View {
     private func checkListeningTimeout() {
         guard mode == .listening, !didFinish else {
             silenceTimer?.invalidate()
+            silenceTimer = nil  // B9 fix
             return
         }
 
-        // Poll ASR transcript (workaround for @Observable not always driving onChange).
         applyTranscriptUpdate(speech.transcript)
-        // `applyTranscriptUpdate` may call `endListeningForTrial()` (e.g. 5/5 or done phrase).
-        // Without this guard, the silence / max-duration logic below can run in the
-        // same timer tick and invoke `endListeningForTrial` again — double-scheduling
-        // `runTrial` cancels the in-flight echo Task and leaves the avatar stuck.
         guard mode == .listening, !didFinish else { return }
 
         // Phase ceiling
         if Date().timeIntervalSince(phaseStartTime) >= phaseCeiling {
             qmciState.registrationCeilingHit = true
             silenceTimer?.invalidate()
+            silenceTimer = nil  // B9 fix
             speech.stopListening()
             finishRegistration()
             return
@@ -467,8 +469,6 @@ struct WordRegistrationPhaseView: View {
             return
         }
 
-        // Bug 7 fix: skip silence detection until minimum listen window has elapsed
-        // and until at least one transcript change has occurred.
         guard let start = listeningStartTime,
               Date().timeIntervalSince(start) >= minimumListenWindow else { return }
         guard let lastChange = lastTranscriptChangeTime else { return }
@@ -482,45 +482,37 @@ struct WordRegistrationPhaseView: View {
         guard mode == .listening, !didFinish else { return }
 
         silenceTimer?.invalidate()
-        silenceTimer = nil
+        silenceTimer = nil  // B9 fix
 
-        // Leave listening immediately so this handler cannot re-enter in the same
-        // runloop tick, and so ASR `onChange` stops competing with the retry echo chain.
         withAnimation(.easeInOut(duration: 0.15)) {
             mode = .speaking
         }
         layoutManager.avatarBehavior = .waiting
 
-        // Snapshot before tearing down the audio tap — matches scoring to this boundary.
         let frozenTranscript = speech.transcript
         speech.stopListening()
 
-        // Persist trial results
         let result = registrationScore(transcript: frozenTranscript)
         let trialIdx = currentTrial - 1
         if qmciState.registrationTrialWords.indices.contains(trialIdx) {
             qmciState.registrationTrialWords[trialIdx] = result.recalled
         }
 
-        // Bug 3 fix: always update to best trial performance (not just Trial 1).
         if result.recalled.count > qmciState.registrationRecalledWords.count {
             qmciState.registrationRecalledWords = result.recalled
         }
 
-        // Accumulate intrusions and repetitions
-        qmciState.registrationIntrusions.append(contentsOf: result.intrusions)
+        // Accumulate intrusions across trials, deduplicating to prevent inflated
+        // intrusion scores (e.g., "face" said on every trial counted only once).
+        let newIntrusions = result.intrusions.filter {
+            !qmciState.registrationIntrusions.contains($0)
+        }
+        qmciState.registrationIntrusions.append(contentsOf: newIntrusions)
         qmciState.registrationRepetitionCount += result.repetitions
 
-        // Trial decision logic
         let trial = currentTrial
         if result.recalled.count >= 5 {
-            // All 5 correct — skip remaining trials.
-            // Bug 1 fix: set isChainingRegistrationEchos so avatarDoneSpeaking
-            // doesn't open a second listening session during the closure speech.
             isChainingRegistrationEchos = true
-            withAnimation(.easeInOut(duration: 0.2)) {
-                mode = .speaking
-            }
             avatarSpeak(LeftPaneSpeechCopy.wordRegistrationAllCorrect)
             layoutManager.setAvatarSpeaking()
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -528,9 +520,14 @@ struct WordRegistrationPhaseView: View {
                 self.finishRegistration()
             }
         } else if trial < totalTrials {
-            DispatchQueue.main.asyncAfter(deadline: .now() + retryLeadIn) {
+            // B10 fix: use cancellable DispatchWorkItem for retry lead-in.
+            retryWork?.cancel()
+            let work = DispatchWorkItem { [self] in
+                guard !self.didFinish else { return }
                 self.runTrial(trial + 1)
             }
+            retryWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + retryLeadIn, execute: work)
         } else {
             finishRegistration()
         }
@@ -539,12 +536,13 @@ struct WordRegistrationPhaseView: View {
     // MARK: - Finish
 
     private func finishRegistration() {
-        // Bug 2 fix: synchronous guard before any async/animated work.
         guard !didFinish else { return }
         didFinish = true
 
         silenceTimer?.invalidate()
+        silenceTimer = nil          // B9 fix
         chainFallbackWork?.cancel()
+        retryWork?.cancel()         // B10 fix
         trialOrchestration?.cancel()
         echoSafetyTask?.cancel()
         speech.stopListening()
@@ -553,21 +551,25 @@ struct WordRegistrationPhaseView: View {
             mode = .done
         }
 
-        qmciState.registrationPhaseDuration = Date().timeIntervalSince(phaseStartTime)
+        // B20 fix: registrationPhaseDuration is written once — in onDisappear —
+        // which captures the true dismissal time regardless of code path.
 
         avatarSpeak(LeftPaneSpeechCopy.wordRegistrationRemember)
         layoutManager.setAvatarSpeaking()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+        // B5 fix: use cancellable DispatchWorkItem so onDisappear can cancel
+        // the advance if the view is dismissed before the delay elapses.
+        advanceWork?.cancel()
+        let work = DispatchWorkItem { [self] in
             layoutManager.advanceToNextPhase()
         }
+        advanceWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: work)
     }
 }
 
 // MARK: - RegistrationProgressCircle
 
-/// Anonymous progress circle — shows count only, no word labels.
-/// Fills with a green check when a word is correctly recalled.
 private struct RegistrationProgressCircle: View {
     let filled: Bool
     let accentColor: Color

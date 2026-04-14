@@ -87,6 +87,7 @@ struct QAPhaseView: View {
             }
         }
         .onAppear {
+            avatarInterrupt()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
@@ -226,6 +227,10 @@ struct QAPhaseView: View {
     // MARK: - Wait for Patient Response (Orientation)
 
     private func waitForPatientResponse() {
+        // JS bridge often mutes the Daily mic while an echo is “in flight.” If Tavus
+        // drops `replica.stopped_speaking`, Swift can unlock the UI before JS unmutes,
+        // so the patient talks while audio is still muted upstream — force unmute here.
+        avatarSetMicMuted(false)
         waitingForPatientResponse = true
         heardPatientSpeechDuringAnswerWait = false
         orientationAutoAdvanceTask?.cancel()

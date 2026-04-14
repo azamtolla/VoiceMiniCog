@@ -2,7 +2,7 @@
 //  CompletionPhaseView.swift
 //  VoiceMiniCog
 //
-//  Terminal phase for the caregiver QDRS flow.
+//  Terminal phase for the avatar-guided cognitive assessment.
 //  Shows a thank-you message and a button to return home.
 //
 
@@ -13,6 +13,7 @@ struct CompletionPhaseView: View {
     let onComplete: () -> Void
 
     @State private var contentVisible = false
+    @State private var avatarSpeaking = true
 
     var body: some View {
         VStack(spacing: 24) {
@@ -25,46 +26,84 @@ struct CompletionPhaseView: View {
                     .frame(width: 80, height: 80)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 40))
-                    .foregroundColor(AssessmentTheme.Phase.results)
+                    .foregroundStyle(AssessmentTheme.Phase.results)
             }
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            Text("Questionnaire Complete")
+            Text("Assessment Complete")
                 .font(.system(size: 24, weight: .bold))
-                .foregroundColor(AssessmentTheme.Content.textPrimary)
+                .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
-            Text("Thank you for completing the\ncaregiver questionnaire.")
+            Text("Thank you for completing the\ncognitive assessment.")
                 .font(.system(size: 17, weight: .regular))
-                .foregroundColor(AssessmentTheme.Content.textSecondary)
+                .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
             Spacer()
 
-            // Return home button
+            // Return home — disabled until avatar finishes closing speech
             MCPrimaryButton("Return Home", icon: "house.fill", color: AssessmentTheme.Phase.results) {
                 onComplete()
             }
+            .disabled(avatarSpeaking)
+            .opacity(avatarSpeaking ? 0.5 : 1.0)
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
 
-            Spacer().frame(height: 16)
+            Spacer()
         }
         .onAppear {
+            guard !contentVisible else { return }
+
+            avatarInterrupt()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
-            avatarSpeak(LeftPaneSpeechCopy.closingThankYou)
+
+            // Use avatarSetContext directly — completion phase does not need
+            // the "never correct patient" rule that avatarSetAssessmentContext appends.
+            avatarSetContext(LeftPaneSpeechCopy.completionContext)
+
+            // Small delay ensures the interrupt notification is processed
+            // before the speak notification, guaranteeing ordering.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                avatarSpeak(LeftPaneSpeechCopy.closingThankYou)
+            }
+
+            // Fallback: enable button after 6s in case the avatar is disconnected
+            // and .avatarDoneSpeaking never fires.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                guard avatarSpeaking else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    avatarSpeaking = false
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                avatarSpeaking = false
+            }
         }
     }
 }
 
 #Preview {
-    CompletionPhaseView(onComplete: {})
+    @Previewable @State var completed = false
+    CompletionPhaseView(onComplete: { completed = true })
         .background(AssessmentTheme.Content.background)
+        .overlay(alignment: .top) {
+            if completed {
+                Text("onComplete fired")
+                    .font(.caption)
+                    .padding(8)
+                    .background(.green.opacity(0.2), in: .capsule)
+                    .padding(.top, 60)
+            }
+        }
 }

@@ -30,12 +30,12 @@ struct WordRecallPhaseView: View {
     // MARK: Properties
 
     let layoutManager: AvatarLayoutManager
-    @ObservedObject var qmciState: QmciState
+    let qmciState: QmciState
 
     @State private var scorer: WordRecallScorer
     @State private var phase: RecallPhase = .promptDelivery
     @State private var contentVisible = false
-    @State private var recallPromptSpeechEpoch = 0
+    @State private var recallPromptSpeechEpoch = 1  // Inconsistency 1 fix: start at 1
     @State private var recallPromptListeningUnlocked = false
 
     // Timer state
@@ -45,7 +45,16 @@ struct WordRecallPhaseView: View {
 
     // Speech recognition
     @State private var speechService = SpeechService()
-    @State private var lastTranscriptLength = 0
+    @State private var lastTranscriptWordCount = 0  // Bug 3 fix: track words, not chars
+
+    // Bug 1 fix: prevent double persistResults()
+    @State private var didPersist = false
+
+    // Bug 4 fix: track when all words were recalled (wall time, not silence)
+    @State private var allWordsRecalledAt: Date? = nil
+
+    // Bug 5 fix: skip silence increment during avatar follow-up speech
+    @State private var avatarIsSpeakingFollowUp = false
 
     // Accessibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -163,7 +172,8 @@ struct WordRecallPhaseView: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color(hex: "#34C759"))
-                    .scaleEffect(reduceMotion ? 1.0 : 1.0)
+                    // Bug 6 fix: animate scale from 0.6 → 1.0 on fill
+                    .scaleEffect(filled ? 1.0 : 0.6)
                     .transition(
                         reduceMotion
                             ? .opacity
@@ -177,27 +187,22 @@ struct WordRecallPhaseView: View {
                 : .spring(response: 0.4, dampingFraction: 0.7),
             value: filled
         )
-        .accessibilityHidden(true) // Don't reveal progress count audibly
+        .accessibilityHidden(true)
     }
 
     // MARK: - Phase Lifecycle
 
     private func onPhaseAppear() {
+        avatarInterrupt()
         withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
             contentVisible = true
         }
 
         scorer.startScoring()
 
-        // Set avatar context for this phase
-        avatarSetAssessmentContext(
-            "You are administering delayed word recall. Speak only the echo text supplied by the app."
-        )
-
-        // Timer loop starts via .task(id: timerActive) when timerActive becomes true
+        avatarSetAssessmentContext(LeftPaneSpeechCopy.delayedRecallTavusBehaviorContext)
 
         // Deliver the recall prompt via avatar after a 500ms settle delay
-        recallPromptSpeechEpoch += 1
         let epoch = recallPromptSpeechEpoch
         recallPromptListeningUnlocked = false
         layoutManager.setAvatarSpeaking()
@@ -216,14 +221,26 @@ struct WordRecallPhaseView: View {
 
     private func onPhaseDisappear() {
         timerActive = false
-        speechService.stopListening()
+        // Bug 8 fix: guard stopListening with isListening
+        if speechService.isListening {
+            speechService.stopListening()
+        }
         persistResults()
     }
 
     // MARK: - Avatar Event Handling
 
     private func handleAvatarDoneSpeaking() {
+        // Flow 2 fix: guard by current phase/screen
+        guard layoutManager.currentPhase == .wordRecall else { return }
         guard phase == .promptDelivery || phase == .followUp else { return }
+
+        // Bug 5 fix: clear avatar-speaking flag and reset silence on follow-up done
+        if avatarIsSpeakingFollowUp {
+            avatarIsSpeakingFollowUp = false
+            resetSilenceTimer()
+        }
+
         unlockListeningIfNeeded(epoch: recallPromptSpeechEpoch)
     }
 
@@ -233,16 +250,15 @@ struct WordRecallPhaseView: View {
         recallPromptListeningUnlocked = true
 
         scorer.markPromptEnded()
+        avatarSetMicMuted(false)
         layoutManager.setAvatarListening()
 
         if phase == .promptDelivery {
             phase = .listening
         }
 
-        // Start speech recognition
         startSpeechRecognition()
 
-        // Start the timer loop (silence + hard ceiling + grace)
         resetSilenceTimer()
         timerActive = true
     }
@@ -250,15 +266,15 @@ struct WordRecallPhaseView: View {
     // MARK: - Speech Recognition
 
     private func startSpeechRecognition() {
-        // Check authorization first
         Task {
             let authorized = await speechService.requestAuthorization()
             guard authorized else {
-                // Microphone denied — flag for clinician review and continue
                 print("[WordRecall] Speech recognition not authorized — falling back to manual")
                 return
             }
             do {
+                // Bug 2 fix: stop existing recognition before restarting
+                if speechService.isListening { speechService.stopListening() }
                 try await speechService.startListening()
             } catch {
                 print("[WordRecall] Failed to start speech recognition: \(error)")
@@ -271,43 +287,51 @@ struct WordRecallPhaseView: View {
     private func handleTranscriptUpdate(_ transcript: String) {
         guard !transcript.isEmpty else { return }
 
-        // Only process new content
-        guard transcript.count > lastTranscriptLength else { return }
-        lastTranscriptLength = transcript.count
+        // Bug 3 fix: use word count instead of character count —
+        // ASR transcript corrections can produce shorter strings
+        let newWordCount = transcript.split(separator: " ").count
+        guard newWordCount > lastTranscriptWordCount else { return }
+        lastTranscriptWordCount = newWordCount
 
         scorer.processTranscript(transcript)
 
         // Reset silence timer on new speech
         resetSilenceTimer()
 
+        // Bug 4 fix: track when all words were recalled by wall time
+        if scorer.recalledCount == targetCount && allWordsRecalledAt == nil {
+            allWordsRecalledAt = Date()
+        }
+
         // Check for completion phrase
         if scorer.containsCompletionPhrase(transcript) {
             handleCompletionPhrase()
             return
         }
-
-        // All-recalled grace period is handled by the timer loop
     }
 
     // MARK: - Completion Logic
 
     private func handleCompletionPhrase() {
         guard phase == .listening else { return }
-        // Patient said "I'm done" etc. → deliver follow-up
         deliverFollowUp()
     }
 
     private func deliverFollowUp() {
         guard phase == .listening, !scorer.anyOthersPromptUsed else {
-            // Already asked, or not in listening → advance
             advancePhase()
             return
         }
+
+        // Flow 1 fix: mute mic before avatar speaks follow-up
+        avatarSetMicMuted(true)
 
         scorer.markAnyOthersPromptUsed()
         scorer.silenceBeforePromptMs = Int(silenceSeconds * 1000)
         phase = .followUp
 
+        // Bug 5 fix: flag that avatar is speaking so timer loop skips silence
+        avatarIsSpeakingFollowUp = true
         layoutManager.setAvatarSpeaking()
         avatarSpeak(LeftPaneSpeechCopy.delayedRecallAnyOthers)
 
@@ -321,15 +345,15 @@ struct WordRecallPhaseView: View {
             guard epoch == self.recallPromptSpeechEpoch else { return }
             guard !self.recallPromptListeningUnlocked else { return }
             self.recallPromptListeningUnlocked = true
+            self.avatarIsSpeakingFollowUp = false
+            avatarSetMicMuted(false)
             self.layoutManager.setAvatarListening()
             self.resetSilenceTimer()
         }
     }
 
-    // MARK: - Timer Loop (structured concurrency, avoids @Sendable closure issues)
+    // MARK: - Timer Loop
 
-    /// Single async loop handling silence detection, hard ceiling, and grace period.
-    /// Runs as a `.task(id: timerActive)` — cancels automatically on phase exit.
     private func runTimerLoop() async {
         while !Task.isCancelled && phase != .done {
             try? await Task.sleep(for: .seconds(1))
@@ -342,8 +366,17 @@ struct WordRecallPhaseView: View {
                 return
             }
 
-            // Silence tracking
-            silenceSeconds += 1
+            // Flow 5 fix: check grace period FIRST and return early
+            if let completedAt = allWordsRecalledAt,
+               Date().timeIntervalSince(completedAt) >= allRecalledGracePeriod {
+                advancePhase()
+                return
+            }
+
+            // Bug 5 fix: skip silence increment when avatar is speaking follow-up
+            if !avatarIsSpeakingFollowUp {
+                silenceSeconds += 1
+            }
 
             let threshold: TimeInterval = (phase == .followUp)
                 ? silenceAfterFollowUp
@@ -352,18 +385,11 @@ struct WordRecallPhaseView: View {
             if silenceSeconds >= threshold {
                 if phase == .listening {
                     deliverFollowUp()
-                    // Reset silence for the post-follow-up period
                     silenceSeconds = 0
                 } else {
                     advancePhase()
                     return
                 }
-            }
-
-            // Grace period: all words recalled
-            if scorer.recalledCount == targetCount && silenceSeconds >= allRecalledGracePeriod {
-                advancePhase()
-                return
             }
         }
     }
@@ -379,6 +405,12 @@ struct WordRecallPhaseView: View {
         phase = .done
         timerActive = false
         speechService.stopListening()
+
+        // Flow 3 fix: write silenceBeforePromptMs if follow-up was never triggered
+        if !scorer.anyOthersPromptUsed {
+            scorer.silenceBeforePromptMs = Int(silenceSeconds * 1000)
+        }
+
         // Process final cleaned-up ASR transcript before persisting
         scorer.processTranscript(speechService.transcript)
         persistResults()
@@ -388,8 +420,12 @@ struct WordRecallPhaseView: View {
     // MARK: - Persist Results to QmciState
 
     private func persistResults() {
-        // Scored words
-        let recalled = Array(scorer.recalledWords)
+        // Bug 1 fix: prevent double persist
+        guard !didPersist else { return }
+        didPersist = true
+
+        // Bug 7 fix: sort for deterministic order
+        let recalled = scorer.recalledWords.sorted()
         qmciState.delayedRecallWords = recalled
         qmciState.delayedRecallTranscript = speechService.transcript
 
@@ -401,10 +437,8 @@ struct WordRecallPhaseView: View {
             qmciState.recallFirstWordLatencyMs = Int(latency * 1000)
         }
         qmciState.recallInterWordIntervalsMs = scorer.interWordIntervalsMs
-        qmciState.recallIntrusionCount = scorer.intrusions.count
         qmciState.recallIntrusions = scorer.intrusions
         qmciState.recallSemanticSubstitutions = scorer.semanticSubstitutions.map { SemanticSubstitution(target: $0.target, substitution: $0.said) }
-        qmciState.recallSemanticSubstitutionCount = scorer.semanticSubstitutions.count
         qmciState.recallTotalPhaseDurationMs = scorer.totalPhaseDurationMs
         qmciState.recallSilenceBeforePromptMs = scorer.silenceBeforePromptMs
         qmciState.recallAnyOthersPromptUsed = scorer.anyOthersPromptUsed

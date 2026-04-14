@@ -143,6 +143,7 @@ struct ClockDrawingPhaseView: View {
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
+            avatarInterrupt()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
@@ -152,7 +153,7 @@ struct ClockDrawingPhaseView: View {
             didPersistBiomarkers = false
             canvasStartTime = Date()
             lastStrokeEndTime = nil
-            avatarSetAssessmentContext("You are administering the Clock Drawing subtest. The patient is drawing. Remain completely silent. Do not speak, do not provide hints, do not provide commentary, do not acknowledge questions. The app will trigger your next utterance via echo command. Until then, observe silently with a neutral expression.")
+            avatarSetAssessmentContext(LeftPaneSpeechCopy.clockDrawingTavusBehaviorContext)
             avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
         }
