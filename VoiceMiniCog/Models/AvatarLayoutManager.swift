@@ -102,6 +102,7 @@ enum AssessmentPhaseID: Int, CaseIterable {
 
 // MARK: - AvatarLayoutManager
 
+@MainActor
 @Observable
 class AvatarLayoutManager {
 

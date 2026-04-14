@@ -181,7 +181,9 @@ struct ClockDrawingPhaseView: View {
                 // Canvas locks here — capture biomarkers BEFORE advancing so
                 // the next phase can read the persisted fields if needed.
                 self.persistBiomarkersIfNeeded()
-                self.layoutManager.advanceToNextPhase()
+                MainActor.assumeIsolated {
+                    self.layoutManager.advanceToNextPhase()
+                }
             }
         }
         RunLoop.main.add(t, forMode: .common)
