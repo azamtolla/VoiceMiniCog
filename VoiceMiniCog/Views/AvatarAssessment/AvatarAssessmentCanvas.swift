@@ -234,6 +234,8 @@ struct AvatarAssessmentCanvas: View {
             .foregroundStyle(Color(hex: "#DC2626"))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("End session")
+        .accessibilityHint("Stops the current assessment and returns to the home screen.")
     }
 
     // MARK: - Examiner Long-Press Exit
@@ -249,6 +251,8 @@ struct AvatarAssessmentCanvas: View {
                 .font(.system(size: 12, weight: .medium))
         }
         .foregroundStyle(Color(hex: "#DC2626").opacity(0.5))
+        .accessibilityLabel("End session")
+        .accessibilityHint("Press and hold for 2 seconds to end the assessment.")
         .onLongPressGesture(minimumDuration: 2.0) {
             guard !isCancelling else { return }
             isCancelling = true

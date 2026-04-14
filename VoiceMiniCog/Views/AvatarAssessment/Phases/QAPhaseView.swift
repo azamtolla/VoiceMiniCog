@@ -35,6 +35,10 @@ struct QAPhaseView: View {
     /// Orientation: Tavus can emit `user.stopped_speaking` right after mic unmutes without a matching
     /// `user.started_speaking`, which was auto-advancing past questions (e.g. skipping "What month is this?").
     @State private var heardPatientSpeechDuringAnswerWait = false
+    /// SpeechService for capturing patient answers during orientation so we can
+    /// generate advisory ASR suggestions (flagged for clinician review, NOT auto-scored).
+    @StateObject private var speech = SpeechService()
+    @State private var didRequestAuth = false
 
     // MARK: Body
 
@@ -55,19 +59,21 @@ struct QAPhaseView: View {
 
             VStack(spacing: 20) {
 
-                // Question counter
-                Text("\(currentIndex + 1) of \(totalQuestions)")
-                    .font(AssessmentTheme.Fonts.timerSmall)
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                    // Question counter
+                    Text("\(currentIndex + 1) of \(totalQuestions)")
+                        .font(AssessmentTheme.Fonts.timerSmall)
+                        .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                        .accessibilityLabel("Question \(currentIndex + 1) of \(totalQuestions)")
 
-                // Question text
-                Text(currentQuestionText)
-                    .font(AssessmentTheme.Fonts.question)
-                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
-                    .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-                    .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
+                    // Question text
+                    Text(currentQuestionText)
+                        .font(AssessmentTheme.Fonts.question)
+                        .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 8)
+                        .accessibilityAddTraits(.isHeader)
+                        .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
+                        .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
                 if phaseID == .orientation {
                     // Orientation: listening indicator (no buttons) — only after question audio completes
@@ -103,6 +109,13 @@ struct QAPhaseView: View {
             }
             if phaseID == .orientation {
                 avatarSetAssessmentContext(QMCIAvatarContext.orientation)
+                // Request speech authorization once for orientation ASR suggestions.
+                Task {
+                    if !didRequestAuth {
+                        _ = await speech.requestAuthorization()
+                        didRequestAuth = true
+                    }
+                }
             } else {
                 avatarSetAssessmentContext(
                     "You are a clinical neuropsychologist administering the \(phaseID.displayName) portion of a standardized cognitive assessment. Speak with a calm, measured, professional tone. You speak ONLY the question text provided via echo commands — do not ad-lib or rephrase. Do not provide hints, feedback, or encouragement. If the patient asks to skip or seems confused, say calmly: 'Please take your time and answer as best you can.'"
@@ -133,6 +146,13 @@ struct QAPhaseView: View {
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             finishQuestionSpeechIfNeeded(epoch: questionSpeechEpoch)
         }
+        .onDisappear {
+            // Clean up SpeechService and pending tasks to avoid dangling
+            // AVAudioEngine taps and SFSpeechRecognitionTask after view exits.
+            speech.stopListening()
+            orientationAutoAdvanceTask?.cancel()
+            orientationAutoAdvanceTask = nil
+        }
     }
 
     // MARK: - Orientation Listening Area
@@ -150,6 +170,9 @@ struct QAPhaseView: View {
                     .foregroundStyle(AssessmentTheme.Content.textSecondary)
             }
             .padding(.vertical, 8)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Listening for your answer")
+            .accessibilityAddTraits(.updatesFrequently)
         }
     }
 
@@ -247,6 +270,15 @@ struct QAPhaseView: View {
         avatarSetMicMuted(false)
         waitingForPatientResponse = true
         heardPatientSpeechDuringAnswerWait = false
+
+        // Start on-device ASR to capture the patient's answer for advisory suggestions.
+        speech.transcript = ""
+        Task {
+            do { try await speech.startListening() } catch {
+                // Simulator or unauthorized — orientation still works; suggestion will be nil.
+            }
+        }
+
         orientationAutoAdvanceTask?.cancel()
         orientationAutoAdvanceTask = Task { @MainActor in
             // QMCI protocol: max 10 seconds per orientation answer
@@ -262,12 +294,42 @@ struct QAPhaseView: View {
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
 
-        // Avatar cannot judge correctness. If the patient spoke, default to full
-        // credit (2 pts) and let the clinician adjust in the PCP report. If the
-        // patient was silent (timeout), leave the score nil so the clinician is
-        // forced to review — a silent answer should never silently earn 2 pts.
+        // Capture and stop on-device ASR.
+        let capturedTranscript = speech.transcript
+        speech.stopListening()
+
+        // Store the raw transcript and attempt flag for clinician review.
+        if currentIndex < assessmentState.qmciState.orientationResponses.count {
+            assessmentState.qmciState.orientationResponses[currentIndex] = capturedTranscript
+            assessmentState.qmciState.orientationAttempted[currentIndex] = patientResponded
+        }
+
+        // Default to full credit (2 pts) when the patient responds. The clinician
+        // adjusts in the PCP report. If silent (timeout), leave nil so the clinician
+        // is forced to review — a silent answer should never silently earn 2 pts.
+        //
+        // Generate an advisory ASR suggestion using scoreOrientationAnswer(). This is
+        // NOT the actual score — it's a flag shown in the PCP report so the clinician
+        // can quickly spot answers that may need adjustment.
         if currentIndex < assessmentState.qmciState.orientationScores.count {
-            assessmentState.qmciState.orientationScores[currentIndex] = patientResponded ? 2 : nil
+            if !patientResponded {
+                assessmentState.qmciState.orientationScores[currentIndex] = nil
+                assessmentState.qmciState.orientationSuggestedCorrect[currentIndex] = nil
+            } else {
+                assessmentState.qmciState.orientationScores[currentIndex] = 2
+                // Generate advisory suggestion from ASR transcript.
+                if !capturedTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   let item = ORIENTATION_ITEMS[safe: currentIndex] {
+                    let correct = scoreOrientationAnswer(
+                        type: item.correctAnswerType,
+                        transcript: capturedTranscript
+                    )
+                    assessmentState.qmciState.orientationSuggestedCorrect[currentIndex] = correct
+                } else {
+                    // No ASR data (empty transcript) — leave suggestion nil.
+                    assessmentState.qmciState.orientationSuggestedCorrect[currentIndex] = nil
+                }
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
@@ -287,9 +349,12 @@ struct QAPhaseView: View {
                 Circle()
                     .fill(orientationDotColor(at: i))
                     .frame(width: 10, height: 10)
+                    .accessibilityHidden(true)
             }
             Spacer()
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Orientation progress: question \(currentIndex + 1) of 5")
     }
 
     // MARK: - Data Helpers

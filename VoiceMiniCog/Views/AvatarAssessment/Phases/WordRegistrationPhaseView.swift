@@ -113,6 +113,7 @@ struct WordRegistrationPhaseView: View {
                 .frame(width: 64, height: 64)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 16)
+                .accessibilityHidden(true)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
@@ -122,6 +123,7 @@ struct WordRegistrationPhaseView: View {
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 24)
+                .accessibilityAddTraits(.isHeader)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
@@ -134,6 +136,9 @@ struct WordRegistrationPhaseView: View {
             .padding(.bottom, 28)
             .opacity(mode == .speaking ? 1.0 : 0.25)
             .animation(.easeInOut(duration: 0.4), value: mode == .speaking)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(mode == .speaking ? "Avatar is speaking words" : "Waiting")
+            .accessibilityAddTraits(.updatesFrequently)
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
@@ -144,9 +149,13 @@ struct WordRegistrationPhaseView: View {
                         filled: index < currentTrialRecalled.count,
                         accentColor: Color(hex: "#34C759")
                     )
+                    .accessibilityHidden(true)
                 }
             }
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(currentTrialRecalled.count) of \(words.count) words recalled")
+            .accessibilityAddTraits(.updatesFrequently)
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
 

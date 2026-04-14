@@ -183,6 +183,7 @@ struct StoryRecallPhaseView: View {
                 .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
                 .padding(.bottom, 14)
+                .accessibilityHidden(true)
                 .assessmentIconHeaderAccent(layoutManager.accentColor)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
@@ -196,6 +197,7 @@ struct StoryRecallPhaseView: View {
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 8)
+                .accessibilityAddTraits(.isHeader)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
                 .animation(AssessmentTheme.Anim.contentFade, value: phase)
@@ -277,6 +279,7 @@ struct StoryRecallPhaseView: View {
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 4)
+                .accessibilityAddTraits(.isHeader)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 12)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
@@ -381,7 +384,8 @@ struct StoryRecallPhaseView: View {
             }
             .foregroundStyle(recalled ? Color.white : AssessmentTheme.Content.textPrimary)
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
+            .frame(minHeight: 44)
             .background(
                 recalled
                     ? layoutManager.accentColor

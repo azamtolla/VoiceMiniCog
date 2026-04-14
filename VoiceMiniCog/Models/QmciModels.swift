@@ -297,6 +297,12 @@ final class QmciState: Codable {
     var orientationResponses: [String] = Array(repeating: "", count: 5)
     /// True if the patient provided any response to the question at that index.
     var orientationAttempted: [Bool] = Array(repeating: false, count: 5)
+    /// ASR-suggested correctness per orientation question. `true` = ASR thinks
+    /// the answer is correct, `false` = likely incorrect, `nil` = no ASR data
+    /// (e.g. simulator, authorization denied). These are **advisory only** — the
+    /// actual score remains clinician-controlled. Shown as review flags in the
+    /// PCP report so the clinician can quickly spot answers that may need adjustment.
+    var orientationSuggestedCorrect: [Bool?] = Array(repeating: nil, count: 5)
 
     /// Per-trial recalled words for the 3 registration trials.
     var registrationTrialWords: [[String]] = [[], [], []]
@@ -609,7 +615,7 @@ final class QmciState: Codable {
         // New spec-required fields
         case testVersion
         case sessionID, sessionDateTime
-        case orientationResponses, orientationAttempted
+        case orientationResponses, orientationAttempted, orientationSuggestedCorrect
         case registrationTrialWords
         case registrationFirstWordLatency, registrationIntrusions
         case registrationRepetitionCount, registrationPhaseDuration, registrationCeilingHit
@@ -692,6 +698,11 @@ final class QmciState: Codable {
             ?? Array(repeating: false, count: 5)
         if orientationAttempted.count != 5 {
             orientationAttempted = Array(repeating: false, count: 5)
+        }
+        orientationSuggestedCorrect = try c.decodeIfPresent([Bool?].self, forKey: .orientationSuggestedCorrect)
+            ?? Array(repeating: nil, count: 5)
+        if orientationSuggestedCorrect.count != 5 {
+            orientationSuggestedCorrect = Array(repeating: nil, count: 5)
         }
         registrationTrialWords = try c.decodeIfPresent([[String]].self, forKey: .registrationTrialWords)
             ?? [[], [], []]
@@ -781,6 +792,7 @@ final class QmciState: Codable {
         try c.encode(sessionDateTime, forKey: .sessionDateTime)
         try c.encode(orientationResponses, forKey: .orientationResponses)
         try c.encode(orientationAttempted, forKey: .orientationAttempted)
+        try c.encode(orientationSuggestedCorrect, forKey: .orientationSuggestedCorrect)
         try c.encode(registrationTrialWords, forKey: .registrationTrialWords)
         try c.encodeIfPresent(registrationFirstWordLatency, forKey: .registrationFirstWordLatency)
         try c.encode(registrationIntrusions, forKey: .registrationIntrusions)
@@ -887,6 +899,7 @@ final class QmciState: Codable {
         sessionDateTime = Date()
         orientationResponses = Array(repeating: "", count: 5)
         orientationAttempted = Array(repeating: false, count: 5)
+        orientationSuggestedCorrect = Array(repeating: nil, count: 5)
         registrationTrialWords = [[], [], []]
         registrationFirstWordLatency = nil
         registrationIntrusions = []

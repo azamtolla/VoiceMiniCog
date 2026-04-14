@@ -566,62 +566,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		9246E52C2F6390E900743FA8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				9F6148A3B2DD388992ADE378 /* TavusService.swift in Sources */,
-				74B346CEB8F9A8B6ACA6DEB0 /* TavusCVIView.swift in Sources */,
-				88034F92B49D28E55AE9A40D,
-				68444A9984B3B363AFBE708F /* AssessmentTheme.swift in Sources */,
-				DD8047AC8DD798BBEF4FF9FF /* AvatarLayoutManager.swift in Sources */,
-				11CD4EA9ABE27C8E98820E70 /* AvatarAssessmentCanvas.swift in Sources */,
-				D31B4133BC8CCFB0E8262E52 /* AvatarZoneView.swift in Sources */,
-				AA11223344556677889900E2,
-				79C34F579A1CA2F1DEBB913E /* ProgressTrackView.swift in Sources */,
-				F3114C9F851B8C059B7E048E /* PauseButtonView.swift in Sources */,
-				BE6B440D9E546C8C29FF39B6 /* WelcomePhaseView.swift in Sources */,
-				A9E143C69400896A63877621 /* WordRegistrationPhaseView.swift in Sources */,
-				0C184F889A4F46FE77D82BF2 /* QAPhaseView.swift in Sources */,
-				F41744D483D7F1CB7053EB97 /* ClockDrawingPhaseView.swift in Sources */,
-				CC22334455667788990011BB,
-				CC11223344556677889900CC /* VerbalFluencyPhaseView.swift in Sources */,
-				37984ADC8BF73A080722B034 /* StoryRecallPhaseView.swift in Sources */,
-				0A9E43D9A4C876DB841B82E4 /* WordRecallPhaseView.swift in Sources */,
-				75D35C24A82C4B8686EE441B /* WordRecallScorer.swift in Sources */,
-				AA112233445566770001B2C2 /* QMCIAvatarContext.swift in Sources */,
-				DD00112233445566778899A2 /* KeychainHelper.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		9246E5362F6390E900743FA8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				43E8415B91255D41CB083B3A /* TavusService.swift in Sources */,
-				529B42ECB53B8E5665F466EF /* TavusCVIView.swift in Sources */,
-				9845407B8B0DE0440D44EFF4,
-				BE274F0A802EBE067EF6DC75 /* AssessmentTheme.swift in Sources */,
-				091D45FE97BB01D2191F3E2F /* AvatarLayoutManager.swift in Sources */,
-				473C49F083411C733E173CC1 /* AvatarAssessmentCanvas.swift in Sources */,
-				F04B422DA9D44E9E223B9478 /* AvatarZoneView.swift in Sources */,
-				AA11223344556677889900E3,
-				C3AD40C38C918C7FA86C1E5F /* ProgressTrackView.swift in Sources */,
-				1C5346948A10D0A36CCC3ADD /* PauseButtonView.swift in Sources */,
-				7CBE4AB2B40A94F6F704E500 /* WelcomePhaseView.swift in Sources */,
-				A4AD412CB36EB9CE4ACFB313 /* WordRegistrationPhaseView.swift in Sources */,
-				CDFA45A6A6AEED5571D8343D /* QAPhaseView.swift in Sources */,
-				09BD4C80B79131E428AFC968 /* ClockDrawingPhaseView.swift in Sources */,
-				CC22334455667788990011CC,
-				CC11223344556677889900DD /* VerbalFluencyPhaseView.swift in Sources */,
-				BFA2498B90290C5A916CE4A1 /* StoryRecallPhaseView.swift in Sources */,
-				35864BA09B42D8925835F716 /* WordRecallPhaseView.swift in Sources */,
-				75D35C24A82C4B8686EE441C /* WordRecallScorer.swift in Sources */,
-				AA112233445566770001B3C3 /* QMCIAvatarContext.swift in Sources */,
-				DD00112233445566778899A3 /* KeychainHelper.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+			9246E52C2F6390E900743FA8 /* Sources */ = {
+				isa = PBXSourcesBuildPhase;
+				buildActionMask = 2147483647;
+				files = (
+				);
+				runOnlyForDeploymentPostprocessing = 0;
+			};
+			9246E5362F6390E900743FA8 /* Sources */ = {
+				isa = PBXSourcesBuildPhase;
+				buildActionMask = 2147483647;
+				files = (
+				);
+				runOnlyForDeploymentPostprocessing = 0;
+			};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */

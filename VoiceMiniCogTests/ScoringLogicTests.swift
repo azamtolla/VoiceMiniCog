@@ -720,9 +720,9 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.verbalFluencyWords = (0..<15).map { "animal\($0)" }
-            // 15 × 0.5 = 7.5 → rounded up = 8
-            XCTAssertEqual(state.verbalFluencyScore, 8,
-                           "15 unique animals → 7.5 rounded up → 8")
+            // 15 unique animals = 15 (1 pt per unique animal, capped at 20)
+            XCTAssertEqual(state.verbalFluencyScore, 15,
+                           "15 unique animals → 15")
         }
     }
 
@@ -740,9 +740,9 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.verbalFluencyWords = ["dog", "dog", "cat"]
-            // 2 unique × 0.5 = 1.0 → rounded up = 1
-            XCTAssertEqual(state.verbalFluencyScore, 1,
-                           "2 unique animals → 1.0 → 1")
+            // 2 unique animals = 2 (1 pt per unique animal)
+            XCTAssertEqual(state.verbalFluencyScore, 2,
+                           "2 unique animals → 2")
         }
     }
 
@@ -798,9 +798,9 @@ class QmciScoringTests: XCTestCase {
         autoreleasepool {
             let state = QmciState()
             state.verbalFluencyWords = (0..<38).map { "animal\($0)" }
-            // 38 × 0.5 = 19.0 → 19
-            XCTAssertEqual(state.verbalFluencyScore, 19,
-                           "38 unique animals → 19.0 → 19")
+            // 38 unique animals, capped at 20
+            XCTAssertEqual(state.verbalFluencyScore, 20,
+                           "38 unique animals → capped at 20")
         }
     }
 
@@ -1007,8 +1007,8 @@ class QmciScoringTests: XCTestCase {
             state.verbalFluencyWords = ["dog", "cat"]
             XCTAssertEqual(state.fluencyAnimalsNamed.count, 4,
                            "Verbatim list preserves duplicates")
-            XCTAssertEqual(state.verbalFluencyScore, 1,
-                           "2 unique × 0.5 = 1 (rounded up)")
+            XCTAssertEqual(state.verbalFluencyScore, 2,
+                           "2 unique animals → 2")
         }
     }
 
@@ -1088,22 +1088,22 @@ class QmciScoringTests: XCTestCase {
     func testClinicianDecisionsPersist() {
         autoreleasepool {
             let state = QmciState()
-            state.clinicianDecisionWorkup = true
-            state.clinicianDecisionRepeat = false
+            state.clinicianDecisionWorkup = .yes
+            state.clinicianDecisionRepeat = RepeatInterval.none
             state.clinicianDecisionTimestamp = Date()
             XCTAssertNotNil(state.clinicianDecisionWorkup)
             XCTAssertNotNil(state.clinicianDecisionRepeat)
             XCTAssertNotNil(state.clinicianDecisionTimestamp)
-            XCTAssertEqual(state.clinicianDecisionWorkup, true)
-            XCTAssertEqual(state.clinicianDecisionRepeat, false)
+            XCTAssertEqual(state.clinicianDecisionWorkup, .yes)
+            XCTAssertEqual(state.clinicianDecisionRepeat, RepeatInterval.none)
         }
     }
 
     func testResetClearsClinicianDecisions() {
         autoreleasepool {
             let state = QmciState()
-            state.clinicianDecisionWorkup = true
-            state.clinicianDecisionRepeat = true
+            state.clinicianDecisionWorkup = .yes
+            state.clinicianDecisionRepeat = .twelveMonths
             state.clinicianDecisionTimestamp = Date()
             state.reset()
             XCTAssertNil(state.clinicianDecisionWorkup)
@@ -1117,7 +1117,10 @@ class QmciScoringTests: XCTestCase {
     func testTestVersionDefault() {
         autoreleasepool {
             let state = QmciState()
-            XCTAssertEqual(state.testVersion, .v1)
+            // init() calls selectTestVersion() which randomly picks v1/v2/v3,
+            // so just verify it's a valid TestVersion case.
+            XCTAssertTrue([TestVersion.v1, .v2, .v3].contains(state.testVersion),
+                          "testVersion should be one of the valid TestVersion cases")
         }
     }
 
@@ -1163,7 +1166,7 @@ class QmciScoringTests: XCTestCase {
                 ["a", "b", "c", "d"]
             ]
             state.fluencyAnimalsNamed = ["dog", "dog", "cat"]
-            state.clinicianDecisionWorkup = true
+            state.clinicianDecisionWorkup = .yes
             state.clockScoreOverrideBy = "doc-x"
             state.testVersion = .v2
 
@@ -1180,7 +1183,7 @@ class QmciScoringTests: XCTestCase {
                     ["a", "b", "c", "d"]
                 ])
                 XCTAssertEqual(decoded.fluencyAnimalsNamed, ["dog", "dog", "cat"])
-                XCTAssertEqual(decoded.clinicianDecisionWorkup, true)
+                XCTAssertEqual(decoded.clinicianDecisionWorkup, .yes)
                 XCTAssertEqual(decoded.clockScoreOverrideBy, "doc-x")
                 XCTAssertEqual(decoded.testVersion, .v2)
                 XCTAssertNotNil(decoded.sessionID)
@@ -1231,7 +1234,7 @@ class QmciScoringTests: XCTestCase {
         let state = QmciState()
         state.isComplete = true
         state.cdtReviewed = true
-        state.clinicianDecisionWorkup = true
+        state.clinicianDecisionWorkup = .yes
         XCTAssertEqual(state.reportReadiness, .complete)
     }
 
@@ -1242,7 +1245,7 @@ class QmciScoringTests: XCTestCase {
         state.cdtNumbersPlaced = Array(repeating: false, count: 12)
         state.cdtHandsScore = 0
         state.cdtPivotCorrect = false
-        state.clinicianDecisionWorkup = false
+        state.clinicianDecisionWorkup = .no
         XCTAssertEqual(state.cdtComputedScore, 0)
         XCTAssertEqual(state.reportReadiness, .complete)
     }
@@ -1255,7 +1258,7 @@ class QmciScoringTests: XCTestCase {
         XCTAssertEqual(state.pendingReviewCount, 2)
         state.cdtReviewed = true
         XCTAssertEqual(state.pendingReviewCount, 1)
-        state.clinicianDecisionWorkup = true
+        state.clinicianDecisionWorkup = .yes
         XCTAssertEqual(state.pendingReviewCount, 0)
     }
 }
