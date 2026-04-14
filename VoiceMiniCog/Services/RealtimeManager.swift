@@ -98,7 +98,9 @@ final class RealtimeManager {
     /// Fetches token, configures audio, and establishes WebRTC connection
     func startSession() async {
         guard connectionState == .disconnected || connectionState == .failed else {
+            #if DEBUG
             print("[Realtime] Session already active or connecting")
+            #endif
             return
         }
 
@@ -133,7 +135,9 @@ final class RealtimeManager {
 
     /// Stop the realtime session
     func stopSession() {
+        #if DEBUG
         print("[Realtime] Stopping session")
+        #endif
 
         // TODO: Close WebRTC connection when package is added
         // dataChannel?.close()
@@ -144,6 +148,7 @@ final class RealtimeManager {
         connectionState = .disconnected
         isAssistantSpeaking = false
         isUserSpeaking = false
+        // Zero out the secret when no longer needed
         clientSecret = nil
 
         delegate?.realtimeManager(self, didReceiveEvent: .disconnected(nil))
@@ -154,7 +159,9 @@ final class RealtimeManager {
     /// Use this to guide the conversation flow
     func sendInstructionText(_ instruction: String) {
         guard connectionState == .connected else {
+            #if DEBUG
             print("[Realtime] Cannot send instruction - not connected")
+            #endif
             return
         }
 
@@ -228,8 +235,10 @@ final class RealtimeManager {
         // 6. Set remote SDP answer
         // 7. Handle ICE candidates
 
+        #if DEBUG
         print("[Realtime] WebRTC connection not implemented - add WebRTC package first")
         print("[Realtime] See OPENAI_REALTIME_BACKEND_NOTES.md for setup instructions")
+        #endif
 
         // Simulate connection for testing UI flow
         #if DEBUG
@@ -248,18 +257,25 @@ final class RealtimeManager {
         delegate?.realtimeManager(self, connectionStateChanged: .connected)
         delegate?.realtimeManager(self, didReceiveEvent: .connected)
 
-        print("[Realtime] DEBUG: Simulated connection established")
+        print("[Realtime] Simulated connection established")
     }
     #endif
 
     private func sendDataChannelMessage(_ message: [String: Any]) {
         // TODO: Send via RTCDataChannel when WebRTC is added
         guard let data = try? JSONSerialization.data(withJSONObject: message) else {
+            #if DEBUG
             print("[Realtime] Failed to serialize message")
+            #endif
             return
         }
 
-        print("[Realtime] Would send: \(String(data: data, encoding: .utf8) ?? "")")
+        #if DEBUG
+        // Log message type only — do not log full payload (may contain patient data)
+        if let type = message["type"] as? String {
+            print("[Realtime] Sending message type: \(type)")
+        }
+        #endif
 
         // TODO: Uncomment when WebRTC is added
         // let buffer = RTCDataBuffer(data: data, isBinary: false)
@@ -271,7 +287,9 @@ final class RealtimeManager {
         errorMessage = error.localizedDescription
         delegate?.realtimeManager(self, didReceiveEvent: .error(error))
         delegate?.realtimeManager(self, connectionStateChanged: .failed)
+        #if DEBUG
         print("[Realtime] Error: \(error.localizedDescription)")
+        #endif
     }
 
     // MARK: - WebRTC Event Handlers (TODO: Implement when package added)

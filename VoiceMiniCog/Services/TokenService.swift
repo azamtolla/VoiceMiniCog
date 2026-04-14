@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os.log
 
 // MARK: - Token Response Model
 
@@ -72,6 +73,7 @@ final class TokenService {
 
     private let session: URLSession
     private let decoder: JSONDecoder
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "VoiceMiniCog", category: "TokenService")
 
     private init() {
         let config = URLSessionConfiguration.default
@@ -90,6 +92,9 @@ final class TokenService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = ServerConfig.authToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let data: Data
         let response: URLResponse
@@ -117,7 +122,9 @@ final class TokenService {
                 throw TokenServiceError.noToken
             }
 
-            print("[TokenService] Token fetched, expires: \(tokenResponse.expiresAt?.description ?? "unknown")")
+            #if DEBUG
+            logger.debug("Token fetched, expires: \(tokenResponse.expiresAt?.description ?? "unknown", privacy: .private)")
+            #endif
             return tokenResponse.clientSecret
 
         } catch let error as TokenServiceError {

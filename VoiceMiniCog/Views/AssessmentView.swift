@@ -1138,8 +1138,10 @@ struct AssessmentView: View {
     }
 
     private func handleFinalize() {
-        let result = state.buildResult()
-        print("Assessment complete: \(result)")
+        let _ = state.buildResult()
+        #if DEBUG
+        print("[Assessment] Assessment finalized")
+        #endif
         isActive = false
     }
 
@@ -1347,7 +1349,7 @@ struct SettingsSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        tts.apiKey = apiKey
+                        tts.setAPIKey(apiKey)
                         dismiss()
                     }
                 }
