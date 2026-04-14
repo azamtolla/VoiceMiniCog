@@ -158,27 +158,9 @@ async function joinRoom(roomUrl) {
     sendContextUpdate('You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say "awesome", "cool", "great job", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient\'s answers — no "right", "wrong", "close", "not quite", "actually", "good try", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout.');
     log('Set neuropsychologist persona context');
 
-    // 5. Send greeting trigger to transition replica from present → joined.
-    //    Enables audio output and sends the first echo to start the session.
-    setTimeout(() => {
-      log('Greeting trigger timer fired — conversationId=' + !!conversationId + ' callObject=' + !!callObject + ' isJoined=' + isJoined);
-      if (!conversationId || !callObject) {
-        log('Greeting trigger ABORTED — missing conversationId or callObject');
-        return;
-      }
-      // Enable remote audio — the greeting IS the first speech we want heard
-      firstEchoSent = true;
-      updateVideoElements();
-      log('Remote audio enabled (greeting trigger)');
-
-      const sent = sendInteraction('conversation.echo', {
-        modality: 'text',
-        text: 'Hello, please begin the assessment.',
-        inference_id: 'greeting_trigger',
-        done: 'true'
-      });
-      log('Greeting trigger result: ' + (sent ? 'SENT' : 'FAILED') + ' conversationId=' + conversationId);
-    }, 2000);
+    // 5. Greeting trigger removed — welcome SSML now includes "Hello!" as its
+    //    first line. Audio is enabled by pumpEchoQueue on the first sendEcho
+    //    from WelcomePhaseView (firstEchoSent gate at line 486).
 
     // === OPTIONAL ASYNC SETUP (may hang in WKWebView — must not block above) ===
 

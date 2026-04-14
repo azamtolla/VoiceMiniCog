@@ -141,6 +141,7 @@ struct WelcomePhaseView: View {
     private var introScriptForEcho: String {
         """
         <speak>\
+        Hello!<break time="500ms"/> \
         Welcome to your Brain Health Check.<break time="700ms"/> \
         We'll do six short activities together.<break time="900ms"/> \
         First, I'll ask you a few simple questions, like today's date and where we are.<break time="500ms"/> \
