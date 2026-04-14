@@ -36,6 +36,60 @@ extension Notification.Name {
     static let tavusRespondRequest = Notification.Name("tavusRespondRequest")
     /// Fired when the Daily WebRTC connection drops mid-session (left-meeting or fatal error)
     static let tavusConnectionLost = Notification.Name("tavusConnectionLost")
+    /// Phase-view request: arm the 90s/150s silence watchdog (autonomous-operation safety net).
+    static let tavusBeginSilenceWatchRequest = Notification.Name("tavusBeginSilenceWatchRequest")
+    /// Phase-view request: disarm the silence watchdog.
+    static let tavusCancelSilenceWatchRequest = Notification.Name("tavusCancelSilenceWatchRequest")
+    /// Phase-view request: declare the current AssessmentPhaseType for speculative_inference scoping.
+    /// userInfo: ["phase": AssessmentPhaseType.rawValue]
+    static let tavusPhaseTypeRequest = Notification.Name("tavusPhaseTypeRequest")
+    /// Fired after 150s of total patient silence — triggers partial-score report flow.
+    /// userInfo: ["reason": SessionShutdownReason.rawValue, "silenceDuration": Double seconds]
+    static let sessionAbandoned = Notification.Name("sessionAbandoned")
+    /// Fired when a turn_idx advance is observed on a Tavus event — phase views
+    /// can key off this instead of wall-clock timing.
+    /// userInfo: ["turnIdx": Int]
+    static let avatarTurnAdvanced = Notification.Name("avatarTurnAdvanced")
+    /// Fired when an assessment phase changes. DailyCallManager uses this to
+    /// scope speculative_inference; other observers can re-theme UI.
+    /// userInfo: ["phase": AssessmentPhaseType.rawValue]
+    static let assessmentPhaseChanged = Notification.Name("assessmentPhaseChanged")
+}
+
+// MARK: - SessionShutdownReason
+//
+// Maps Tavus `system.shutdown` reasons + our own watchdog reasons into one
+// enum the scoring/report flow can switch on.
+public enum SessionShutdownReason: String, Codable, Sendable {
+    /// Patient or clinician completed the full QMCI protocol.
+    case completed
+    /// Patient left, closed the app, or the replica disconnected before
+    /// all subtests finished. Partial-score flow.
+    case participantLeft = "participant_left"
+    /// Hit the session time limit without completion. Partial-score flow.
+    case timeout
+    /// WebRTC or Tavus-side error. Retry-eligible flow.
+    case networkError = "network_error"
+    /// Our own 150s silence watchdog fired. Partial-score flow.
+    case abandonedSilence = "abandoned_silence"
+    /// Unknown or unrecognized shutdown reason.
+    case unknown
+
+    /// True when the report must render as "ASSESSMENT INCOMPLETE — NOT
+    /// SCORABLE" and show only the completed subtests as reference.
+    public var isPartial: Bool {
+        switch self {
+        case .participantLeft, .timeout, .abandonedSilence, .unknown:
+            return true
+        case .completed, .networkError:
+            return false
+        }
+    }
+
+    /// True when the app should offer a retry.
+    public var isRetryEligible: Bool {
+        self == .networkError
+    }
 }
 
 // MARK: - CLINICAL-UI
@@ -257,6 +311,7 @@ struct TavusCVIView: UIViewRepresentable {
 
         private func enqueueOrDefer(_ op: PendingBridgeOp) {
             if !isBridgeDocumentReady {
+                cviLog.info("enqueueOrDefer — bridge not ready, deferring: \(String(describing: op).prefix(60), privacy: .public)")
                 pendingUntilDocumentReady.append(op)
                 return
             }
@@ -534,14 +589,20 @@ struct TavusCVIView: UIViewRepresentable {
         }
 
         private func runSendEcho(_ text: String) {
+            cviLog.info("runSendEcho queued (\(text.prefix(60), privacy: .public))")
             enqueueBridgeJS("Echo") { [weak self] in
-                guard let webView = self?.webView else { return }
+                guard let webView = self?.webView else {
+                    cviLog.error("runSendEcho — webView is nil, echo dropped")
+                    return
+                }
+                cviLog.info("runSendEcho executing JS callAsyncJavaScript")
                 _ = try await webView.callAsyncJavaScript(
                     "sendEcho(text);",
                     arguments: ["text": text],
                     in: nil,
                     contentWorld: .page
                 )
+                cviLog.info("runSendEcho JS call completed")
             }
         }
 
@@ -693,6 +754,44 @@ func avatarInterrupt() {
     NotificationCenter.default.post(
         name: .tavusInterruptRequest,
         object: nil
+    )
+}
+
+/// Notify DailyCallManager that the patient is now in a listening / response
+/// window. Arms the silence watchdog: 90s -> gentle re-engagement; 150s ->
+/// session abandoned. The watchdog auto-cancels when the patient speaks.
+///
+/// Phase views should call this right after the prompt echo finishes (typically
+/// from their `.avatarDoneSpeaking` handler) when a listening window opens.
+func avatarBeginSilenceWatch() {
+    NotificationCenter.default.post(
+        name: .tavusBeginSilenceWatchRequest,
+        object: nil
+    )
+}
+
+/// Explicitly cancel the silence watchdog. Use this when a phase is
+/// transitioning to a non-listening state (avatar about to speak, moving
+/// on to next phase, etc.) and you want to prevent a stale watchdog from
+/// firing.
+func avatarCancelSilenceWatch() {
+    NotificationCenter.default.post(
+        name: .tavusCancelSilenceWatchRequest,
+        object: nil
+    )
+}
+
+/// Declare the current AssessmentPhaseType to DailyCallManager. Drives LLM
+/// `speculative_inference` scoping — on for intro/outro, off for scripted
+/// subtest phases.
+///
+/// Phase views should call this once in `onAppear` (or at transition into
+/// the phase) with their corresponding AssessmentPhaseType value.
+func avatarSetAssessmentPhaseType(_ phase: AssessmentPhaseType) {
+    NotificationCenter.default.post(
+        name: .tavusPhaseTypeRequest,
+        object: nil,
+        userInfo: ["phase": phase.rawValue]
     )
 }
 

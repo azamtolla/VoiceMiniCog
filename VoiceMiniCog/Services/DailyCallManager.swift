@@ -30,6 +30,14 @@ final class DailyCallManager: NSObject {
     /// True when the replica is actively speaking an echo.
     var replicaIsSpeaking = false
 
+    /// True while the patient is speaking (driven by Tavus user.started/stopped_speaking).
+    /// Observable so patient-facing views can render a live waveform indicator.
+    var patientIsSpeaking = false
+
+    /// Reason the session ended, mapped from `system.shutdown` events.
+    /// nil while session is active. Drives which score flow the report uses.
+    var shutdownReason: SessionShutdownReason?
+
     // MARK: - Configuration
 
     /// Stored room URL for deferred join pattern (Home pre-warm).
@@ -53,6 +61,15 @@ final class DailyCallManager: NSObject {
     @ObservationIgnored private var echoWatchdogTask: Task<Void, Never>?
     @ObservationIgnored private var echoCounter = 0
 
+    // Diagnostic: timestamp + identity of the in-flight echo, plus running
+    // count of stopped/started cycles within a single echo. If Tavus emits
+    // multiple stopped_speaking events for one SSML block, that's the audio-
+    // glitch / mic-cycling root-cause signal.
+    @ObservationIgnored private var inFlightEchoStartedAt: Date?
+    @ObservationIgnored private var inFlightEchoText: String = ""
+    @ObservationIgnored private var inFlightEchoSpeakingCycles: Int = 0
+    @ObservationIgnored private var inFlightEchoTokensSinceSent: Int = 0
+
     /// True after the first clinical echo is sent — gates remote audio subscription.
     /// Suppresses the Tavus persona greeting that plays on room join.
     @ObservationIgnored private var firstEchoSent = false
@@ -75,6 +92,40 @@ final class DailyCallManager: NSObject {
     @ObservationIgnored private var joinedAt: Date?
     @ObservationIgnored private let interruptGuardInterval: TimeInterval = 5.0
 
+    // MARK: - Session Abandonment Watchdog
+    //
+    // Autonomous-operation safety net. Patient is alone with the iPad, so we
+    // detect and recover when they wander off, fall silent, or disengage.
+    //
+    // State machine:
+    //   user.started_speaking                      -> silenceStartedAt = nil (cancel timers)
+    //   beginSilenceWatch() (phase-view enters listen) -> arm 90s + 150s timers
+    //   90s elapsed  -> sendEcho("Are you still there? Take your time.")
+    //   150s elapsed -> endConversation + post .sessionAbandoned
+
+    @ObservationIgnored private var silenceStartedAt: Date?
+    @ObservationIgnored private var reengagementTask: Task<Void, Never>?
+    @ObservationIgnored private var abandonmentTask: Task<Void, Never>?
+    @ObservationIgnored private let reengagementAfter: TimeInterval = 90.0
+    @ObservationIgnored private let abandonmentAfter: TimeInterval = 150.0
+    @ObservationIgnored private var reengagementPromptSent = false
+
+    // MARK: - Event Ordering (seq / turn_idx)
+    //
+    // Tavus ships `seq` (monotonic) and `turn_idx` (turn group) on every event.
+    // We log out-of-order delivery and expose turn_idx so phase views can key
+    // off avatar-turn completion instead of wall-clock timing.
+
+    @ObservationIgnored private var lastObservedSeq: Int = -1
+    @ObservationIgnored private(set) var currentTurnIdx: Int = -1
+
+    // MARK: - Phase Scoping (speculative_inference toggle)
+
+    /// Current assessment phase type. Drives whether `speculative_inference`
+    /// is pushed to the LLM layer via `conversation.overwrite_llm_context`.
+    @ObservationIgnored private(set) var currentPhase: AssessmentPhaseType = .intro
+    @ObservationIgnored private var lastSpeculativeSetting: Bool?
+
     // MARK: - Notification Observers
 
     @ObservationIgnored private var contextObserver: NSObjectProtocol?
@@ -82,6 +133,9 @@ final class DailyCallManager: NSObject {
     @ObservationIgnored private var respondObserver: NSObjectProtocol?
     @ObservationIgnored private var muteObserver: NSObjectProtocol?
     @ObservationIgnored private var interruptObserver: NSObjectProtocol?
+    @ObservationIgnored private var beginSilenceObserver: NSObjectProtocol?
+    @ObservationIgnored private var cancelSilenceObserver: NSObjectProtocol?
+    @ObservationIgnored private var phaseTypeObserver: NSObjectProtocol?
 
     // MARK: - Pending Operations
 
@@ -151,10 +205,26 @@ final class DailyCallManager: NSObject {
         joinedAt = nil
         replicaIsSpeaking = false
         remoteVideoTrack = nil
+        patientIsSpeaking = false
+        shutdownReason = nil
+        currentPhase = .intro
+        lastSpeculativeSetting = nil
+        lastObservedSeq = -1
+        currentTurnIdx = -1
+        cancelSilenceWatch()
 
         log.info("joinIfReady — joining room")
 
-        // Join with default settings — mic/camera controlled via setInputEnabled after join
+        // Krisp noise cancellation: NOT exposed by Daily iOS SDK v0.37.0.
+        // AudioMediaTrackSettings only carries deviceID. Client-side Krisp
+        // is a daily-js feature. Equivalent server-side mitigations already
+        // in place: Tavus persona layer.conversational_flow.voice_isolation
+        // (see TavusService.desiredConversationalFlow) provides upstream
+        // ambient-noise isolation via Tavus's audio pipeline.
+        //
+        // TODO(BAA+SDK-upgrade): When Daily iOS exposes AudioProcessorSettings,
+        // enable Krisp at aggressiveness=low here (exam rooms are noisy, but
+        // MCI speech can be quiet — default "high" suppresses it).
         client.join(url: url) { [weak self] result in
             // Daily's completion may run on a background thread — hop to MainActor.
             Task { @MainActor in
@@ -179,6 +249,14 @@ final class DailyCallManager: NSObject {
         echoWatchdogTask?.cancel()
         echoWatchdogTask = nil
         pendingBeforeJoin.removeAll()
+        cancelSilenceWatch()
+        lastObservedSeq = -1
+        currentTurnIdx = -1
+        lastSpeculativeSetting = nil
+        // currentPhase intentionally preserved across leave so post-leave
+        // flows (report generation) can inspect the last phase the patient
+        // reached. It resets to .intro on the next joinIfReady().
+        patientIsSpeaking = false
 
         guard let client = callClient else { return }
         callClient = nil
@@ -238,10 +316,11 @@ final class DailyCallManager: NSObject {
         sendSensitivity(pause: "low", interrupt: "low")
         log.info("Set clinical sensitivity: pause=low, interrupt=low")
 
-        // Set neuropsychologist persona context
-        let personaContext = "You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say \"awesome\", \"cool\", \"great job\", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient's answers — no \"right\", \"wrong\", \"close\", \"not quite\", \"actually\", \"good try\", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout."
+        // Set neuropsychologist persona context with clinical guardrails appended.
+        let baseContext = "You are a board-certified clinical neuropsychologist administering a standardized cognitive assessment. VOICE STYLE: Calm, measured, professional. Speak at a moderate pace with clear enunciation. Your tone is warm but clinical — reassuring without being casual. Never use slang, jokes, or exclamation marks. Never say \"awesome\", \"cool\", \"great job\", or give performance feedback. NEVER correct, grade, coach, or evaluate the patient's answers — no \"right\", \"wrong\", \"close\", \"not quite\", \"actually\", \"good try\", or pronunciation fixes. Do not repeat their answer back to judge it. RULES: 1) Do NOT speak until you receive an echo command. Stay completely silent until then. 2) Speak ONLY the text sent via echo commands — do not ad-lib. 3) If the patient speaks to you between echo commands, remain silent. Do not respond, acknowledge, or generate any speech unless you receive an echo command. 4) Never provide hints, clues, or feedback on correctness. 5) Maintain a neutral, supportive demeanor throughout."
+        let personaContext = baseContext + "\n\n" + TavusService.personaGuardrails
         sendContextUpdate(personaContext)
-        log.info("Set neuropsychologist persona context")
+        log.info("Set neuropsychologist persona context + guardrails (len=\(personaContext.count))")
 
         // Mark as joined
         NotificationCenter.default.post(name: .tavusDailyRoomJoined, object: nil)
@@ -353,7 +432,11 @@ final class DailyCallManager: NSObject {
 
         // Send the echo
         echoCounter += 1
-        log.info("Echo sending: \(text.prefix(80), privacy: .public)")
+        inFlightEchoStartedAt = Date()
+        inFlightEchoText = text
+        inFlightEchoSpeakingCycles = 0
+        inFlightEchoTokensSinceSent = 0
+        log.info("Echo sending [#\(self.echoCounter)] len=\(text.count) preview=\(text.prefix(80), privacy: .public)")
         sendInteraction("conversation.echo", properties: [
             "modality": "text",
             "text": text,
@@ -379,6 +462,168 @@ final class DailyCallManager: NSObject {
             return
         }
         sendInteraction("conversation.respond", properties: ["text": text])
+    }
+
+    // MARK: - Phase Scoping (speculative_inference toggle)
+
+    /// Update the current assessment phase. If `speculative_inference` would
+    /// flip, emit a `conversation.overwrite_llm_context` to the LLM layer so
+    /// prefill behavior matches phase semantics.
+    ///
+    /// Scripted-echo subtest phases MUST have speculative_inference off — the
+    /// LLM is not supposed to generate free-form output during those phases,
+    /// and any prefill prediction would waste compute on content that gets
+    /// overridden by the echo queue (with a small risk of leaking unscripted
+    /// audio into the subtest stream).
+    func setPhase(_ phase: AssessmentPhaseType) {
+        guard phase != currentPhase else { return }
+        currentPhase = phase
+        NotificationCenter.default.post(
+            name: .assessmentPhaseChanged,
+            object: nil,
+            userInfo: ["phase": phase.rawValue]
+        )
+
+        let wantSpec = phase.allowsSpeculativeInference
+        guard wantSpec != lastSpeculativeSetting else { return }
+        lastSpeculativeSetting = wantSpec
+
+        log.info("Phase -> \(phase.rawValue, privacy: .public) (speculative_inference=\(wantSpec))")
+
+        // Push the LLM-layer toggle via overwrite_llm_context. Tavus's LLM
+        // layer reads speculative_inference from the persona at session
+        // start, but mid-session updates are delivered via this interaction.
+        sendInteraction("conversation.overwrite_llm_context", properties: [
+            "llm": ["speculative_inference": wantSpec]
+        ])
+        lastOverwriteContextAt = Date()
+    }
+
+    // MARK: - Session Abandonment Watchdog
+
+    /// Arm the silence watchdog. Call this when the patient-facing phase
+    /// enters a listening window. The watchdog fires a gentle re-prompt at
+    /// 90s and hard-ends the session at 150s total silence.
+    ///
+    /// Calls to `beginSilenceWatch()` are idempotent — calling while already
+    /// armed re-starts the clock from zero (useful when a new phase begins).
+    func beginSilenceWatch() {
+        cancelSilenceWatch()
+        silenceStartedAt = Date()
+        reengagementPromptSent = false
+
+        reengagementTask = Task { [weak self] in
+            let nanos = UInt64((self?.reengagementAfter ?? 90.0) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: nanos)
+            guard let self, !Task.isCancelled else { return }
+            await MainActor.run { self.fireReengagementPrompt() }
+        }
+
+        abandonmentTask = Task { [weak self] in
+            let nanos = UInt64((self?.abandonmentAfter ?? 150.0) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: nanos)
+            guard let self, !Task.isCancelled else { return }
+            await MainActor.run { self.fireAbandonment() }
+        }
+    }
+
+    /// Disarm the silence watchdog. Call when the patient speaks or when the
+    /// phase view transitions out of a listening window.
+    func cancelSilenceWatch() {
+        silenceStartedAt = nil
+        reengagementTask?.cancel()
+        reengagementTask = nil
+        abandonmentTask?.cancel()
+        abandonmentTask = nil
+        reengagementPromptSent = false
+    }
+
+    private func fireReengagementPrompt() {
+        guard silenceStartedAt != nil, !reengagementPromptSent else { return }
+        guard callState == .joined else { return }
+        reengagementPromptSent = true
+        log.warning("Silence watchdog: 90s elapsed — sending re-engagement prompt")
+        // Send directly through the echo queue. This uses conversation.echo so
+        // the avatar speaks exact wording — no LLM ad-lib.
+        sendEcho("Are you still there? Take your time.")
+    }
+
+    private func fireAbandonment() {
+        guard let started = silenceStartedAt else { return }
+        let elapsed = Date().timeIntervalSince(started)
+        log.warning("Silence watchdog: \(elapsed, privacy: .public)s elapsed — ending session as abandoned")
+        cancelSilenceWatch()
+        shutdownReason = .abandonedSilence
+        NotificationCenter.default.post(
+            name: .sessionAbandoned,
+            object: nil,
+            userInfo: [
+                "reason": SessionShutdownReason.abandonedSilence.rawValue,
+                "silenceDuration": elapsed
+            ]
+        )
+        // Leave the Daily room + let the app's shutdown flow handle partial
+        // scoring. We intentionally DO NOT end the Tavus conversation here
+        // — TavusService.endConversation is the authoritative teardown.
+        leave()
+    }
+
+    // MARK: - System Shutdown
+
+    /// Map a Tavus `system.shutdown` event to our internal reason enum and
+    /// broadcast. Phase-view state machine + the report flow key off this.
+    private func handleSystemShutdown(reason rawReason: String?) {
+        let reason: SessionShutdownReason
+        switch rawReason {
+        case "participant_left":  reason = .participantLeft
+        case "timeout":           reason = .timeout
+        case "network_error":     reason = .networkError
+        case "completed":         reason = .completed
+        case let other?:
+            log.warning("system.shutdown: unknown reason '\(other, privacy: .public)'")
+            reason = .unknown
+        case nil:
+            reason = .unknown
+        }
+
+        log.info("system.shutdown: reason=\(reason.rawValue, privacy: .public) partial=\(reason.isPartial)")
+        shutdownReason = reason
+        cancelSilenceWatch()
+        NotificationCenter.default.post(
+            name: .sessionAbandoned,
+            object: nil,
+            userInfo: ["reason": reason.rawValue]
+        )
+    }
+
+    // MARK: - Event Ordering (seq / turn_idx)
+
+    /// Parse `seq` + `turn_idx` from a Tavus event payload and log any
+    /// out-of-order delivery. Advance currentTurnIdx when it changes and
+    /// broadcast to phase views.
+    private func processEventOrdering(_ json: [String: Any], eventType: String) {
+        // Both can arrive under the top level or nested in "properties".
+        let seq = (json["seq"] as? Int)
+            ?? ((json["properties"] as? [String: Any])?["seq"] as? Int)
+        let turnIdx = (json["turn_idx"] as? Int)
+            ?? ((json["properties"] as? [String: Any])?["turn_idx"] as? Int)
+
+        if let s = seq {
+            if s <= lastObservedSeq {
+                log.warning("Out-of-order event: seq=\(s) <= last=\(self.lastObservedSeq) (\(eventType, privacy: .public))")
+            } else {
+                lastObservedSeq = s
+            }
+        }
+
+        if let t = turnIdx, t != currentTurnIdx {
+            currentTurnIdx = t
+            NotificationCenter.default.post(
+                name: .avatarTurnAdvanced,
+                object: nil,
+                userInfo: ["turnIdx": t]
+            )
+        }
     }
 
     // MARK: - Interrupt
@@ -429,16 +674,34 @@ final class DailyCallManager: NSObject {
         }
         guard shouldAllowInterrupt() else { return }
         sendInteraction("conversation.interrupt")
-        log.info("Auto-interrupt: suppressed LLM acknowledgment after patient speech")
+        // Fix-3: `interrupt` cancels TTS audio but the LLM keeps generating
+        // tokens (we observed 8 utterance.streaming events firing after
+        // interrupt). Those tokens stay in the pipeline and can collide with
+        // the next echo's SSML, producing the trial-3 freeze + audio glitch.
+        // Re-asserting the silence-rules context immediately clobbers the
+        // in-flight LLM completion before it can stream further tokens.
+        //
+        // Use sendContextUpdate (not raw sendInteraction) so lastOverwriteContextAt
+        // is stamped BEFORE the wire-send — this guarantees the 1.2s guard in
+        // handleReplicaStartedSpeaking sees the fresh timestamp, even if
+        // replica.started_speaking arrives on a near-simultaneous main-actor hop.
+        sendContextUpdate("RULES: Stay completely silent. Do NOT respond, acknowledge, or generate any speech. Only speak when given an echo command.")
+        log.info("Auto-interrupt: suppressed LLM acknowledgment + context-clobbered to drain token stream")
     }
 
     private func handleReplicaStartedSpeaking() {
         if echoInFlight || !echoTextQueue.isEmpty {
+            inFlightEchoSpeakingCycles += 1
+            let cycle = inFlightEchoSpeakingCycles
+            let elapsed = inFlightEchoStartedAt.map { Date().timeIntervalSince($0) } ?? 0
             // Expected echo — mute mic during avatar speech
             if let client = callClient {
                 setMicrophoneInputEnabledOffMain(client: client, enabled: false)
             }
-            log.info("Mic muted (avatar speaking)")
+            log.info("Mic muted (avatar speaking) [echo#\(self.echoCounter) cycle=\(cycle) +\(String(format: "%.2f", elapsed))s tokensSinceSend=\(self.inFlightEchoTokensSinceSent)]")
+            if cycle > 1 {
+                log.warning("⚠️ Tavus emitted multiple started_speaking for single echo (cycle=\(cycle)) — possible mic re-cycling / audio glitch source")
+            }
             return
         }
 
@@ -458,7 +721,20 @@ final class DailyCallManager: NSObject {
     }
 
     private func handleReplicaStoppedSpeaking() {
+        let elapsed = inFlightEchoStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+        let cycles = inFlightEchoSpeakingCycles
+        let echoNum = echoCounter
+        let textPreview = inFlightEchoText.prefix(60)
+        log.info("Replica stopped [echo#\(echoNum) cycles=\(cycles) elapsed=\(String(format: "%.2f", elapsed))s preview=\(textPreview, privacy: .public)]")
+
         releaseEchoSlot()
+
+        // Reset diagnostics now that the echo is fully resolved.
+        inFlightEchoStartedAt = nil
+        inFlightEchoText = ""
+        inFlightEchoSpeakingCycles = 0
+        inFlightEchoTokensSinceSent = 0
+
         // Unmute mic only if no more echoes are queued
         if echoTextQueue.isEmpty && !echoInFlight {
             if let client = callClient {
@@ -523,10 +799,30 @@ final class DailyCallManager: NSObject {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.enqueueOrExecute(.interrupt) }
         }
+        beginSilenceObserver = NotificationCenter.default.addObserver(
+            forName: .tavusBeginSilenceWatchRequest, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.beginSilenceWatch() }
+        }
+        cancelSilenceObserver = NotificationCenter.default.addObserver(
+            forName: .tavusCancelSilenceWatchRequest, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancelSilenceWatch() }
+        }
+        phaseTypeObserver = NotificationCenter.default.addObserver(
+            forName: .tavusPhaseTypeRequest, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard
+                let raw = notification.userInfo?["phase"] as? String,
+                let phase = AssessmentPhaseType(rawValue: raw)
+            else { return }
+            MainActor.assumeIsolated { self?.setPhase(phase) }
+        }
     }
 
     private func removeNotificationObservers() {
-        [contextObserver, echoObserver, respondObserver, muteObserver, interruptObserver]
+        [contextObserver, echoObserver, respondObserver, muteObserver, interruptObserver,
+         beginSilenceObserver, cancelSilenceObserver, phaseTypeObserver]
             .compactMap { $0 }
             .forEach { NotificationCenter.default.removeObserver($0) }
     }
@@ -587,6 +883,9 @@ extension DailyCallManager: CallClientDelegate {
         Task { @MainActor in
             log.debug("App message: \(eventType, privacy: .public)")
 
+            // seq + turn_idx observability for every event.
+            self.processEventOrdering(json, eventType: eventType)
+
             switch eventType {
             case "conversation.replica.started_speaking":
                 self.replicaIsSpeaking = true
@@ -599,9 +898,13 @@ extension DailyCallManager: CallClientDelegate {
                 self.handleReplicaStoppedSpeaking()
 
             case "conversation.user.started_speaking":
+                // Patient is vocalizing — cancel silence watch immediately.
+                self.patientIsSpeaking = true
+                self.cancelSilenceWatch()
                 NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
 
             case "conversation.user.stopped_speaking":
+                self.patientIsSpeaking = false
                 NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)
                 self.handleUserStoppedSpeaking()
 
@@ -611,11 +914,25 @@ extension DailyCallManager: CallClientDelegate {
             case "system.replica_present":
                 break // Heartbeat — ignore
 
+            case "system.shutdown":
+                let reason = (json["properties"] as? [String: Any])?["reason"] as? String
+                    ?? json["reason"] as? String
+                self.handleSystemShutdown(reason: reason)
+
             case "conversation.utterance":
                 log.debug("Utterance event received")
 
             case "conversation.utterance.streaming":
-                break // High-frequency streaming token event — ignore
+                // High-frequency LLM token event. We don't act on it, but we
+                // count tokens that arrive *during* an in-flight echo — those
+                // indicate the LLM is generating its own response that will
+                // collide with our SSML in the TTS pipeline (Fix-3 territory).
+                if self.echoInFlight {
+                    self.inFlightEchoTokensSinceSent += 1
+                    if self.inFlightEchoTokensSinceSent == 1 {
+                        log.warning("⚠️ LLM token arrived during in-flight echo#\(self.echoCounter) — TTS collision risk")
+                    }
+                }
 
             default:
                 log.debug("Unhandled event: \(eventType, privacy: .public)")

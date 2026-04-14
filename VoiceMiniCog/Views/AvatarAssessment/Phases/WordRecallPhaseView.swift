@@ -22,6 +22,9 @@
 
 import SwiftUI
 import Speech
+import os
+
+private let log = Logger(subsystem: "com.mercycog.VoiceMiniCog", category: "WordRecall")
 
 // MARK: - WordRecallPhaseView
 
@@ -204,6 +207,7 @@ struct WordRecallPhaseView: View {
     // MARK: - Phase Lifecycle
 
     private func onPhaseAppear() {
+        log.info("Phase appeared — targets=\(self.targetCount) words=\(self.qmciState.registrationWords.joined(separator: ","), privacy: .public)")
         avatarInterrupt()
         avatarSetMicMuted(true)   // Mute mic during prompt delivery
         withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
@@ -220,6 +224,7 @@ struct WordRecallPhaseView: View {
         layoutManager.setAvatarSpeaking()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            log.info("Speaking recall prompt (epoch=\(epoch))")
             avatarSpeak(LeftPaneSpeechCopy.delayedRecallPrompt)
         }
 
@@ -227,6 +232,7 @@ struct WordRecallPhaseView: View {
         let wc = LeftPaneSpeechCopy.delayedRecallPrompt.split(separator: " ").count
         let fallback = max(12.0, Double(wc) * 0.35 + 5.0)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5 + fallback) {
+            log.warning("⚠️ Fallback unlock fired — avatarDoneSpeaking never received within \(String(format: "%.1f", fallback))s (epoch=\(epoch))")
             unlockListeningIfNeeded(epoch: epoch)
         }
     }
@@ -246,8 +252,16 @@ struct WordRecallPhaseView: View {
 
     private func handleAvatarDoneSpeaking() {
         // Flow 2 fix: guard by current phase/screen
-        guard layoutManager.currentPhase == .wordRecall else { return }
-        guard phase == .promptDelivery || phase == .followUp else { return }
+        guard layoutManager.currentPhase == .wordRecall else {
+            log.debug("avatarDoneSpeaking ignored — currentPhase=\(String(describing: self.layoutManager.currentPhase), privacy: .public)")
+            return
+        }
+        guard phase == .promptDelivery || phase == .followUp else {
+            log.debug("avatarDoneSpeaking ignored — phase=\(String(describing: self.phase), privacy: .public)")
+            return
+        }
+
+        log.info("avatarDoneSpeaking received (phase=\(String(describing: self.phase), privacy: .public) epoch=\(self.recallPromptSpeechEpoch))")
 
         // Bug 5 fix: clear avatar-speaking flag and reset silence on follow-up done
         if avatarIsSpeakingFollowUp {
@@ -259,9 +273,16 @@ struct WordRecallPhaseView: View {
     }
 
     private func unlockListeningIfNeeded(epoch: Int) {
-        guard epoch == recallPromptSpeechEpoch else { return }
-        guard !recallPromptListeningUnlocked else { return }
+        guard epoch == recallPromptSpeechEpoch else {
+            log.warning("⚠️ unlockListeningIfNeeded epoch mismatch: arg=\(epoch) current=\(self.recallPromptSpeechEpoch)")
+            return
+        }
+        guard !recallPromptListeningUnlocked else {
+            log.debug("unlockListeningIfNeeded skipped — already unlocked")
+            return
+        }
         recallPromptListeningUnlocked = true
+        log.info("Listening unlocked (epoch=\(epoch))")
 
         scorer.markPromptEnded()
         // DailyCallManager unmutes on replica.stopped_speaking; no explicit
@@ -294,15 +315,19 @@ struct WordRecallPhaseView: View {
         Task {
             let authorized = await speechService.requestAuthorization()
             guard authorized else {
-                print("[WordRecall] Speech recognition not authorized — falling back to manual")
+                log.error("⚠️ Speech recognition NOT authorized — patient cannot be heard. Falling back to manual.")
                 return
             }
             do {
                 // Bug 2 fix: stop existing recognition before restarting
-                if speechService.isListening { speechService.stopListening() }
+                if speechService.isListening {
+                    log.info("ASR already listening — restarting clean")
+                    speechService.stopListening()
+                }
                 try await speechService.startListening()
+                log.info("ASR started — listening for patient recall")
             } catch {
-                print("[WordRecall] Failed to start speech recognition: \(error)")
+                log.error("⚠️ ASR startListening threw — patient cannot be heard: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -319,6 +344,8 @@ struct WordRecallPhaseView: View {
         lastTranscriptWordCount = newWordCount
 
         scorer.processTranscript(transcript)
+
+        log.info("Transcript update — wc=\(newWordCount) recalled=\(self.scorer.recalledCount)/\(self.targetCount) text=\(transcript.suffix(80), privacy: .public)")
 
         // Reset silence timer on new speech
         resetSilenceTimer()
@@ -344,9 +371,11 @@ struct WordRecallPhaseView: View {
 
     private func deliverFollowUp() {
         guard phase == .listening, !scorer.anyOthersPromptUsed else {
+            log.info("deliverFollowUp → advancing (phase=\(String(describing: self.phase), privacy: .public) anyOthersUsed=\(self.scorer.anyOthersPromptUsed) silence=\(String(format: "%.0f", self.silenceSeconds))s recalled=\(self.scorer.recalledCount)/\(self.targetCount))")
             advancePhase()
             return
         }
+        log.info("deliverFollowUp → 'Any others?' (silence=\(String(format: "%.0f", self.silenceSeconds))s recalled=\(self.scorer.recalledCount)/\(self.targetCount))")
 
         // Flow 1 fix: mute mic before avatar speaks follow-up
         avatarSetMicMuted(true)
@@ -427,6 +456,7 @@ struct WordRecallPhaseView: View {
 
     private func advancePhase() {
         guard phase != .done else { return }
+        log.info("advancePhase — recalled=\(self.scorer.recalledCount)/\(self.targetCount) silence=\(String(format: "%.0f", self.silenceSeconds))s ceiling=\(String(format: "%.0f", self.hardCeilingElapsed))s anyOthersUsed=\(self.scorer.anyOthersPromptUsed) words=\(self.scorer.recalledWords.joined(separator: ","), privacy: .public)")
         phase = .done
         timerActive = false
         recallSilenceWork?.cancel()

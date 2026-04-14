@@ -76,6 +76,9 @@ struct WordRegistrationPhaseView: View {
     @State private var chainFallbackWork: DispatchWorkItem?
     // B5 fix: cancellable handle for the advanceToNextPhase dispatch.
     @State private var advanceWork: DispatchWorkItem?
+    // Observer + watchdog for the closing-line gating in finishRegistration.
+    @State private var closingDoneObserver: NSObjectProtocol?
+    @State private var closingWatchdogWork: DispatchWorkItem?
     // B10 fix: cancellable handle for the retry-trial lead-in dispatch.
     @State private var retryWork: DispatchWorkItem?
 
@@ -192,6 +195,12 @@ struct WordRegistrationPhaseView: View {
             advanceWork = nil
             retryWork?.cancel()             // B10 fix
             retryWork = nil
+            closingWatchdogWork?.cancel()
+            closingWatchdogWork = nil
+            if let obs = closingDoneObserver {
+                NotificationCenter.default.removeObserver(obs)
+                closingDoneObserver = nil
+            }
             registrationEchoResume = nil
             silenceTimer?.invalidate()
             silenceTimer = nil              // B9 fix
@@ -541,14 +550,42 @@ struct WordRegistrationPhaseView: View {
         avatarSpeak(LeftPaneSpeechCopy.wordRegistrationRemember)
         layoutManager.setAvatarSpeaking()
 
-        // B5 fix: use cancellable DispatchWorkItem so onDisappear can cancel
-        // the advance if the view is dismissed before the delay elapses.
+        // Gate phase advance on Tavus confirming the closing line finished,
+        // not a fixed 4s delay. The next phase calls avatarInterrupt() in its
+        // onAppear, which would chop the closing utterance if we advance early.
+        // Watchdog (8s) covers the case where stopped_speaking is never delivered.
         advanceWork?.cancel()
-        let work = DispatchWorkItem { [self] in
+        closingWatchdogWork?.cancel()
+        if let obs = closingDoneObserver {
+            NotificationCenter.default.removeObserver(obs)
+            closingDoneObserver = nil
+        }
+
+        var didAdvance = false
+        let advance: () -> Void = { [self] in
+            if didAdvance { return }
+            didAdvance = true
+            closingWatchdogWork?.cancel()
+            closingWatchdogWork = nil
+            if let obs = closingDoneObserver {
+                NotificationCenter.default.removeObserver(obs)
+                closingDoneObserver = nil
+            }
             layoutManager.advanceToNextPhase()
         }
-        advanceWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0, execute: work)
+
+        closingDoneObserver = NotificationCenter.default.addObserver(
+            forName: .avatarDoneSpeaking, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { advance() }
+        }
+
+        let watchdog = DispatchWorkItem { advance() }
+        closingWatchdogWork = watchdog
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0, execute: watchdog)
+
+        // Keep advanceWork populated for onDisappear cancellation symmetry.
+        advanceWork = watchdog
     }
 }
 
