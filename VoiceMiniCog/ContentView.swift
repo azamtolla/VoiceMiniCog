@@ -98,6 +98,16 @@ struct ContentView: View {
                             }
                         }
                     )
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button { showSettings = true } label: {
+                                Image(systemName: "gearshape")
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showSettings) {
+                        settingsSheet
+                    }
                 }
                 .onAppear {
                     TavusService.shared.preWarm()
