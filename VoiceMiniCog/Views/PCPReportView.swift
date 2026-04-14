@@ -421,11 +421,34 @@ struct PCPReportView: View {
     private func orientationScoreRow(index i: Int, state q: QmciState) -> some View {
         let rawScore: Int? = (i < q.orientationScores.count) ? q.orientationScores[i] : nil
         let currentScore = rawScore ?? 0
+        let suggestion: Bool? = (i < q.orientationSuggestedCorrect.count)
+            ? q.orientationSuggestedCorrect[i] : nil
+        let response: String = (i < q.orientationResponses.count)
+            ? q.orientationResponses[i] : ""
 
         VStack(alignment: .leading, spacing: 6) {
             Text(ORIENTATION_ITEMS[i].question)
                 .font(.system(size: 13))
                 .foregroundColor(MCDesign.Colors.textPrimary)
+
+            // Show patient's captured response if available.
+            if !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("Patient said: \"\(response)\"")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(MCDesign.Colors.textSecondary)
+            }
+
+            // ASR advisory flag — helps clinician quickly spot potentially incorrect answers.
+            if let suggestedCorrect = suggestion {
+                HStack(spacing: 4) {
+                    Image(systemName: suggestedCorrect ? "checkmark.circle" : "exclamationmark.triangle")
+                        .font(.system(size: 11))
+                        .foregroundColor(suggestedCorrect ? Color(hex: "#34C759") : Color(hex: "#FF9500"))
+                    Text(suggestedCorrect ? "ASR suggests correct" : "ASR suggests incorrect — please verify")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(suggestedCorrect ? Color(hex: "#34C759") : Color(hex: "#FF9500"))
+                }
+            }
 
             Picker("Score", selection: Binding<Int>(
                 get: { currentScore },
