@@ -33,55 +33,55 @@ final class DailyCallManager: NSObject {
     // MARK: - Configuration
 
     /// Stored room URL for deferred join pattern (Home pre-warm).
-    private var roomURL: URL?
+    @ObservationIgnored private var roomURL: URL?
 
     /// When true, `joinIfReady()` is a no-op — delays join until assessment starts.
     /// Defaults to true so pre-warm conversations don't join Daily until the user taps Start.
-    var deferJoinUntilAssessmentActive = true
+    @ObservationIgnored var deferJoinUntilAssessmentActive = true
 
     // MARK: - Daily SDK
 
-    private var callClient: CallClient?
+    @ObservationIgnored private var callClient: CallClient?
 
     /// Tavus conversation ID extracted from the room URL path.
-    private var conversationId: String?
+    @ObservationIgnored private var conversationId: String?
 
     // MARK: - Echo Queue (ported from TavusBridge.html pumpEchoQueue)
 
-    private var echoTextQueue: [String] = []
-    private var echoInFlight = false
-    private var echoWatchdogTask: Task<Void, Never>?
-    private var echoCounter = 0
+    @ObservationIgnored private var echoTextQueue: [String] = []
+    @ObservationIgnored private var echoInFlight = false
+    @ObservationIgnored private var echoWatchdogTask: Task<Void, Never>?
+    @ObservationIgnored private var echoCounter = 0
 
     /// True after the first clinical echo is sent — gates remote audio subscription.
     /// Suppresses the Tavus persona greeting that plays on room join.
-    private var firstEchoSent = false
+    @ObservationIgnored private var firstEchoSent = false
 
     /// Echoes received before the room is joined — flushed after successful join.
-    private var pendingBeforeJoin: [PendingOp] = []
+    @ObservationIgnored private var pendingBeforeJoin: [PendingOp] = []
 
     // MARK: - Auto-Interrupt Guards (ported from TavusBridge.html)
 
     /// Timestamp of the last overwrite_context sent — suppresses spurious
     /// started_speaking interrupts that fire during the pre-echo pipeline.
-    private var lastOverwriteContextAt: Date = .distantPast
+    @ObservationIgnored private var lastOverwriteContextAt: Date = .distantPast
 
     /// Timestamp of the last echo slot release — suppresses interrupts during
     /// the brief gap between chained echoes.
-    private var lastEchoSlotReleasedAt: Date = .distantPast
+    @ObservationIgnored private var lastEchoSlotReleasedAt: Date = .distantPast
 
     /// Timestamp of room join — blocks all auto-interrupts for 5 seconds
     /// to prevent mic noise from killing the first utterance.
-    private var joinedAt: Date?
-    private let interruptGuardInterval: TimeInterval = 5.0
+    @ObservationIgnored private var joinedAt: Date?
+    @ObservationIgnored private let interruptGuardInterval: TimeInterval = 5.0
 
     // MARK: - Notification Observers
 
-    private var contextObserver: NSObjectProtocol?
-    private var echoObserver: NSObjectProtocol?
-    private var respondObserver: NSObjectProtocol?
-    private var muteObserver: NSObjectProtocol?
-    private var interruptObserver: NSObjectProtocol?
+    @ObservationIgnored private var contextObserver: NSObjectProtocol?
+    @ObservationIgnored private var echoObserver: NSObjectProtocol?
+    @ObservationIgnored private var respondObserver: NSObjectProtocol?
+    @ObservationIgnored private var muteObserver: NSObjectProtocol?
+    @ObservationIgnored private var interruptObserver: NSObjectProtocol?
 
     // MARK: - Pending Operations
 
