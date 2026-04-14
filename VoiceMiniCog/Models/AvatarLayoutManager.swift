@@ -111,6 +111,11 @@ class AvatarLayoutManager {
     var avatarBehavior: AvatarBehavior = .idle
     var isTransitioning: Bool = false
 
+    /// Phase queued during an active transition — replayed when the current transition settles.
+    private var pendingPhase: AssessmentPhaseID?
+    /// Stored handle for the acknowledgeAnswer() revert task — cancelled on phase change.
+    private var acknowledgeTask: Task<Void, Never>?
+
     /// Ordered phases for the current flow type
     var phaseSequence: [AssessmentPhaseID] { flowType.phaseSequence }
 
@@ -167,20 +172,32 @@ class AvatarLayoutManager {
         transitionTo(phaseSequence[nextIndex])
     }
 
-    /// Animate transition to the specified phase
+    /// Animate transition to the specified phase.
+    /// If a transition is already in flight, the phase is queued and replayed
+    /// when the current transition settles — never silently dropped.
     func transitionTo(_ phase: AssessmentPhaseID) {
-        guard !isTransitioning else { return }
+        guard !isTransitioning else {
+            pendingPhase = phase
+            return
+        }
         isTransitioning = true
+        acknowledgeTask?.cancel()
+        acknowledgeTask = nil
 
         withAnimation(.spring(duration: 0.55, bounce: 0.15)) {
             currentPhase = phase
             avatarBehavior = defaultBehavior(for: phase)
         }
 
-        // Clear transitioning flag after animation completes
+        // Clear transitioning flag after animation completes, then
+        // replay any queued phase advance.
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 550_000_000) // 0.55s
             isTransitioning = false
+            if let next = pendingPhase {
+                pendingPhase = nil
+                transitionTo(next)
+            }
         }
     }
 
@@ -215,12 +232,16 @@ class AvatarLayoutManager {
         avatarBehavior = .idle
     }
 
-    /// Briefly set avatar to .acknowledging, then revert to .speaking after 1.2 seconds
+    /// Briefly set avatar to .acknowledging, then revert to .speaking after 1.2 seconds.
+    /// Stored as a cancellable task — cancelled on phase transition so the revert
+    /// doesn't fire into the next phase and override its avatar behavior.
     func acknowledgeAnswer() {
+        acknowledgeTask?.cancel()
         avatarBehavior = .acknowledging
 
-        Task { @MainActor in
+        acknowledgeTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_200_000_000) // 1.2s
+            guard !Task.isCancelled else { return }
             avatarBehavior = .speaking
         }
     }

@@ -359,18 +359,15 @@ class AssessmentState: Codable {
         selectWordList()
     }
 
+    /// LEGACY — word list selection is now owned by QmciState.selectWordList()
+    /// (which delegates to selectTestVersion). This method keeps the local
+    /// `words` / index fields in sync for any remaining callers.
     func selectWordList() {
-        let key = "minicog_last_word_list_index"
-        let lastIndex = UserDefaults.standard.integer(forKey: key)
-        var nextIndex: Int
-        repeat {
-            nextIndex = Int.random(in: 0..<MINICOG_WORD_SETS.count)
-        } while nextIndex == lastIndex && MINICOG_WORD_SETS.count > 1
-
-        UserDefaults.standard.set(nextIndex, forKey: key)
-        wordListIndex = nextIndex
-        selectedWordSetIndex = nextIndex
-        words = MINICOG_WORD_SETS[nextIndex]
+        // Delegate to QmciState as the single authoritative word list source.
+        qmciState.selectWordList()
+        wordListIndex = qmciState.registrationWordListIndex
+        selectedWordSetIndex = qmciState.registrationWordListIndex
+        words = qmciState.registrationWords
     }
 
     func reset() {
@@ -394,7 +391,7 @@ class AssessmentState: Codable {
         clockRationale = ""
         isAIScoringClock = false
         qdrsState = QDRSState()
-        qmciState.reset()
+        qmciState = QmciState()
         phq2State = PHQ2State()
         patientAge = 0
         patientEducationYears = 12
@@ -456,7 +453,7 @@ class AssessmentState: Codable {
     }
 
     func getRetryPrompt(attempt: Int, lastScore: Int) -> String {
-        let wordList = qmciState.registrationWords.isEmpty ? words : qmciState.registrationWords
+        let wordList = qmciState.registrationWords
         return LeftPaneSpeechCopy.wordRegistrationRetry(words: wordList)
     }
 

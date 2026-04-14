@@ -5,6 +5,22 @@
 
 import Foundation
 
+/// Tavus persona `layers.conversational_flow.voice_isolation` (participant mic processing).
+/// See https://docs.tavus.io/sections/conversational-video-interface/persona/conversational-flow
+enum TavusVoiceIsolation: String, CaseIterable, Identifiable {
+    case off
+    case near
+
+    var id: String { rawValue }
+
+    var settingsLabel: String {
+        switch self {
+        case .off: "Off (raw mic)"
+        case .near: "Near (~1 m)"
+        }
+    }
+}
+
 struct TavusConversationCreateRequest: Codable {
     let replica_id: String
     let persona_id: String
