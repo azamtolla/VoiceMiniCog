@@ -1088,22 +1088,22 @@ class QmciScoringTests: XCTestCase {
     func testClinicianDecisionsPersist() {
         autoreleasepool {
             let state = QmciState()
-            state.clinicianDecisionWorkup = true
-            state.clinicianDecisionRepeat = false
+            state.clinicianDecisionWorkup = .yes
+            state.clinicianDecisionRepeat = .none
             state.clinicianDecisionTimestamp = Date()
             XCTAssertNotNil(state.clinicianDecisionWorkup)
             XCTAssertNotNil(state.clinicianDecisionRepeat)
             XCTAssertNotNil(state.clinicianDecisionTimestamp)
-            XCTAssertEqual(state.clinicianDecisionWorkup, true)
-            XCTAssertEqual(state.clinicianDecisionRepeat, false)
+            XCTAssertEqual(state.clinicianDecisionWorkup, .yes)
+            XCTAssertEqual(state.clinicianDecisionRepeat, .none)
         }
     }
 
     func testResetClearsClinicianDecisions() {
         autoreleasepool {
             let state = QmciState()
-            state.clinicianDecisionWorkup = true
-            state.clinicianDecisionRepeat = true
+            state.clinicianDecisionWorkup = .yes
+            state.clinicianDecisionRepeat = .twelveMonths
             state.clinicianDecisionTimestamp = Date()
             state.reset()
             XCTAssertNil(state.clinicianDecisionWorkup)
@@ -1163,7 +1163,7 @@ class QmciScoringTests: XCTestCase {
                 ["a", "b", "c", "d"]
             ]
             state.fluencyAnimalsNamed = ["dog", "dog", "cat"]
-            state.clinicianDecisionWorkup = true
+            state.clinicianDecisionWorkup = .yes
             state.clockScoreOverrideBy = "doc-x"
             state.testVersion = .v2
 
@@ -1180,7 +1180,7 @@ class QmciScoringTests: XCTestCase {
                     ["a", "b", "c", "d"]
                 ])
                 XCTAssertEqual(decoded.fluencyAnimalsNamed, ["dog", "dog", "cat"])
-                XCTAssertEqual(decoded.clinicianDecisionWorkup, true)
+                XCTAssertEqual(decoded.clinicianDecisionWorkup, .yes)
                 XCTAssertEqual(decoded.clockScoreOverrideBy, "doc-x")
                 XCTAssertEqual(decoded.testVersion, .v2)
                 XCTAssertNotNil(decoded.sessionID)
@@ -1231,7 +1231,7 @@ class QmciScoringTests: XCTestCase {
         let state = QmciState()
         state.isComplete = true
         state.cdtReviewed = true
-        state.clinicianDecisionWorkup = true
+        state.clinicianDecisionWorkup = .yes
         XCTAssertEqual(state.reportReadiness, .complete)
     }
 
@@ -1242,7 +1242,7 @@ class QmciScoringTests: XCTestCase {
         state.cdtNumbersPlaced = Array(repeating: false, count: 12)
         state.cdtHandsScore = 0
         state.cdtPivotCorrect = false
-        state.clinicianDecisionWorkup = false
+        state.clinicianDecisionWorkup = .no
         XCTAssertEqual(state.cdtComputedScore, 0)
         XCTAssertEqual(state.reportReadiness, .complete)
     }
@@ -1255,7 +1255,7 @@ class QmciScoringTests: XCTestCase {
         XCTAssertEqual(state.pendingReviewCount, 2)
         state.cdtReviewed = true
         XCTAssertEqual(state.pendingReviewCount, 1)
-        state.clinicianDecisionWorkup = true
+        state.clinicianDecisionWorkup = .yes
         XCTAssertEqual(state.pendingReviewCount, 0)
     }
 }
