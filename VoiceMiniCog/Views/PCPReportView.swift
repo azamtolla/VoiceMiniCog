@@ -17,6 +17,8 @@ struct PCPReportView: View {
     @State private var showShareSheet = false
     @State private var pdfData: Data?
     @State private var isClockScoringExpanded: Bool = true
+    @State private var deferWorkupExplicit: Bool = false
+    @State private var repeatNoneExplicit: Bool = false
 
     var body: some View {
         ScrollView {
@@ -39,6 +41,9 @@ struct PCPReportView: View {
 
                 // 5. Clock Drawing (QMCI 15-point manual scoring + reference canvas)
                 clockSection
+
+                // 5b. Clinical Decision (required for finalization)
+                clinicalDecisionSection
 
                 // 6. Depression Screen
                 if state.phq2State.isComplete {
@@ -808,6 +813,193 @@ struct PCPReportView: View {
         q.cdtPivotCorrect = false
         q.cdtInvalidNumbersCount = 0
         q.recomputeClockDrawingScore()
+    }
+
+    // MARK: - Clinical Decision
+
+    private var clinicalDecisionSection: some View {
+        let q = state.qmciState
+        let age = state.patientAge
+        let edu = state.patientEducationYears
+
+        return reportCard(title: "Clinical Decision", icon: "stethoscope", accentColor: MCDesign.Colors.primary700) {
+            VStack(alignment: .leading, spacing: 16) {
+
+                // 1. QMCI Classification display
+                HStack {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(q.totalScore)")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundColor(scoreColor(q.classification))
+                        Text("/ 100")
+                            .font(.system(size: 14))
+                            .foregroundColor(MCDesign.Colors.textTertiary)
+                    }
+
+                    Spacer()
+
+                    Text(q.classification.rawValue)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(scoreColor(q.classification))
+                        .cornerRadius(7)
+                }
+
+                // 2. Age-adjusted score (only if age provided)
+                if age > 0 {
+                    let adjScore = q.adjustedScore(age: age, educationYears: edu)
+                    let adjClass = q.adjustedClassification(age: age, educationYears: edu)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("AGE-ADJUSTED")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(MCDesign.Colors.textTertiary)
+                                .tracking(0.6)
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(adjScore)")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(scoreColor(adjClass))
+                                Text("/ 100")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(MCDesign.Colors.textTertiary)
+                            }
+                        }
+
+                        Spacer()
+
+                        Text(adjClass.rawValue)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(scoreColor(adjClass))
+                            .cornerRadius(6)
+                    }
+                    .padding(10)
+                    .background(MCDesign.Colors.surfaceInset)
+                    .cornerRadius(8)
+                }
+
+                Divider()
+
+                // 3. Recommend workup? — Yes / No / Defer
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("RECOMMEND WORKUP?")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.8)
+
+                    HStack(spacing: 10) {
+                        clinicalToggleButton(
+                            label: "Yes",
+                            isSelected: q.clinicianDecisionWorkup == true,
+                            accentColor: MCDesign.Colors.primary700
+                        ) {
+                            q.clinicianDecisionWorkup = true
+                            q.clinicianDecisionTimestamp = Date()
+                            deferWorkupExplicit = false
+                        }
+
+                        clinicalToggleButton(
+                            label: "No",
+                            isSelected: q.clinicianDecisionWorkup == false,
+                            accentColor: MCDesign.Colors.primary700
+                        ) {
+                            q.clinicianDecisionWorkup = false
+                            q.clinicianDecisionTimestamp = Date()
+                            deferWorkupExplicit = false
+                        }
+
+                        clinicalToggleButton(
+                            label: "Defer",
+                            isSelected: deferWorkupExplicit,
+                            accentColor: MCDesign.Colors.primary700
+                        ) {
+                            q.clinicianDecisionWorkup = nil
+                            q.clinicianDecisionTimestamp = Date()
+                            deferWorkupExplicit = true
+                        }
+                    }
+
+                    // Required field warning
+                    if q.clinicianDecisionWorkup == nil && !deferWorkupExplicit {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(MCDesign.Colors.warning)
+                            Text("Required — select a workup recommendation to finalize")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(MCDesign.Colors.warning)
+                        }
+                    }
+                }
+
+                Divider()
+
+                // 4. Repeat testing in: 6 mo / 12 mo / None
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("REPEAT TESTING IN")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(MCDesign.Colors.textTertiary)
+                        .tracking(0.8)
+
+                    HStack(spacing: 10) {
+                        clinicalToggleButton(
+                            label: "6 months",
+                            isSelected: q.clinicianDecisionRepeat == true,
+                            accentColor: MCDesign.Colors.primary500
+                        ) {
+                            q.clinicianDecisionRepeat = true
+                            repeatNoneExplicit = false
+                        }
+
+                        clinicalToggleButton(
+                            label: "12 months",
+                            isSelected: q.clinicianDecisionRepeat == false,
+                            accentColor: MCDesign.Colors.primary500
+                        ) {
+                            q.clinicianDecisionRepeat = false
+                            repeatNoneExplicit = false
+                        }
+
+                        clinicalToggleButton(
+                            label: "None",
+                            isSelected: repeatNoneExplicit,
+                            accentColor: MCDesign.Colors.primary500
+                        ) {
+                            q.clinicianDecisionRepeat = nil
+                            repeatNoneExplicit = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// A toggle-style button for the clinical decision picker rows.
+    private func clinicalToggleButton(
+        label: String,
+        isSelected: Bool,
+        accentColor: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(isSelected ? .white : MCDesign.Colors.textPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(isSelected ? accentColor : Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? accentColor : MCDesign.Colors.border, lineWidth: 1.5)
+                )
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - PHQ-2
