@@ -131,7 +131,7 @@ enum QMCIAvatarContext {
     - You give the patient exactly one instruction (sent via echo): \
     draw a clock face showing ten past eleven.
     - After speaking the instruction, go COMPLETELY SILENT.
-    - Time limit: up to 3 minutes (Shulman CDT administration). The patient draws on the iPad screen.
+    - Time limit: 60 seconds. The patient draws on the iPad screen.
     - You have NO role during drawing. Zero. Complete silence.
     - Scoring: 12 pts for number placement, 2 for hands, 1 for center pivot. \
     You never see the drawing. You cannot score it.

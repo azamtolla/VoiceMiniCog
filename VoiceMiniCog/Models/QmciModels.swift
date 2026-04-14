@@ -49,7 +49,7 @@ enum QmciSubtest: String, CaseIterable, Codable {
         switch self {
         case .orientation: return 30      // ~6s per question
         case .registration: return 30     // reading + initial recall
-        case .clockDrawing: return 180    // Shulman CDT administration: up to 3 minutes
+        case .clockDrawing: return 60     // exactly 1 minute per QMCI
         case .verbalFluency: return 60    // exactly 1 minute
         case .logicalMemory: return 60    // ~30s read + 30s recall
         case .delayedRecall: return 30    // 30 seconds, no hints

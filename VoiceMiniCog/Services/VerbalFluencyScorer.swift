@@ -102,7 +102,7 @@ class VerbalFluencyScorer: ObservableObject {
                 .filter { !$0.isEmpty }
             lastProcessedTokenCount = min(lastProcessedTokenCount, revisedTokens.count)
         }
-        guard lower.count > lastProcessedLength || lower.count < lastProcessedLength else { return }
+        guard lower.count != lastProcessedLength else { return }
         lastProcessedLength = lower.count
 
         let now = timerStart.map { Date().timeIntervalSince($0) } ?? 0

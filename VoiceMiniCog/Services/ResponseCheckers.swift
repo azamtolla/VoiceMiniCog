@@ -100,7 +100,9 @@ func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, rec
         }
     }
 
-    // Intrusion + repetition detection (word-level)
+    // Intrusion + repetition detection (word-level, exact token match).
+    // Uses the same token-boundary logic as the scoring loop above so
+    // "army" doesn't falsely count as a repetition of target "arm".
     let stopWords: Set<String> = [
         "the", "a", "an", "and", "or", "but", "i", "me", "my", "is", "are",
         "was", "were", "it", "that", "this", "of", "to", "in", "on", "um",
@@ -113,7 +115,7 @@ func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, rec
         .filter { !$0.isEmpty && $0.count > 1 }
     var seenTargets: Set<String> = []
     for word in spokenWords {
-        if let matched = targets.first(where: { $0 == word || word.contains($0) || $0.contains(word) }) {
+        if let matched = targets.first(where: { $0 == word }) {
             if seenTargets.contains(matched) {
                 repetitions += 1
             } else {
@@ -210,8 +212,16 @@ func scoreOrientationAnswer(type: OrientationAnswerType, transcript: String) -> 
         let dayInt = calendar.component(.day, from: now)
         return transcriptMentionsDay(t, day: dayInt)
     case .country:
-        let terms = ["united states", "america", "usa", "us", "u.s."]
-        return terms.contains(where: { t.contains($0) })
+        // Multi-word terms use substring matching (safe — no false positives).
+        let multiWordTerms = ["united states", "america", "u.s."]
+        if multiWordTerms.contains(where: { t.contains($0) }) { return true }
+        // Short tokens ("us", "usa") must use word-boundary matching to avoid
+        // false positives from "because", "thus", "focus", "bus", etc.
+        let tokens = Set(
+            t.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+        )
+        return tokens.contains("us") || tokens.contains("usa")
     }
 }
 
