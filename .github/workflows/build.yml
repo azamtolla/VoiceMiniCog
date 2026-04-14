@@ -36,11 +36,25 @@ jobs:
           sudo xcode-select -s "$LATEST/Contents/Developer"
           xcodebuild -version
 
+      - name: Resolve simulator destination
+        id: sim
+        run: |
+          # Pick the first available iPad simulator on this runner
+          DEST=$(xcodebuild -scheme VoiceMiniCog -showdestinations 2>/dev/null \
+            | grep 'platform:iOS Simulator' | grep -i 'iPad' | head -1 \
+            | sed 's/.*{ //' | sed 's/ }$//')
+          if [ -z "$DEST" ]; then
+            echo "No iPad simulator found — falling back to generic"
+            DEST="platform=iOS Simulator,name=Any iOS Simulator Device"
+          fi
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+          echo "Using destination: $DEST"
+
       - name: Build (iPad Simulator)
         run: |
           xcodebuild build \
             -scheme VoiceMiniCog \
-            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -destination '${{ steps.sim.outputs.dest }}' \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty --color && exit ${PIPESTATUS[0]}
@@ -59,11 +73,22 @@ jobs:
           sudo xcode-select -s "$LATEST/Contents/Developer"
           xcodebuild -version
 
+      - name: Resolve simulator destination
+        id: sim
+        run: |
+          DEST=$(xcodebuild -scheme VoiceMiniCog -showdestinations 2>/dev/null \
+            | grep 'platform:iOS Simulator' | grep -i 'iPad' | head -1 \
+            | sed 's/.*{ //' | sed 's/ }$//')
+          if [ -z "$DEST" ]; then
+            DEST="platform=iOS Simulator,name=Any iOS Simulator Device"
+          fi
+          echo "dest=$DEST" >> "$GITHUB_OUTPUT"
+
       - name: Run Unit Tests
         run: |
           xcodebuild test \
             -scheme VoiceMiniCog \
-            -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
+            -destination '${{ steps.sim.outputs.dest }}' \
             -only-testing:VoiceMiniCogTests \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
