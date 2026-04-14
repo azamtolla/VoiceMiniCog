@@ -34,6 +34,9 @@ struct AvatarAssessmentCanvas: View {
     @State private var layoutManager = AvatarLayoutManager()
     @State private var avatarDismissed = false
     @State private var isCancelling = false
+    /// Confirmation alert shown when the clinician taps "Done Drawing" with
+    /// zero strokes on the canvas. Prevents accidental blank submissions.
+    @State private var showNoStrokesAlert = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: Body
@@ -294,7 +297,12 @@ struct AvatarAssessmentCanvas: View {
                 tavusService.lastError = nil
             },
             onDoneDrawing: {
-                layoutManager.advanceToNextPhase()
+                // Fix 14: confirm if zero strokes before advancing.
+                if assessmentState.qmciState.clockStrokeEvents.isEmpty {
+                    showNoStrokesAlert = true
+                } else {
+                    layoutManager.advanceToNextPhase()
+                }
             },
             onEndSession: {
                 guard !isCancelling else { return }
@@ -303,6 +311,14 @@ struct AvatarAssessmentCanvas: View {
             }
         )
         .frame(width: width, height: height)
+        .alert("No Drawing Detected", isPresented: $showNoStrokesAlert) {
+            Button("Continue Drawing", role: .cancel) { }
+            Button("Skip Clock Drawing", role: .destructive) {
+                layoutManager.advanceToNextPhase()
+            }
+        } message: {
+            Text("The patient hasn't drawn anything yet. Are you sure you want to skip the clock drawing test?")
+        }
     }
 }
 

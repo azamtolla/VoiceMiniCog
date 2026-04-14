@@ -87,10 +87,15 @@ func scoreWordRecall(transcript: String, wordList: [String]) -> (count: Int, rec
     var intrusions: [String] = []
     var repetitions = 0
 
-    // Target word matching (substring — catches partial utterances)
+    // Target word matching — token-level (word-boundary) instead of substring
+    // to prevent false positives like "chairman" matching "chair".
     let targets = wordList.map { $0.lowercased() }
+    let tokens = Set(
+        lower.components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+    )
     for target in targets {
-        if lower.contains(target) && !found.contains(target) {
+        if tokens.contains(target) && !found.contains(target) {
             found.append(target)
         }
     }

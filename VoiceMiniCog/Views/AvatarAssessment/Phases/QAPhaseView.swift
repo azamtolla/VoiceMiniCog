@@ -35,6 +35,11 @@ struct QAPhaseView: View {
     /// Orientation: Tavus can emit `user.stopped_speaking` right after mic unmutes without a matching
     /// `user.started_speaking`, which was auto-advancing past questions (e.g. skipping "What month is this?").
     @State private var heardPatientSpeechDuringAnswerWait = false
+    /// SpeechService instance for capturing patient answers during orientation
+    /// so we can auto-score via `scoreOrientationAnswer()` instead of always
+    /// defaulting to full credit.
+    @StateObject private var speech = SpeechService()
+    @State private var didRequestAuth = false
 
     // MARK: Body
 
@@ -103,6 +108,13 @@ struct QAPhaseView: View {
             }
             if phaseID == .orientation {
                 avatarSetAssessmentContext(QMCIAvatarContext.orientation)
+                // Request speech authorization once for orientation auto-scoring.
+                Task {
+                    if !didRequestAuth {
+                        _ = await speech.requestAuthorization()
+                        didRequestAuth = true
+                    }
+                }
             } else {
                 avatarSetAssessmentContext(
                     "You are a clinical neuropsychologist administering the \(phaseID.displayName) portion of a standardized cognitive assessment. Speak with a calm, measured, professional tone. You speak ONLY the question text provided via echo commands — do not ad-lib or rephrase. Do not provide hints, feedback, or encouragement. If the patient asks to skip or seems confused, say calmly: 'Please take your time and answer as best you can.'"
@@ -247,6 +259,15 @@ struct QAPhaseView: View {
         avatarSetMicMuted(false)
         waitingForPatientResponse = true
         heardPatientSpeechDuringAnswerWait = false
+
+        // Start on-device ASR to capture the patient's answer for auto-scoring.
+        speech.transcript = ""
+        Task {
+            do { try await speech.startListening() } catch {
+                // Simulator or unauthorized — orientation still works via clinician review.
+            }
+        }
+
         orientationAutoAdvanceTask?.cancel()
         orientationAutoAdvanceTask = Task { @MainActor in
             // QMCI protocol: max 10 seconds per orientation answer
@@ -262,12 +283,28 @@ struct QAPhaseView: View {
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
 
-        // Avatar cannot judge correctness. If the patient spoke, default to full
-        // credit (2 pts) and let the clinician adjust in the PCP report. If the
-        // patient was silent (timeout), leave the score nil so the clinician is
-        // forced to review — a silent answer should never silently earn 2 pts.
+        // Capture and stop on-device ASR.
+        let capturedTranscript = speech.transcript
+        speech.stopListening()
+
+        // Auto-score using the captured transcript and the orientation answer
+        // type for this question. If the patient was silent (timeout), leave
+        // the score nil so the clinician is forced to review. If ASR captured
+        // speech, score it — correct = 2 pts, incorrect = 0 pts. The clinician
+        // can still adjust in the PCP report.
         if currentIndex < assessmentState.qmciState.orientationScores.count {
-            assessmentState.qmciState.orientationScores[currentIndex] = patientResponded ? 2 : nil
+            if !patientResponded {
+                assessmentState.qmciState.orientationScores[currentIndex] = nil
+            } else if let item = ORIENTATION_ITEMS[safe: currentIndex] {
+                let correct = scoreOrientationAnswer(
+                    type: item.correctAnswerType,
+                    transcript: capturedTranscript
+                )
+                assessmentState.qmciState.orientationScores[currentIndex] = correct ? 2 : 0
+            } else {
+                // Fallback: default to full credit if item lookup fails.
+                assessmentState.qmciState.orientationScores[currentIndex] = 2
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {

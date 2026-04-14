@@ -62,6 +62,17 @@ enum AssessmentFlowType: String, Codable {
 
 // MARK: - AssessmentPhaseID
 
+/// **Avatar layout state machine enum** — drives the avatar panel's width ratio,
+/// accent color, and behavior (speaking / listening / waiting) per phase.
+///
+/// This enum is distinct from `Phase` (in Phase.swift), which is the **persistence
+/// / routing** enum used for state restoration and screen routing. See the doc
+/// comment on `Phase` for the full rationale behind the dual-enum design.
+///
+/// Key differences from `Phase`:
+///   • Includes `.welcome` (no corresponding `Phase` case — welcome is pre-intake).
+///   • Splits `.intake` into `.qdrs` and `.phq2` for independent avatar behavior.
+///   • Does NOT include `.scoring` or `.report` — those have no avatar UI.
 enum AssessmentPhaseID: Int, CaseIterable {
     case welcome         = 1
     case qdrs            = 2

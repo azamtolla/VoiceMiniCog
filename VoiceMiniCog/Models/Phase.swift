@@ -7,6 +7,19 @@
 
 import Foundation
 
+/// **Persistence / routing enum** — tracks the patient's position in the
+/// overall assessment workflow and is `Codable` for state restoration.
+///
+/// This enum is distinct from `AssessmentPhaseID` (in AvatarLayoutManager.swift),
+/// which drives the **avatar layout state machine** (width ratios, accent colors,
+/// avatar behavior). The two enums intentionally diverge:
+///
+///   • `Phase` includes `.intake`, `.scoring`, and `.report` — stages that have
+///     no avatar UI and are invisible to the layout manager.
+///   • `AssessmentPhaseID` includes `.welcome` and fine-grained intake sub-phases
+///     (`.qdrs`, `.phq2`) that `Phase` collapses into `.intake`.
+///
+/// Mapping between the two happens in `AvatarAssessmentCanvas` and `ContentView`.
 enum Phase: String, CaseIterable, Codable {
     case intake              // QDRS + PHQ-2 + demographics
     case qmciOrientation

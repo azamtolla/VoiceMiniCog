@@ -19,9 +19,11 @@ final class TavusService {
 
     static let shared = TavusService()
 
-    /// Tavus API key — loaded from UserDefaults (configured in Settings).
-    /// B1 fix: no compiled-in fallback; must be provided via Settings.
+    /// Tavus API key — loaded from Keychain (configured in Settings).
+    /// Migrated from UserDefaults to Keychain for encrypted-at-rest storage.
     var apiKey: String = ""
+
+    private static let keychainAPIKeyName = "tavus_api_key"
 
     /// Default persona for clinical assessment
     var personaId: String = ""
@@ -36,6 +38,10 @@ final class TavusService {
         return TavusVoiceIsolation(rawValue: raw) ?? .near
     }
 
+    /// UserDefaults key for persisting the pre-warmed conversation ID across
+    /// app launches so orphaned conversations can be cleaned up on next start.
+    private static let preWarmConversationKey = "tavus_prewarm_conversation_id"
+
     private static let voiceIsolationDefaultsKey = "tavus_voice_isolation"
     private static let voiceIsolationSyncedKey   = "tavus_voice_isolation_synced_key"
     private static let voiceIsolationSyncedAtKey = "tavus_voice_isolation_synced_at"
@@ -47,13 +53,19 @@ final class TavusService {
     // MARK: - Init
 
     private init() {
-        // Seed from launch argument -tavus_api_key if UserDefaults is empty
-        // (survives app reinstalls during development)
-        if let launchKey = UserDefaults.standard.string(forKey: "tavus_api_key"), !launchKey.isEmpty {
-            apiKey = launchKey
+        // Migration: move API key from UserDefaults (plaintext) to Keychain
+        // (encrypted at rest). One-time on first launch after this update.
+        if let legacyKey = UserDefaults.standard.string(forKey: "tavus_api_key"), !legacyKey.isEmpty {
+            KeychainHelper.save(key: Self.keychainAPIKeyName, value: legacyKey)
+            UserDefaults.standard.removeObject(forKey: "tavus_api_key")
+        }
+
+        // Load API key: Keychain > environment variable > empty
+        if let keychainKey = KeychainHelper.read(key: Self.keychainAPIKeyName), !keychainKey.isEmpty {
+            apiKey = keychainKey
         } else if let envKey = ProcessInfo.processInfo.environment["TAVUS_API_KEY"], !envKey.isEmpty {
             apiKey = envKey
-            UserDefaults.standard.set(envKey, forKey: "tavus_api_key")
+            KeychainHelper.save(key: Self.keychainAPIKeyName, value: envKey)
         } else {
             apiKey = ""
         }
@@ -64,7 +76,9 @@ final class TavusService {
             forName: UserDefaults.didChangeNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.apiKey = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+            // API key is now in Keychain; re-read it when defaults change
+            // (Settings view writes to Keychain directly via KeychainHelper).
+            self?.apiKey = KeychainHelper.read(key: Self.keychainAPIKeyName) ?? ""
             self?.personaId = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
             self?.replicaId = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
         }
@@ -117,6 +131,12 @@ final class TavusService {
 
     /// Start creating a conversation in the background so it's ready when the
     /// clinician presses Start. Call this when the Home screen appears.
+    ///
+    /// **Orphan cleanup:** On launch, if a previous session left a conversation
+    /// ID in UserDefaults (e.g., app crashed or was force-quit before
+    /// `cancelPreWarm` / `endConversation` could run), we end that orphaned
+    /// conversation before creating a new one. This prevents server-side
+    /// quota leaks.
     @MainActor
     func preWarm() {
         // B5 fix: guard on preWarmTask (set synchronously) rather than
@@ -125,10 +145,20 @@ final class TavusService {
         guard !apiKey.isEmpty else { return }
 
         preWarmTask = Task {
+            // Orphan cleanup: end any conversation left over from a prior session.
+            if let orphanId = UserDefaults.standard.string(forKey: Self.preWarmConversationKey), !orphanId.isEmpty {
+                UserDefaults.standard.removeObject(forKey: Self.preWarmConversationKey)
+                print("[Tavus] Ending orphaned pre-warm conversation: \(orphanId)")
+                await endConversation(orphanId)
+            }
+
             do {
-                _ = try await createConversation(
+                let session = try await createConversation(
                     conversationName: Self.defaultConversationName()
                 )
+                // Persist the conversation ID so we can clean it up if the app
+                // terminates before the conversation is properly ended.
+                UserDefaults.standard.set(session.conversation_id, forKey: Self.preWarmConversationKey)
                 print("[Tavus] Pre-warm complete — conversation ready")
             } catch {
                 // Non-fatal — we'll retry when Start is pressed
@@ -142,6 +172,9 @@ final class TavusService {
     func cancelPreWarm() {
         preWarmTask?.cancel()
         preWarmTask = nil
+
+        // Clear the persisted pre-warm ID so it won't be treated as orphaned on next launch.
+        UserDefaults.standard.removeObject(forKey: Self.preWarmConversationKey)
 
         // B3 fix: capture the conversation ID before clearing state, then end
         // it asynchronously. endConversation handles activeConversation = nil

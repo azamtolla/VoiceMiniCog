@@ -505,12 +505,17 @@ function pumpEchoQueue() {
   const longFormEcho =
     text.indexOf('<speak') !== -1 ||
     text.length > 280;
-  const watchdogMs = longFormEcho ? 120000 : 10000;
+  // Tightened from 120s → 45s for long-form echoes. 120s left the UI
+  // frozen for 2 minutes on a dropped stopped_speaking event; 45s is
+  // still generous for even the longest SSML welcome block (~20s TTS).
+  const watchdogMs = longFormEcho ? 45000 : 10000;
 
   echoWatchdog = setTimeout(() => {
-    log('Echo watchdog: no stopped_speaking — releasing slot + notifying Swift');
+    log('Echo watchdog: no stopped_speaking after ' + watchdogMs + 'ms — releasing slot + notifying Swift');
     echoWatchdog = null;
     releaseEchoSlot();
+    // Surface a brief UI indicator so clinicians know why the avatar stalled.
+    notifySwift('echoWatchdogFired', { timeoutMs: watchdogMs, text: text.substring(0, 80) });
     // Synthesize a stopped_speaking notification so the Swift continuation
     // resumes immediately instead of hanging until the 12-second safety task.
     // Without this, a dropped Tavus event causes a perceived freeze equal to

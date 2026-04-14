@@ -77,6 +77,10 @@ struct StoryRecallPhaseView: View {
     @State private var recalledFlags: [Bool] = []
     @State private var recallPromptSpeechEpoch = 0
     @State private var recallPromptListeningUnlocked = false
+    /// Ceiling timer: auto-advance from .recalling → .scoring after 90 seconds
+    /// to prevent unbounded recall time. QMCI protocol does not specify a hard
+    /// ceiling for story recall, but 90s is generous and prevents stalls.
+    @State private var recallCeilingWork: DispatchWorkItem?
 
     enum StoryPhase { case listening, recalling, scoring }
 
@@ -129,6 +133,19 @@ struct StoryRecallPhaseView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + fallback) {
                     unlockStoryRecallListeningIfNeeded(epoch: epoch)
                 }
+
+                // Ceiling timer: auto-advance to scoring after 90 seconds.
+                recallCeilingWork?.cancel()
+                let ceiling = DispatchWorkItem {
+                    guard phase == .recalling else { return }
+                    contentVisible = false
+                    withAnimation(AssessmentTheme.Anim.contentFade) { phase = .scoring }
+                    withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
+                        contentVisible = true
+                    }
+                }
+                recallCeilingWork = ceiling
+                DispatchQueue.main.asyncAfter(deadline: .now() + 90, execute: ceiling)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
@@ -209,6 +226,7 @@ struct StoryRecallPhaseView: View {
                     }
                 } else {
                     // Recalling → Scoring (clinician marks recalled units)
+                    cancelCeilingTimer()
                     contentVisible = false
                     withAnimation(AssessmentTheme.Anim.contentFade) { phase = .scoring }
                     withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
@@ -329,6 +347,13 @@ struct StoryRecallPhaseView: View {
     }
 
     // MARK: - Unit Chip (Tap To Toggle)
+
+    // MARK: - Ceiling Timer Cleanup
+
+    private func cancelCeilingTimer() {
+        recallCeilingWork?.cancel()
+        recallCeilingWork = nil
+    }
 
     private func unlockStoryRecallListeningIfNeeded(epoch: Int) {
         guard phase == .recalling else { return }

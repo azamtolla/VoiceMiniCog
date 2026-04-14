@@ -9,6 +9,16 @@
 //  assessment. Left panel is a clean, simple questionnaire — no cognitive
 //  subtest UI, no progress bar, no word chips, no timers.
 //
+//  **TavusCVIView instance note:** This view creates its OWN TavusCVIView
+//  (line ~334) connected to the same conversation URL. This is intentional:
+//  the caregiver flow runs on a separate screen from AvatarAssessmentCanvas,
+//  so there is no shared WKWebView lifecycle to worry about. However, both
+//  views must NOT be in the SwiftUI hierarchy simultaneously — the parent
+//  (ContentView) is responsible for ensuring only one screen that embeds
+//  TavusCVIView is mounted at a time. AvatarAssessmentCanvas enforces this
+//  via its `warmTavusWebViewOnHome` flag (set to false while caregiver is
+//  active) which prevents it from passing the Daily URL into AvatarZoneView.
+//
 
 import SwiftUI
 

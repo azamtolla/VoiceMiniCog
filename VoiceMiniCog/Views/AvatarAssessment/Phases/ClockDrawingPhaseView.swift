@@ -167,6 +167,9 @@ struct ClockDrawingPhaseView: View {
         }
         .onDisappear {
             timer?.invalidate()
+            // Safety net: persist clock drawing PNG if the phase exits early
+            // (e.g., clinician taps "Done Drawing" before the timer expires).
+            persistBiomarkersIfNeeded()
         }
     }
 

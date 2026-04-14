@@ -49,11 +49,15 @@ struct ContentView: View {
                     assessmentState.currentPhase = .report
                     AssessmentPersistence.clear()
                     TavusService.shared.cancelPreWarm()
+                    // End the active Tavus conversation so the Daily room
+                    // is released immediately instead of waiting for server timeout.
+                    Task { await TavusService.shared.endConversation() }
                     currentScreen = .report
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
                     TavusService.shared.cancelPreWarm()
+                    Task { await TavusService.shared.endConversation() }
                     currentScreen = .home
                 }
             )
@@ -68,11 +72,13 @@ struct ContentView: View {
                     onComplete: {
                         AssessmentPersistence.clear()
                         TavusService.shared.cancelPreWarm()
+                        Task { await TavusService.shared.endConversation() }
                         currentScreen = .home
                     },
                     onCancel: {
                         AssessmentPersistence.clear()
                         TavusService.shared.cancelPreWarm()
+                        Task { await TavusService.shared.endConversation() }
                         currentScreen = .home
                     }
                 )
@@ -206,7 +212,7 @@ struct ContentView: View {
 
     // MARK: - Settings
 
-    @State private var tavusAPIKey: String = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+    @State private var tavusAPIKey: String = KeychainHelper.read(key: "tavus_api_key") ?? ""
     @State private var tavusPersonaId: String = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
     @State private var tavusReplicaId: String = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
     @State private var tavusVoiceIsolation: TavusVoiceIsolation =
@@ -239,7 +245,7 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
 
                     Button("Save Tavus Settings") {
-                        UserDefaults.standard.set(tavusAPIKey, forKey: "tavus_api_key")
+                        KeychainHelper.save(key: "tavus_api_key", value: tavusAPIKey)
                         UserDefaults.standard.set(tavusPersonaId, forKey: "tavus_persona_id")
                         UserDefaults.standard.set(tavusReplicaId, forKey: "tavus_replica_id")
                         UserDefaults.standard.set(tavusVoiceIsolation.rawValue, forKey: "tavus_voice_isolation")
@@ -280,7 +286,7 @@ struct ContentView: View {
             }
             .onAppear {
                 // Fix #8: re-read ALL settings on sheet open, not just voice isolation.
-                tavusAPIKey = UserDefaults.standard.string(forKey: "tavus_api_key") ?? ""
+                tavusAPIKey = KeychainHelper.read(key: "tavus_api_key") ?? ""
                 tavusPersonaId = UserDefaults.standard.string(forKey: "tavus_persona_id") ?? "pc64945f7e08"
                 tavusReplicaId = UserDefaults.standard.string(forKey: "tavus_replica_id") ?? "rf4e9d9790f0"
                 let raw = UserDefaults.standard.string(forKey: "tavus_voice_isolation") ?? "near"
