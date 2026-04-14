@@ -217,7 +217,7 @@ struct QAPhaseView: View {
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
         layoutManager.setAvatarSpeaking()
-        avatarRespond(text)
+        avatarSpeak(text)
 
         // Fallback if the Tavus bridge never posts `avatarDoneSpeaking`
         let wordCount = text.split(separator: " ").count
