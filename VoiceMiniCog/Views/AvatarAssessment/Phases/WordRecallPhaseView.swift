@@ -209,6 +209,8 @@ struct WordRecallPhaseView: View {
     private func onPhaseAppear() {
         log.info("Phase appeared — targets=\(self.targetCount) words=\(self.qmciState.registrationWords.joined(separator: ","), privacy: .public)")
         avatarInterrupt()
+        avatarSetAssessmentPhaseType(.wordRecall)
+        avatarBeginSilenceWatch()
         avatarSetMicMuted(true)   // Mute mic during prompt delivery
         withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
             contentVisible = true

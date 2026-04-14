@@ -104,6 +104,8 @@ struct StoryRecallPhaseView: View {
         }
         .onAppear {
             avatarInterrupt()
+            avatarSetAssessmentPhaseType(.storyRecall)
+            avatarBeginSilenceWatch()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }

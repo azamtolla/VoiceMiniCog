@@ -314,6 +314,8 @@ struct WelcomePhaseView: View {
             // Flow 4 fix: guard echo + context send so re-appear doesn't replay.
             guard !echoSent else { return }
             echoSent = true
+            // Intro phase: enable LLM speculative_inference + intake RAG.
+            avatarSetAssessmentPhaseType(.intro)
             avatarSetContext(QMCIAvatarContext.welcome)
             avatarSpeak(introScriptForEcho)
 

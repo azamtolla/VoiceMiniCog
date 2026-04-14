@@ -152,6 +152,9 @@ struct ClockDrawingPhaseView: View {
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
             avatarInterrupt()
+            avatarSetAssessmentPhaseType(.clockDrawing)
+            // Deliberately NOT arming silence watch — patient is drawing,
+            // not speaking. The clock timer is the abandonment bound here.
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }

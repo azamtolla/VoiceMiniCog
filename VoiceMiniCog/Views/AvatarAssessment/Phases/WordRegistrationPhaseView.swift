@@ -158,6 +158,8 @@ struct WordRegistrationPhaseView: View {
         }
         .onAppear {
             avatarInterrupt()
+            avatarSetAssessmentPhaseType(.wordRegistration)
+            avatarBeginSilenceWatch()
             // B21 fix: put avatar into a defined waiting state immediately so
             // the 0.5s gap before runTrial(1) doesn't leave it in limbo.
             layoutManager.avatarBehavior = .waiting

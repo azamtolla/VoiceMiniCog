@@ -51,6 +51,14 @@
 		9246E5F32F63A68D00743FA8 /* VoiceMiniCogApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5EB2F63A68D00743FA8 /* VoiceMiniCogApp.swift */; };
 		9246E5F42F63A68D00743FA8 /* Phase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D72F63A68D00743FA8 /* Phase.swift */; };
 		AA01BDF42F63A68D00743FA8 /* AssessmentPhaseType.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA01BDD72F63A68D00743FA8 /* AssessmentPhaseType.swift */; };
+		AA02BDF42F63A68D00743FA8 /* PartialScoreReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA02BDD72F63A68D00743FA8 /* PartialScoreReport.swift */; };
+		AA03BDF42F63A68D00743FA8 /* LongitudinalPatientStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA03BDD72F63A68D00743FA8 /* LongitudinalPatientStore.swift */; };
+		AA04BDF42F63A68D00743FA8 /* IntakeOutroRAG.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA04BDD72F63A68D00743FA8 /* IntakeOutroRAG.swift */; };
+		AA05BDF42F63A68D00743FA8 /* TavusWebhookHandlers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */; };
+		AA06BDF42F63A68D00743FA8 /* ClockDrawingCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */; };
+		AA07BDF42F63A68D00743FA8 /* MAHandoffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA07BDD72F63A68D00743FA8 /* MAHandoffView.swift */; };
+		AA08BDF42F63A68D00743FA8 /* ClinicianDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA08BDD72F63A68D00743FA8 /* ClinicianDashboardView.swift */; };
+		AA09BDF42F63A68D00743FA8 /* AvatarVideoOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA09BDD72F63A68D00743FA8 /* AvatarVideoOverlays.swift */; };
 		9246E5F62F63A68D00743FA8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DA2F63A68D00743FA8 /* APIClient.swift */; };
 		9246E5F72F63A68D00743FA8 /* AssessmentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D42F63A68D00743FA8 /* AssessmentState.swift */; };
 		9246E5F92F63A68D00743FA8 /* ResponseCheckers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */; };
@@ -152,6 +160,14 @@
 		9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeRisk.swift; sourceTree = "<group>"; };
 		9246E5D72F63A68D00743FA8 /* Phase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase.swift; sourceTree = "<group>"; };
 		AA01BDD72F63A68D00743FA8 /* AssessmentPhaseType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPhaseType.swift; sourceTree = "<group>"; };
+		AA02BDD72F63A68D00743FA8 /* PartialScoreReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartialScoreReport.swift; sourceTree = "<group>"; };
+		AA03BDD72F63A68D00743FA8 /* LongitudinalPatientStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongitudinalPatientStore.swift; sourceTree = "<group>"; };
+		AA04BDD72F63A68D00743FA8 /* IntakeOutroRAG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeOutroRAG.swift; sourceTree = "<group>"; };
+		AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavusWebhookHandlers.swift; sourceTree = "<group>"; };
+		AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockDrawingCapture.swift; sourceTree = "<group>"; };
+		AA07BDD72F63A68D00743FA8 /* MAHandoffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MAHandoffView.swift; sourceTree = "<group>"; };
+		AA08BDD72F63A68D00743FA8 /* ClinicianDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinicianDashboardView.swift; sourceTree = "<group>"; };
+		AA09BDD72F63A68D00743FA8 /* AvatarVideoOverlays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarVideoOverlays.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarVideoOverlays.swift; sourceTree = SOURCE_ROOT; };
 		9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMiniCogResult.swift; sourceTree = "<group>"; };
 		9246E5DA2F63A68D00743FA8 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		9246E5DB2F63A68D00743FA8 /* ElevenLabsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsService.swift; sourceTree = "<group>"; };
@@ -251,6 +267,7 @@
 				F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */,
 				BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */,
 				8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */,
+				AA09BDD72F63A68D00743FA8 /* AvatarVideoOverlays.swift */,
 				97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */,
 				FD67457A85ACD917974962D3 /* PauseButtonView.swift */,
 				E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */,
@@ -317,6 +334,11 @@
 				AA112233445566770001A1A1 /* QMCIAvatarContext.swift */,
 				7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */,
 				DD00112233445566778899A0 /* KeychainHelper.swift */,
+				AA02BDD72F63A68D00743FA8 /* PartialScoreReport.swift */,
+				AA03BDD72F63A68D00743FA8 /* LongitudinalPatientStore.swift */,
+				AA04BDD72F63A68D00743FA8 /* IntakeOutroRAG.swift */,
+				AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */,
+				AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -341,6 +363,8 @@
 				7980C074148F7BF401F6D35F /* SpeechListenerView.swift */,
 				AA11223344556677000006A6 /* AssessmentCard.swift */,
 				AA11223344556677000009A9 /* CaregiverAssessmentView.swift */,
+				AA07BDD72F63A68D00743FA8 /* MAHandoffView.swift */,
+				AA08BDD72F63A68D00743FA8 /* ClinicianDashboardView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -529,6 +553,14 @@
 				9246E5F32F63A68D00743FA8 /* VoiceMiniCogApp.swift in Sources */,
 				9246E5F42F63A68D00743FA8 /* Phase.swift in Sources */,
 				AA01BDF42F63A68D00743FA8 /* AssessmentPhaseType.swift in Sources */,
+				AA02BDF42F63A68D00743FA8 /* PartialScoreReport.swift in Sources */,
+				AA03BDF42F63A68D00743FA8 /* LongitudinalPatientStore.swift in Sources */,
+				AA04BDF42F63A68D00743FA8 /* IntakeOutroRAG.swift in Sources */,
+				AA05BDF42F63A68D00743FA8 /* TavusWebhookHandlers.swift in Sources */,
+				AA06BDF42F63A68D00743FA8 /* ClockDrawingCapture.swift in Sources */,
+				AA07BDF42F63A68D00743FA8 /* MAHandoffView.swift in Sources */,
+				AA08BDF42F63A68D00743FA8 /* ClinicianDashboardView.swift in Sources */,
+				AA09BDF42F63A68D00743FA8 /* AvatarVideoOverlays.swift in Sources */,
 				9246E5F62F63A68D00743FA8 /* APIClient.swift in Sources */,
 				9246E5F72F63A68D00743FA8 /* AssessmentState.swift in Sources */,
 				9246E5F92F63A68D00743FA8 /* ResponseCheckers.swift in Sources */,

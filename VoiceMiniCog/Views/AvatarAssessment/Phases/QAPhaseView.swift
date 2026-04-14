@@ -98,6 +98,10 @@ struct QAPhaseView: View {
         }
         .onAppear {
             avatarInterrupt()
+            // Scored subtest: disable speculative_inference + RAG via phase-type signal.
+            avatarSetAssessmentPhaseType(.orientation)
+            // Arm the autonomous-operation silence watchdog (90s re-prompt, 150s abandon).
+            avatarBeginSilenceWatch()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }

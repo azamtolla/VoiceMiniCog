@@ -120,6 +120,8 @@ struct VerbalFluencyPhaseView: View {
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
         .onAppear {
             avatarInterrupt()
+            avatarSetAssessmentPhaseType(.verbalFluency)
+            avatarBeginSilenceWatch()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
             }
