@@ -264,7 +264,8 @@ struct WordRecallPhaseView: View {
         recallPromptListeningUnlocked = true
 
         scorer.markPromptEnded()
-        avatarSetMicMuted(false)
+        // DailyCallManager unmutes on replica.stopped_speaking; no explicit
+        // unmute needed here.
         layoutManager.setAvatarListening()
 
         if phase == .promptDelivery {
@@ -370,7 +371,7 @@ struct WordRecallPhaseView: View {
             guard !self.recallPromptListeningUnlocked else { return }
             self.recallPromptListeningUnlocked = true
             self.avatarIsSpeakingFollowUp = false
-            avatarSetMicMuted(false)
+            // DailyCallManager unmutes on replica.stopped_speaking.
             self.layoutManager.setAvatarListening()
             self.resetSilenceTimer()
         }

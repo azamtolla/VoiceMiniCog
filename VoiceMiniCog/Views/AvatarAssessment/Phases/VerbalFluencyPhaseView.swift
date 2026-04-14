@@ -308,7 +308,7 @@ struct VerbalFluencyPhaseView: View {
             let work = DispatchWorkItem { [self] in
                 guard !self.didFinish else { return }
                 guard self.mode == .timing else { return }
-                avatarSetMicMuted(false)
+                // DailyCallManager unmutes on re-prompt replica.stopped_speaking.
                 self.layoutManager.setAvatarListening()
             }
             rePromptUnmuteWork = work

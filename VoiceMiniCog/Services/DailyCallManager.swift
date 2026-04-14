@@ -196,11 +196,42 @@ final class DailyCallManager: NSObject {
 
     // MARK: - Post-Join Setup
 
+    /// Dispatches a Daily FFI `setInputEnabled` call in a way that avoids a
+    /// priority inversion on MainActor.
+    ///
+    /// `CallClient.setInputEnabled` is `@MainActor`-isolated, so it must run on
+    /// main. The completion-based variant synchronously acquires Daily's Rust
+    /// `RwLock` — if that lock is held by a Default-QoS worker, MainActor
+    /// (user-interactive QoS) blocks waiting on a lower-QoS thread, tripping
+    /// Thread Performance Checker.
+    ///
+    /// Using the `async throws` variant instead lets MainActor *suspend*
+    /// (freeing the thread to run other work and allowing QoS propagation
+    /// through the awaiting continuation) rather than *block* synchronously on
+    /// the lock. Dispatching via a child `Task` also breaks the synchronous
+    /// call chain from the delegate/event handler.
+    ///
+    /// Ordering is preserved because each Task is spawned from MainActor in
+    /// source order; Daily's SDK serializes FFI calls internally, and the
+    /// `await` point only suspends after the call has been enqueued to the
+    /// SDK's internal worker.
+    private func setMicrophoneInputEnabledOffMain(client: CallClient, enabled: Bool) {
+        Task { @MainActor in
+            do {
+                try await client.setInputEnabled(.microphone, enabled)
+            } catch {
+                log.error("setInputEnabled(microphone, \(enabled, privacy: .public)) failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     private func onJoinSucceeded() {
         joinedAt = Date()
 
         // Mic starts muted — unmuted by phase views after prompt delivery
-        callClient?.setInputEnabled(.microphone, false, completion: nil)
+        if let client = callClient {
+            setMicrophoneInputEnabledOffMain(client: client, enabled: false)
+        }
         log.info("Mic muted on join")
 
         // Set clinical sensitivity
@@ -295,7 +326,9 @@ final class DailyCallManager: NSObject {
         }
 
         // Mute mic during echo delivery
-        callClient?.setInputEnabled(.microphone, false, completion: nil)
+        if let client = callClient {
+            setMicrophoneInputEnabledOffMain(client: client, enabled: false)
+        }
         log.info("Mic muted before echo")
 
         // Start watchdog timer
@@ -311,7 +344,9 @@ final class DailyCallManager: NSObject {
             NotificationCenter.default.post(name: .avatarDoneSpeaking, object: nil)
             // Unmute mic if queue empty
             if self.echoTextQueue.isEmpty && !self.echoInFlight {
-                self.callClient?.setInputEnabled(.microphone, true, completion: nil)
+                if let client = self.callClient {
+                    self.setMicrophoneInputEnabledOffMain(client: client, enabled: true)
+                }
                 log.info("Mic unmuted (watchdog, queue empty)")
             }
         }
@@ -360,7 +395,9 @@ final class DailyCallManager: NSObject {
     // MARK: - Mic Control
 
     private func setMicMuted(_ muted: Bool) {
-        callClient?.setInputEnabled(.microphone, !muted, completion: nil)
+        if let client = callClient {
+            setMicrophoneInputEnabledOffMain(client: client, enabled: !muted)
+        }
         log.info("Mic \(muted ? "muted" : "unmuted", privacy: .public) (explicit)")
     }
 
@@ -398,7 +435,9 @@ final class DailyCallManager: NSObject {
     private func handleReplicaStartedSpeaking() {
         if echoInFlight || !echoTextQueue.isEmpty {
             // Expected echo — mute mic during avatar speech
-            callClient?.setInputEnabled(.microphone, false, completion: nil)
+            if let client = callClient {
+                setMicrophoneInputEnabledOffMain(client: client, enabled: false)
+            }
             log.info("Mic muted (avatar speaking)")
             return
         }
@@ -422,7 +461,9 @@ final class DailyCallManager: NSObject {
         releaseEchoSlot()
         // Unmute mic only if no more echoes are queued
         if echoTextQueue.isEmpty && !echoInFlight {
-            callClient?.setInputEnabled(.microphone, true, completion: nil)
+            if let client = callClient {
+                setMicrophoneInputEnabledOffMain(client: client, enabled: true)
+            }
             log.info("Mic unmuted (avatar stopped, queue empty)")
         } else {
             log.info("Mic stays muted (more echoes queued)")
@@ -572,6 +613,9 @@ extension DailyCallManager: CallClientDelegate {
 
             case "conversation.utterance":
                 log.debug("Utterance event received")
+
+            case "conversation.utterance.streaming":
+                break // High-frequency streaming token event — ignore
 
             default:
                 log.debug("Unhandled event: \(eventType, privacy: .public)")
