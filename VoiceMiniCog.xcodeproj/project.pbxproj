@@ -44,6 +44,7 @@
 		AB00CD11EF22000000000007 /* UITouchCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000006 /* UITouchCaptureView.swift */; };
 		AB00CD11EF22000000000009 /* ResearchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000008 /* ResearchRootView.swift */; };
 		9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DD2F63A68D00743FA8 /* SpeechService.swift */; };
+		1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */; };
 		9246E60A2F63EB0200743FA8 /* AudioSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6032F63EB0200743FA8 /* AudioSessionManager.swift */; };
 		9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6062F63EB0200743FA8 /* RealtimeManager.swift */; };
 		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
@@ -87,6 +88,7 @@
 		DD11223344556677889900BB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900DD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
+		6BF57BD651DAE1D8C06DA147 /* VoiceClips in Resources */ = {isa = PBXBuildFile; fileRef = C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -140,6 +142,7 @@
 		9246E5DA2F63A68D00743FA8 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseCheckers.swift; sourceTree = "<group>"; };
 		9246E5DD2F63A68D00743FA8 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
+		C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceClipLibrary.swift; sourceTree = "<group>"; };
 		9246E5DF2F63A68D00743FA8 /* MercyColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MercyColors.swift; sourceTree = "<group>"; };
 		9246E5E42F63A68D00743FA8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		9246E5E92F63A68D00743FA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -187,6 +190,7 @@
 		F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarLayoutManager.swift; path = VoiceMiniCog/Models/AvatarLayoutManager.swift; sourceTree = SOURCE_ROOT; };
 		FD67457A85ACD917974962D3 /* PauseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PauseButtonView.swift; path = VoiceMiniCog/Views/AvatarAssessment/PauseButtonView.swift; sourceTree = SOURCE_ROOT; };
 		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
+		C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VoiceClips; path = VoiceMiniCog/Resources/VoiceClips; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -259,6 +263,7 @@
 				AA11223344556677000007A7 /* CompletionPhaseView.swift */,
 				AA11223344556677000008A8 /* SessionStatusView.swift */,
 				6EE84535BB64352F16ADA335 /* VerbalFluencyScorer.swift */,
+				C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */,
 				925BB86F2F8E7D2F00EAE51C /* Frameworks */,
 			);
 			sourceTree = "<group>";
@@ -316,6 +321,7 @@
 				AA04BDD72F63A68D00743FA8 /* IntakeOutroRAG.swift */,
 				AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */,
 				AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */,
+				C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -521,6 +527,7 @@
 			files = (
 				51444F06A34E98BDCC2902C5 /* TavusBridge.html in Resources */,
 				DD11223344556677889900DD /* PrivacyInfo.xcprivacy in Resources */,
+				6BF57BD651DAE1D8C06DA147 /* VoiceClips in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -604,6 +611,7 @@
 				75D35C24A82C4B8686EE441A /* WordRecallScorer.swift in Sources */,
 				60BD4C3A9DDCB7C7EE272323 /* VerbalFluencyScorer.swift in Sources */,
 				DD00112233445566778899A1 /* KeychainHelper.swift in Sources */,
+				1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
