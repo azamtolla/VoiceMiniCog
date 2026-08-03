@@ -47,6 +47,13 @@ struct WordRegistrationPhaseView: View {
     @State private var contentVisible: Bool = false
     @State private var hasStarted: Bool = false
 
+    /// Count of bubbles displayed as "filled" on the patient screen.
+    /// Only ever increments from real ASR word detection during the
+    /// .listening window — never spontaneously while the avatar speaks.
+    /// On .done, forced to 5 for the celebratory memory-lock moment.
+    @State private var visualFilledCount: Int = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Synchronous finish guard — checked before any async/animated work.
     @State private var didFinish: Bool = false
 
@@ -99,59 +106,32 @@ struct WordRegistrationPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            PhaseHeaderBadge(
-                phaseName: "Word Registration",
-                icon: "brain",
-                accentColor: AssessmentTheme.Phase.registration
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
+            // MARK: Phase label (leading, plain text — no pill)
+            HStack {
+                Text("Word Learning  •  Remember these")
+                    .font(.subheadline)
+                    .foregroundStyle(layoutManager.accentColor)
+                Spacer()
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .opacity(contentVisible ? 1 : 0)
+            .animation(reduceMotion ? .none : .easeOut(duration: 0.4), value: contentVisible)
 
             Spacer()
 
-            // MARK: Ear Icon (64pt)
-            Image(systemName: "ear.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 64, height: 64)
-                .foregroundStyle(layoutManager.accentColor)
-                .padding(.bottom, 16)
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
-
-            // MARK: "Listen" Heading
-            Text(LeftPaneSpeechCopy.wordRegistrationTitle)
-                .font(AssessmentTheme.Fonts.question)
-                .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                .multilineTextAlignment(.center)
-                .padding(.bottom, 24)
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
-
-            // MARK: Audio Wave (active while avatar speaks)
-            WaveformBars(
-                isActive: mode == .speaking,
-                color: layoutManager.accentColor
-            )
-            .frame(height: 32)
-            .padding(.bottom, 28)
-            .opacity(mode == .speaking ? 1.0 : 0.25)
-            .animation(.easeInOut(duration: 0.4), value: mode == .speaking)
-            .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-            .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
-
-            // MARK: Progress Circles (5 anonymous slots)
-            HStack(spacing: 14) {
-                ForEach(0..<words.count, id: \.self) { index in
-                    RegistrationProgressCircle(
-                        filled: index < currentTrialRecalled.count,
-                        accentColor: Color(hex: "#34C759")
-                    )
+            // MARK: Central content — crossfade between Listening and Registered
+            Group {
+                if mode == .done {
+                    memoryLockMoment
+                } else {
+                    listeningCentralBlock
                 }
             }
-            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-            .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
-            .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
+            .animation(
+                reduceMotion ? .none : .easeInOut(duration: 0.35),
+                value: mode
+            )
 
             Spacer()
             Spacer().frame(height: 16)
@@ -225,6 +205,30 @@ struct WordRegistrationPhaseView: View {
         .onChange(of: speech.transcript) { _, newTranscript in
             guard mode == .listening else { return }
             applyTranscriptUpdate(newTranscript)
+        }
+        .onChange(of: mode) { _, newMode in
+            // Bubbles only ever fill from real ASR word detection — never
+            // spontaneously while the avatar is speaking. On mode change
+            // we just re-sync the count to the scorer's ground truth.
+            switch newMode {
+            case .speaking:
+                // New trial — clear everything. Bubbles stay empty until
+                // the patient actually says words in the next listening
+                // window.
+                visualFilledCount = 0
+            case .listening:
+                visualFilledCount = currentTrialRecalled.count
+            case .done:
+                withAnimation(AssessmentTheme.Motion.celebrationBounce) {
+                    visualFilledCount = 5
+                }
+            }
+        }
+        .onChange(of: currentTrialRecalled.count) { _, newCount in
+            guard mode == .listening else { return }
+            withAnimation(AssessmentTheme.Motion.celebrationBounce) {
+                visualFilledCount = newCount
+            }
         }
     }
 
@@ -591,30 +595,250 @@ struct WordRegistrationPhaseView: View {
     }
 }
 
-// MARK: - RegistrationProgressCircle
+// MARK: - Listening central block
 
-private struct RegistrationProgressCircle: View {
+extension WordRegistrationPhaseView {
+
+    /// State 1 — avatar is speaking the words. Title + subtitle + 5
+    /// bubbles (fill staggered as the avatar speaks) + 5-bar waveform.
+    @ViewBuilder
+    fileprivate var listeningCentralBlock: some View {
+        VStack(spacing: 0) {
+            Text("Listen carefully.")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Color.primary)
+
+            Text("You'll be asked to recall these words later.")
+                .font(.body)
+                .foregroundStyle(Color.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+                .padding(.horizontal, 40)
+
+            Spacer().frame(height: 32)
+
+            WordLearningBubbleRow(
+                filledCount: visualFilledCount,
+                accent: layoutManager.accentColor
+            )
+
+            Spacer().frame(height: 24)
+
+            WordLearningWaveform(
+                isActive: mode == .speaking || mode == .listening,
+                color: layoutManager.accentColor
+            )
+            .frame(height: 32)
+        }
+        .opacity(contentVisible ? 1 : 0)
+        .offset(y: contentVisible ? 0 : 10)
+        .animation(reduceMotion ? .none : .easeOut(duration: 0.4), value: contentVisible)
+    }
+
+    /// State 2 — words registered. Large seal with .bounce + one-shot
+    /// glow ring + "5 words registered" + subtitle + all bubbles filled.
+    @ViewBuilder
+    fileprivate var memoryLockMoment: some View {
+        MemoryLockMoment(accent: layoutManager.accentColor)
+    }
+}
+
+// MARK: - WordLearningBubbleRow
+
+/// Horizontal row of 5 learning bubbles. Each bubble:
+///   • Empty:  accent 12% fill + 1.5pt accent stroke, no checkmark.
+///   • Filled: accent 40% fill + 1.5pt accent stroke + white checkmark,
+///             celebrationBounce pop on flip.
+/// On first appear the entire row stagger-scales in (0.08s per bubble).
+private struct WordLearningBubbleRow: View {
+    let filledCount: Int
+    let accent: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appearedCount: Int = 0
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(0..<5, id: \.self) { index in
+                WordLearningBubble(
+                    filled: index < filledCount,
+                    accent: accent,
+                    visible: index < appearedCount
+                )
+            }
+        }
+        .onAppear {
+            if reduceMotion {
+                appearedCount = 5
+                return
+            }
+            // Stagger the row's entry reveal once.
+            Task { @MainActor in
+                for i in 1...5 {
+                    try? await Task.sleep(for: .milliseconds(80))
+                    withAnimation(AssessmentTheme.Motion.celebrationBounce) {
+                        appearedCount = i
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct WordLearningBubble: View {
     let filled: Bool
-    let accentColor: Color
+    let accent: Color
+    let visible: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(filled ? accentColor.opacity(0.15) : Color.gray.opacity(0.08))
-                .frame(width: 36, height: 36)
-
+                .fill(filled ? accent.opacity(0.40) : accent.opacity(0.12))
+                .frame(width: 52, height: 52)
+            Circle()
+                .strokeBorder(accent, lineWidth: 1.5)
+                .frame(width: 52, height: 52)
             if filled {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(accentColor)
-                    .transition(.scale.combined(with: .opacity))
-            } else {
-                Circle()
-                    .strokeBorder(Color.gray.opacity(0.2), lineWidth: 1.5)
-                    .frame(width: 36, height: 36)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
         }
-        .animation(.spring(duration: 0.3, bounce: 0.2), value: filled)
+        .scaleEffect(visible || reduceMotion ? 1.0 : 0.75)
+        .opacity(visible ? 1 : 0)
+        .animation(
+            reduceMotion
+                ? .easeInOut(duration: 0.2)
+                : AssessmentTheme.Motion.celebrationBounce,
+            value: filled
+        )
+    }
+}
+
+// MARK: - WordLearningWaveform
+
+/// 5-bar accent-tinted waveform. TimelineView-driven sine amplitudes at
+/// staggered phase shifts; fades opacity based on `isActive`. Reduce-motion
+/// renders static capsules.
+private struct WordLearningWaveform: View {
+    let isActive: Bool
+    let color: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                HStack(spacing: 6) {
+                    ForEach(0..<5, id: \.self) { i in
+                        Capsule()
+                            .fill(color)
+                            .frame(width: 5, height: CGFloat(12 + (i % 3) * 8))
+                    }
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    HStack(spacing: 6) {
+                        ForEach(0..<5, id: \.self) { i in
+                            let phaseShift = Double(i) * 0.4
+                            let amp = (sin(t * 3.2 - phaseShift) + 1) / 2
+                            Capsule()
+                                .fill(color)
+                                .frame(width: 5, height: CGFloat(8 + amp * 22))
+                        }
+                    }
+                }
+            }
+        }
+        .opacity(isActive ? 1.0 : 0.0)
+        .animation(.easeInOut(duration: 0.3), value: isActive)
+        .accessibilityLabel("Avatar speaking")
+    }
+}
+
+// MARK: - MemoryLockMoment
+
+/// State 2 centerpiece — the "these are locked in" moment. Seal SF Symbol
+/// with native `.bounce` effect, a one-shot radial glow pulse behind it,
+/// staggered text reveal, and the 5 bubbles shown fully filled.
+private struct MemoryLockMoment: View {
+    let accent: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var sealVisible: Bool = false
+    @State private var textVisible: Bool = false
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var pulseAlpha: Double = 0.2
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                if !reduceMotion {
+                    Circle()
+                        .fill(accent)
+                        .frame(width: 64, height: 64)
+                        .scaleEffect(pulseScale)
+                        .opacity(pulseAlpha)
+                        .blur(radius: 6)
+                }
+
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 64, weight: .bold))
+                    .foregroundStyle(accent)
+                    .symbolRenderingMode(.hierarchical)
+                    .scaleEffect(sealVisible ? 1.0 : 0.8)
+                    .opacity(sealVisible ? 1 : 0)
+                    .symbolEffect(.bounce, options: .nonRepeating, value: sealVisible)
+            }
+            .frame(width: 88, height: 88)
+
+            Text("5 words registered")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Color.primary)
+                .opacity(textVisible ? 1 : 0)
+                .offset(y: textVisible ? 0 : 8)
+
+            Text("We'll come back to these after the clock test.")
+                .font(.body)
+                .foregroundStyle(Color.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+                .opacity(textVisible ? 1 : 0)
+                .offset(y: textVisible ? 0 : 8)
+
+            HStack(spacing: 14) {
+                ForEach(0..<5, id: \.self) { _ in
+                    WordLearningBubble(filled: true, accent: accent, visible: true)
+                }
+            }
+            .padding(.top, 12)
+            .opacity(textVisible ? 1 : 0)
+        }
+        .onAppear {
+            if reduceMotion {
+                sealVisible = true
+                textVisible = true
+                return
+            }
+            // Seal fades + scales in (one-shot bounce fires automatically
+            // when sealVisible flips because of the value: param above).
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.4)) {
+                sealVisible = true
+            }
+            // One-shot glow pulse: scale 1.0 → 1.3, opacity 0.2 → 0, easeOut 0.8s
+            withAnimation(.easeOut(duration: 0.8).delay(0.5)) {
+                pulseScale = 1.3
+                pulseAlpha = 0.0
+            }
+            // Text slides up after the seal settles.
+            withAnimation(.easeOut(duration: 0.35).delay(0.9)) {
+                textVisible = true
+            }
+        }
     }
 }
 

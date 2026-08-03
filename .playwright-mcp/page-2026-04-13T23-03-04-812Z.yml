@@ -1,0 +1,46 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - img "Tavus Logo" [ref=e4]
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - heading "Meet the PALs" [level=1] [ref=e7]
+          - paragraph [ref=e8]: Sign up for free to join the PALs queue
+        - link "Need a Developer account? CLICK HERE" [ref=e9] [cursor=pointer]:
+          - /url: /auth/sign-up?is_developer=true
+          - text: Need a Developer account?
+          - generic [ref=e10]: CLICK HERE
+        - generic [ref=e11]:
+          - button "Continue with Google" [ref=e12]:
+            - img [ref=e13]
+            - text: Continue with Google
+          - button "Continue with Apple" [ref=e14]:
+            - img [ref=e15]
+            - text: Continue with Apple
+          - generic [ref=e19]: or
+          - generic [ref=e21]:
+            - generic [ref=e22]:
+              - textbox "First name" [ref=e24]
+              - textbox "Last name" [ref=e26]
+            - textbox "Email" [ref=e28]
+            - generic [ref=e30]:
+              - textbox "Password" [ref=e31]
+              - button "Show password" [ref=e32]:
+                - img [ref=e33]
+                - generic [ref=e35]: Show password
+            - button "CONTINUE" [ref=e36]
+            - paragraph [ref=e37]:
+              - text: By accessing, using or creating an account regarding PALs, you hereby agree to be bound by the
+              - link "Supplemental Terms" [ref=e38] [cursor=pointer]:
+                - /url: https://www.tavus.io/pals-supplemental-terms-of-service
+              - text: and the
+              - link "Tavus Privacy Policy" [ref=e39] [cursor=pointer]:
+                - /url: https://www.tavus.io/privacy-policy
+              - text: .
+        - generic [ref=e40]:
+          - text: Already have an account?
+          - link "Log in" [ref=e41] [cursor=pointer]:
+            - /url: /auth/sign-in
+    - img "Image" [ref=e43]
+  - region "Notifications (F8)":
+    - list

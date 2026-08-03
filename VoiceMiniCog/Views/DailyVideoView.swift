@@ -15,6 +15,10 @@ struct DailyVideoView: UIViewRepresentable {
     func makeUIView(context: Context) -> VideoView {
         let view = VideoView()
         view.videoScaleMode = .fill
+        // Clear background so the full-screen phase tint shows through any
+        // letterbox / transparent region around the video.
+        view.backgroundColor = .clear
+        view.isOpaque = false
         return view
     }
 

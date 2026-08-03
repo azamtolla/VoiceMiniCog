@@ -1,0 +1,58 @@
+[     425ms] [INFO] v:0.19.2 @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:49
+[    6127ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[    6127ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[   36143ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[   36143ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.closed call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[   36663ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.close call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[   36663ms] [ERROR] Cross-Origin-Opener-Policy policy would block the window.close call. @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:28
+[   37559ms] [ERROR] Error initializing pylon TypeError: window.Pylon is not a function
+    at https://platform.tavus.io/assets/utils-Buyj8Eag.js:50:235135
+    at Kc (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:91672)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106761)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107525)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106782)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107525)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107334)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107227)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107525)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107525)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106741)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645)
+    at kl (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:107525)
+    at Ol (https://platform.tavus.io/assets/adminFilters-DbCY4-ru.js:8:106645) @ https://platform.tavus.io/assets/utils-Buyj8Eag.js:47

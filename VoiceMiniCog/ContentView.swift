@@ -33,10 +33,11 @@ enum AppScreen {
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
-    // Default to MA handoff on first launch so the nurse configures
-    // patient + language BEFORE the iPad is handed to the patient. The
-    // MA's "Hand iPad to Patient" tap flips to .home (Tap to Begin).
-    @State private var currentScreen: AppScreen = .maHandoff
+    // Skip MA handoff on launch — boot directly to the patient-facing
+    // Home screen ("Tap to Begin"). The MA handoff view still exists for
+    // "return to handoff" flows after an assessment completes, it's just
+    // no longer the first screen.
+    @State private var currentScreen: AppScreen = .home
     @State private var flowType: AssessmentFlowType = .quick
     @State private var assessmentState = AssessmentState()
     @State private var showSettings = false
@@ -123,18 +124,6 @@ struct ContentView: View {
                 HomeView(
                     onSelectFlow: { selectedFlow in
                         startAssessment(flowType: selectedFlow)
-                    },
-                    onResume: {
-                        if let restored = AssessmentPersistence.restore() {
-                            assessmentState = restored
-                            flowType = AssessmentPersistence.restoreFlowType()
-                            sessionID = UUID()
-                            if flowType == .caregiver {
-                                currentScreen = .caregiverAssessment
-                            } else {
-                                currentScreen = AppScreen.screen(for: restored.currentPhase, state: restored)
-                            }
-                        }
                     },
                     onOpenClinicianDashboard: {
                         currentScreen = .clinicianDashboard

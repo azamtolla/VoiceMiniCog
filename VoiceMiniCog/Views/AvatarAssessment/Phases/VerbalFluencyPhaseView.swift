@@ -58,6 +58,12 @@ struct VerbalFluencyPhaseView: View {
     // Cancellable fallback dispatches
     @State private var promptFallbackWork: DispatchWorkItem?
     @State private var closingFallbackWork: DispatchWorkItem?
+    /// One-shot guard: once the closing utterance has advanced us to the
+    /// next phase (either via avatarDoneSpeaking or the fallback), never
+    /// let the *other* path fire a second advance. Without this guard the
+    /// notification path advances into Story Recall, the fallback fires
+    /// ~6s later, and advances Story Recall → Completion mid-intro.
+    @State private var didAdvanceAfterClosing: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -66,14 +72,7 @@ struct VerbalFluencyPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            PhaseHeaderBadge(
-                phaseName: "Verbal Fluency",
-                icon: "bubble.left.and.text.bubble.right.fill",
-                accentColor: AssessmentTheme.Phase.fluency
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
-
+            // Phase name rendered by the chevron track — no header badge.
             Spacer()
 
             // MARK: Speech Bubble Icon (64pt)
@@ -86,11 +85,8 @@ struct VerbalFluencyPhaseView: View {
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            // MARK: "Animals" Heading
-            Text(LeftPaneSpeechCopy.verbalFluencyTitle)
-                .font(.system(size: 28, weight: .bold))
-                .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                .multilineTextAlignment(.center)
+            // MARK: "Animals" category pill — warm regularMaterial badge
+            animalsPillBadge
                 .padding(.bottom, 28)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
@@ -104,14 +100,19 @@ struct VerbalFluencyPhaseView: View {
                 .accessibilityLabel("Time remaining: \(timeRemaining) seconds")
                 .accessibilityAddTraits(.updatesFrequently)
 
-            // MARK: Live Count
+            // MARK: Live Count — numberPop on each increment
             if mode == .timing || mode == .done {
-                Text("\(scorer.count) named")
-                    .font(AssessmentTheme.Fonts.helper)
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                    .contentTransition(.numericText())
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: scorer.count)
-                    .transition(.opacity)
+                HStack(spacing: 6) {
+                    Text("\(scorer.count)")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(layoutManager.accentColor)
+                        .contentTransition(.numericText(value: Double(scorer.count)))
+                        .motionSafe(AssessmentTheme.Motion.numberPop, value: scorer.count)
+                    Text("named")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                }
+                .transition(.opacity)
             }
 
             Spacer()
@@ -160,10 +161,12 @@ struct VerbalFluencyPhaseView: View {
                 // anything if both fire.
                 beginTiming()
             } else if mode == .done, closingUtteranceEpoch > 0 {
-                // Closing utterance finished — advance. The epoch check
-                // prevents a stale prompt notification from triggering
-                // advance mid-test (closingUtteranceEpoch is 0 until
-                // finishFluency sets it).
+                // Closing utterance finished — advance once. Cancel the
+                // fallback so it can't double-fire into Completion.
+                guard !didAdvanceAfterClosing else { return }
+                didAdvanceAfterClosing = true
+                closingFallbackWork?.cancel()
+                closingFallbackWork = nil
                 layoutManager.advanceToNextPhase()
             }
         }
@@ -195,43 +198,67 @@ struct VerbalFluencyPhaseView: View {
     @ViewBuilder
     private var countdownRing: some View {
         let progress = Double(timeRemaining) / 60.0
-        let ringColor = timeRemaining <= 15 ? Color(hex: "#F59E0B") : Color(hex: "#6B7280")
+        let warningMode = timeRemaining <= 15
+        let ringColor: Color = warningMode ? Color(hex: "#F59E0B") : layoutManager.accentColor
 
         ZStack {
-            // Background track
+            // Background track — thicker (6pt per brief, bumped to match new 8pt visual weight)
             Circle()
-                .stroke(Color.gray.opacity(0.12), lineWidth: 8)
+                .stroke(Color.gray.opacity(0.14), style: StrokeStyle(lineWidth: 10, lineCap: .round))
 
-            if reduceMotion {
-                // Static ring — no animation for reduced motion
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(ringColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            } else {
-                // Animated sweep
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(ringColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 1), value: timeRemaining)
-            }
+            // Active fill — 10pt, accent color, smooth countdown sweep
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    ringColor,
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .shadow(color: ringColor.opacity(0.35), radius: 8, y: 0)
+                .motionSafe(.linear(duration: 1), value: timeRemaining)
 
-            // Center: remaining seconds
+            // Center stack — seconds with numberPop on each tick, label below
             VStack(spacing: 2) {
                 Text("\(timeRemaining)")
-                    .font(.system(size: 44, weight: .bold, design: .monospaced))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(ringColor)
-                    .contentTransition(.numericText())
-                    .animation(.linear(duration: 1), value: timeRemaining)
+                    .contentTransition(.numericText(value: Double(timeRemaining)))
+                    .scaleEffect(scaleForSecondsTick)
+                    .motionSafe(AssessmentTheme.Motion.numberPop, value: timeRemaining)
 
                 if mode == .timing {
                     Text("seconds")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 }
             }
         }
+    }
+
+    /// 1.0 → 1.15 → 1.0 pulse, driven implicitly by numberPop via scaleEffect
+    /// that toggles with each tick. Parity ensures the bounce lands each second.
+    private var scaleForSecondsTick: CGFloat {
+        reduceMotion ? 1.0 : (timeRemaining.isMultiple(of: 2) ? 1.0 : 1.08)
+    }
+
+    // MARK: - Animals pill badge
+
+    @ViewBuilder
+    private var animalsPillBadge: some View {
+        let shape = Capsule()
+        HStack(spacing: 10) {
+            Image(systemName: "pawprint.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(layoutManager.accentColor)
+            Text(LeftPaneSpeechCopy.verbalFluencyTitle)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(AssessmentTheme.Content.textPrimary)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 12)
+        .assessmentGlass(in: shape, tint: layoutManager.accentColor, prominence: .regular)
+        .overlay(shape.stroke(layoutManager.accentColor.opacity(0.18), lineWidth: 1))
+        .assessmentShadow(AssessmentTheme.Depth.cardResting)
     }
 
     // MARK: - Prompt
@@ -355,7 +382,10 @@ struct VerbalFluencyPhaseView: View {
         let fallback = max(4.0, Double(wc) * 0.45 + 2.0)
         closingFallbackWork?.cancel()
         let cfWork = DispatchWorkItem { [self] in
-            guard self.closingUtteranceEpoch == epoch, self.mode == .done else { return }
+            guard self.closingUtteranceEpoch == epoch,
+                  self.mode == .done,
+                  !self.didAdvanceAfterClosing else { return }
+            self.didAdvanceAfterClosing = true
             layoutManager.advanceToNextPhase()
         }
         closingFallbackWork = cfWork

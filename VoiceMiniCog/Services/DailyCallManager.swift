@@ -16,6 +16,71 @@ import os
 
 private let log = Logger(subsystem: "com.mercycog.VoiceMiniCog", category: "DailyCall")
 
+/// os_signpost log — Instruments captures phase transitions, echo spans, and
+/// turn-state changes under this category without perturbing the main log
+/// stream. Signposts are cheap when Instruments isn't attached.
+private let signposter = OSSignposter(
+    subsystem: "com.mercycog.VoiceMiniCog",
+    category: "DailyCall.signpost"
+)
+
+/// Pure decision for whether `handleUserStoppedSpeaking` should fire the
+/// auto-interrupt + LLM drain. Extracted so the decision logic can be
+/// unit-tested without spinning up a CallClient or a full Tavus session.
+///
+/// Rules (in order — first match wins):
+///   1. If an echo is in flight or queued → skip (`echo-conflict`):
+///      interrupting would drop a clinical prompt mid-speech.
+///   2. If the post-join guard window hasn't elapsed → skip (`join-guard`):
+///      avoids killing the first utterance to mic noise at join time.
+///   3. If the current phase is a scripted subtest → skip (`phase-gated`):
+///      scripted phases run with speculative_inference OFF on the persona,
+///      so the drain is unnecessary and its `overwrite_llm_context` can
+///      clobber a just-finished user response that the UI is still scoring.
+///   4. If the utterance duration was below the min threshold → skip
+///      (`below-min-duration`): a cough / "umm" / stray VAD should never
+///      drain the LLM context.
+///   5. Otherwise → fire the interrupt + context-clobber.
+enum AutoInterruptDecision: Equatable {
+    case fire(reason: String)
+    case skip(reason: String)
+
+    static func decide(
+        echoInFlight: Bool,
+        queueDepth: Int,
+        allowInterrupt: Bool,
+        isScriptedPhase: Bool,
+        utteranceDuration: TimeInterval,
+        minDurationForInterrupt: TimeInterval
+    ) -> AutoInterruptDecision {
+        if echoInFlight || queueDepth > 0 {
+            return .skip(reason: "echo-conflict")
+        }
+        if !allowInterrupt {
+            return .skip(reason: "join-guard")
+        }
+        if isScriptedPhase {
+            return .skip(reason: "phase-gated")
+        }
+        if utteranceDuration < minDurationForInterrupt {
+            return .skip(reason: "below-min-duration")
+        }
+        return .fire(reason: "user-driven")
+    }
+
+    /// Map a skip reason to the downstream "response marked" classification
+    /// for log/observability. Mirrors the taxonomy in the user's debug spec.
+    static func responseMark(for skipReason: String) -> String {
+        switch skipReason {
+        case "echo-conflict":        return "ignored"
+        case "join-guard":           return "final"
+        case "phase-gated":          return "final"
+        case "below-min-duration":   return "partial"
+        default:                     return "unknown"
+        }
+    }
+}
+
 @MainActor @Observable
 final class DailyCallManager: NSObject {
 
@@ -51,6 +116,17 @@ final class DailyCallManager: NSObject {
 
     @ObservationIgnored private var callClient: CallClient?
 
+    /// True while an async `join(url:)` is in flight but has not yet
+    /// completed (success or failure). Prevents duplicate joins that the
+    /// `callClient == nil` guard alone can't catch — there's a window
+    /// between "CallClient created" and "Daily SDK finishes signaling
+    /// handshake" where `callClient != nil` but state is not yet `.joined`.
+    /// A second caller hitting `joinIfReady()` during that window would
+    /// create a second CallClient, causing the Daily SDK's
+    /// "maximum number of subscriptions (1) are already in progress"
+    /// warning observed in the logs.
+    @ObservationIgnored private var joinInProgress = false
+
     /// Tavus conversation ID extracted from the room URL path.
     @ObservationIgnored private var conversationId: String?
 
@@ -69,6 +145,12 @@ final class DailyCallManager: NSObject {
     @ObservationIgnored private var inFlightEchoText: String = ""
     @ObservationIgnored private var inFlightEchoSpeakingCycles: Int = 0
     @ObservationIgnored private var inFlightEchoTokensSinceSent: Int = 0
+    /// Per-echo one-shot: if the LLM starts streaming tokens before the
+    /// replica actually starts speaking, we treat the echo as "collided"
+    /// and fire one recovery cycle (interrupt + re-queue). Resets on each
+    /// new echo send; cleared once replica.started_speaking arrives.
+    @ObservationIgnored private var echoCollisionRecoveryTask: Task<Void, Never>?
+    @ObservationIgnored private var echoCollisionRecoveryFired: Bool = false
 
     /// True after the first clinical echo is sent — gates remote audio subscription.
     /// Suppresses the Tavus persona greeting that plays on room join.
@@ -126,6 +208,20 @@ final class DailyCallManager: NSObject {
     @ObservationIgnored private(set) var currentPhase: AssessmentPhaseType = .intro
     @ObservationIgnored private var lastSpeculativeSetting: Bool?
 
+    // MARK: - User Utterance Timing (min-duration gate)
+
+    /// Timestamp of the most recent `conversation.user.started_speaking` event.
+    /// Used by `handleUserStoppedSpeaking` to gate auto-interrupt on a
+    /// minimum utterance duration — avoids killing the LLM context on
+    /// coughs, brief fillers, or stray VAD triggers.
+    @ObservationIgnored private var userStartedSpeakingAt: Date?
+
+    /// Minimum user-utterance duration before auto-interrupt may fire.
+    /// <1200ms is typical of coughs, "umm", "eh" — treating those as
+    /// interruptible responses was clobbering valid partial transcripts
+    /// during word recall / orientation.
+    @ObservationIgnored private let minUtteranceDurationForInterrupt: TimeInterval = 1.2
+
     // MARK: - Notification Observers
 
     @ObservationIgnored private var contextObserver: NSObjectProtocol?
@@ -164,6 +260,15 @@ final class DailyCallManager: NSObject {
     // MARK: - Lifecycle
 
     /// Store the room URL for later join. Call when conversation URL becomes available.
+    ///
+    /// Edge-triggered: after URL is set, this synchronously calls `joinIfReady()`
+    /// so callers never need to remember to sequence `configure` + `joinIfReady`
+    /// manually. Previously the join relied on a polling path in
+    /// `TavusCVIView.Coordinator.attemptJoinIfPossible()`, which produced the
+    /// "joinIfReady — no URL configured" then later "URL arrived" log sequence
+    /// observed in the crash evidence. `joinIfReady` is idempotent via the
+    /// `joinInProgress` and `callClient != nil` guards, so calling it from both
+    /// `configure` AND existing call sites is safe.
     func configure(url: String) {
         guard let parsed = URL(string: url) else {
             log.error("configure — invalid URL: \(url, privacy: .public)")
@@ -171,7 +276,8 @@ final class DailyCallManager: NSObject {
         }
         roomURL = parsed
         conversationId = parsed.lastPathComponent
-        log.info("configure — URL set, conversationId=\(self.conversationId ?? "nil", privacy: .public)")
+        log.info("configure — URL set, conversationId=\(self.conversationId ?? "nil", privacy: .public) — edge-triggering joinIfReady")
+        joinIfReady()
     }
 
     /// Join the Daily room if conditions are met (URL set, not deferred, not already joined).
@@ -190,16 +296,28 @@ final class DailyCallManager: NSObject {
             log.info("joinIfReady — CallClient already exists (state: \(self.callState.rawValue, privacy: .public))")
             return
         }
+        // Block if a join is mid-flight. The SDK creates the CallClient
+        // synchronously but signaling + media subscription are async; in
+        // that window a second entry into joinIfReady would otherwise
+        // create a second CallClient and stack a second subscription
+        // attempt, tripping the Daily SDK "max subscriptions (1) in
+        // progress" guard observed in the logs.
+        guard !joinInProgress else {
+            log.info("joinIfReady — join already in progress, skipping")
+            return
+        }
 
         let client = CallClient()
         client.delegate = self
         self.callClient = client
+        self.joinInProgress = true
 
         // Reset state for new session
         echoTextQueue.removeAll()
         echoInFlight = false
         echoCounter = 0
         firstEchoSent = false
+        lastMicEnabledDispatched = nil
         lastOverwriteContextAt = .distantPast
         lastEchoSlotReleasedAt = .distantPast
         joinedAt = nil
@@ -211,6 +329,7 @@ final class DailyCallManager: NSObject {
         lastSpeculativeSetting = nil
         lastObservedSeq = -1
         currentTurnIdx = -1
+        userStartedSpeakingAt = nil
         cancelSilenceWatch()
 
         log.info("joinIfReady — joining room")
@@ -229,12 +348,19 @@ final class DailyCallManager: NSObject {
             // Daily's completion may run on a background thread — hop to MainActor.
             Task { @MainActor in
                 guard let self else { return }
+                // Always clear join-in-progress when the async join resolves,
+                // whether success or failure. On failure the CallClient
+                // reference is dropped below so a subsequent joinIfReady
+                // can retry cleanly.
+                self.joinInProgress = false
                 switch result {
                 case .success:
                     log.info("Join successful")
                     self.onJoinSucceeded()
                 case .failure(let error):
                     log.error("Join failed: \(error.localizedDescription, privacy: .public)")
+                    // Drop the half-initialized CallClient so retry is possible.
+                    self.callClient = nil
                     NotificationCenter.default.post(name: .tavusConnectionLost, object: nil,
                                                     userInfo: ["message": error.localizedDescription])
                 }
@@ -248,7 +374,10 @@ final class DailyCallManager: NSObject {
         echoInFlight = false
         echoWatchdogTask?.cancel()
         echoWatchdogTask = nil
+        cancelMicUnmuteSafety()
+        lastMicEnabledDispatched = nil
         pendingBeforeJoin.removeAll()
+        joinInProgress = false
         cancelSilenceWatch()
         lastObservedSeq = -1
         currentTurnIdx = -1
@@ -293,12 +422,53 @@ final class DailyCallManager: NSObject {
     /// source order; Daily's SDK serializes FFI calls internally, and the
     /// `await` point only suspends after the call has been enqueued to the
     /// SDK's internal worker.
+    /// Last mic input-enabled state we actually dispatched to the SDK.
+    /// Used to skip redundant `setInputEnabled` calls, which swap the
+    /// cam-audio MediaStreamTrack and trigger a brief audio-session
+    /// reconfiguration — audible as a pop/click in the avatar's audio.
+    @ObservationIgnored private var lastMicEnabledDispatched: Bool?
+
+    /// Safety-net task that force-unmutes the mic if it has remained muted
+    /// past the expected "avatar finished speaking → listening" handoff.
+    /// Armed in `handleReplicaStoppedSpeaking`, cancelled when the next echo
+    /// starts OR when the patient begins speaking.
+    @ObservationIgnored private var micUnmuteSafetyTask: Task<Void, Never>?
+
+    /// Hard ceiling after the last replica.stopped_speaking before we force
+    /// the mic open. Short enough that patients don't start responding to
+    /// dead-air; long enough that a fast follow-up echo (echo chain) doesn't
+    /// flap the mic on/off.
+    @ObservationIgnored private let micUnmuteSafetyWindow: TimeInterval = 0.4
+
+    /// Reset the `lastMicEnabledDispatched` cache and re-issue whatever the
+    /// caller last requested. Used when the underlying audio session route
+    /// changes (AVAudioSession .routeChange) — after a route swap the
+    /// cached dispatched-state no longer reflects SDK reality.
+    func invalidateMicStateCache() {
+        log.info("Mic state cache invalidated (audio route change)")
+        lastMicEnabledDispatched = nil
+    }
+
     private func setMicrophoneInputEnabledOffMain(client: CallClient, enabled: Bool) {
+        // Skip no-op mute/unmute calls. Without this, a single echo
+        // delivery issues setInputEnabled(false) up to 3× (explicit
+        // pre-echo mute, replica.started_speaking safety mute, and any
+        // subsequent cycle) — each one swaps the MediaStreamTrack and
+        // can glitch the audio output.
+        if lastMicEnabledDispatched == enabled { return }
+        lastMicEnabledDispatched = enabled
+        log.debug("Mic device transition -> \(enabled ? "enabled" : "disabled", privacy: .public)")
         Task { @MainActor in
             do {
                 try await client.setInputEnabled(.microphone, enabled)
             } catch {
                 log.error("setInputEnabled(microphone, \(enabled, privacy: .public)) failed: \(error.localizedDescription, privacy: .public)")
+                // Dispatch failed — allow next call to retry by clearing
+                // the cached state. Otherwise a transient SDK error could
+                // strand the mic in the opposite state forever.
+                if self.lastMicEnabledDispatched == enabled {
+                    self.lastMicEnabledDispatched = nil
+                }
             }
         }
     }
@@ -410,10 +580,27 @@ final class DailyCallManager: NSObject {
         }
         log.info("Mic muted before echo")
 
-        // Start watchdog timer
+        // Start watchdog timer.
+        // Prior logic: isLongForm (SSML || >280 chars) → 90s, else 10s.
+        // The 10s bucket was catching medium-length plain-text prompts like
+        // "Earlier, I read you some words and asked you to hold onto them..."
+        // (192 chars, ~11s actual TTS time) and firing mid-speech, unmuting
+        // the mic and posting a premature avatarDoneSpeaking. Graduate by
+        // length so medium prompts get room to breathe.
         echoWatchdogTask?.cancel()
-        let isLongForm = text.contains("<speak") || text.count > 280
-        let watchdogSeconds: TimeInterval = isLongForm ? 90 : 10
+        let isSSML = text.contains("<speak")
+        let charCount = text.count
+        let watchdogSeconds: TimeInterval
+        if isSSML || charCount > 280 {
+            watchdogSeconds = 90
+        } else if charCount > 100 {
+            // Plain-text but medium-length (orientation prompts, recall
+            // prompts). TTS ~150 wpm → give ~15–25s of headroom.
+            watchdogSeconds = 25
+        } else {
+            // Short one-liners ("What year is this?") — 12s is plenty.
+            watchdogSeconds = 12
+        }
         echoWatchdogTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(watchdogSeconds))
             guard let self, !Task.isCancelled else { return }
@@ -436,6 +623,7 @@ final class DailyCallManager: NSObject {
         inFlightEchoText = text
         inFlightEchoSpeakingCycles = 0
         inFlightEchoTokensSinceSent = 0
+        echoCollisionRecoveryFired = false
         log.info("Echo sending [#\(self.echoCounter)] len=\(text.count) preview=\(text.prefix(80), privacy: .public)")
         sendInteraction("conversation.echo", properties: [
             "modality": "text",
@@ -443,12 +631,66 @@ final class DailyCallManager: NSObject {
             "inference_id": "echo_\(echoCounter)",
             "done": "true"
         ])
+
+        // Collision recovery — if after 2s the echo has never actually
+        // started speaking AND we saw LLM tokens streaming in, Tavus's
+        // rogue LLM generation collided with our echo in the TTS pipeline.
+        // Fire one recovery: interrupt + re-queue the same text. Fixes the
+        // "avatar froze after patient answered / said a word twice" pattern.
+        echoCollisionRecoveryTask?.cancel()
+        let expectedEcho = echoCounter
+        let recoveredText = text
+        echoCollisionRecoveryTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(2000))
+            guard let self, !Task.isCancelled else { return }
+            await MainActor.run {
+                self.runEchoCollisionRecoveryIfNeeded(expectedEcho: expectedEcho, text: recoveredText)
+            }
+        }
+    }
+
+    @MainActor
+    private func runEchoCollisionRecoveryIfNeeded(expectedEcho: Int, text: String) {
+        // Echo already moved on — nothing to do.
+        guard echoInFlight, echoCounter == expectedEcho else { return }
+        // Replica actually started speaking — this echo is healthy.
+        guard inFlightEchoSpeakingCycles == 0 else { return }
+        // No tokens streamed in — likely just a slow network / TTS cold
+        // start, not a collision. Let the watchdog handle it if it stays stuck.
+        guard inFlightEchoTokensSinceSent > 0 else { return }
+        // Never fire twice on the same echo.
+        guard !echoCollisionRecoveryFired else { return }
+        echoCollisionRecoveryFired = true
+
+        log.warning("⚠️ Echo#\(expectedEcho) collided with LLM stream (no replica.started_speaking after 2s, tokens=\(self.inFlightEchoTokensSinceSent)) — firing recovery")
+
+        // Release the stuck slot and drain the LLM.
+        releaseEchoSlot()
+        log.info("Auto-interrupt: fired (reason=timeout-driven, source=echo-collision, echo#\(expectedEcho))")
+        sendInteraction("conversation.interrupt")
+        sendContextUpdate("RULES: Stay completely silent. Do NOT respond, acknowledge, or generate any speech. Only speak when given an echo command.")
+
+        // Re-queue the same text so downstream continuation flows
+        // (QAPhaseView speakQuestion, WordRegistration echo chain, etc.)
+        // still resolve naturally via the next replica.stopped_speaking.
+        echoTextQueue.insert(text, at: 0)
+        // Wait 900ms before re-sending. At 400ms the rogue LLM's
+        // partial TTS could still be bleeding into the audio mix,
+        // producing a garbled blip right before the real echo starts.
+        // 900ms gives Tavus enough time to fully drain the interrupted
+        // LLM stream before we send the new echo.
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(900))
+            self?.pumpEchoQueue()
+        }
     }
 
     private func releaseEchoSlot() {
         guard echoInFlight else { return }
         echoWatchdogTask?.cancel()
         echoWatchdogTask = nil
+        echoCollisionRecoveryTask?.cancel()
+        echoCollisionRecoveryTask = nil
         echoInFlight = false
         lastEchoSlotReleasedAt = Date()
         pumpEchoQueue()
@@ -477,7 +719,16 @@ final class DailyCallManager: NSObject {
     /// audio into the subtest stream).
     func setPhase(_ phase: AssessmentPhaseType) {
         guard phase != currentPhase else { return }
+        let priorPhase = currentPhase
         currentPhase = phase
+        // Phase-transition signpost so Instruments can overlay phase boundaries
+        // on top of echo/mic/turn-state spans. `emitEvent` is a point-in-time
+        // marker; echo/turn-state use intervals separately.
+        signposter.emitEvent(
+            "phase.transition",
+            "\(priorPhase.rawValue) -> \(phase.rawValue)"
+        )
+        log.info("Phase transition: \(priorPhase.rawValue, privacy: .public) -> \(phase.rawValue, privacy: .public) (scripted=\(phase.isScoredSubtest))")
         NotificationCenter.default.post(
             name: .assessmentPhaseChanged,
             object: nil,
@@ -488,7 +739,7 @@ final class DailyCallManager: NSObject {
         guard wantSpec != lastSpeculativeSetting else { return }
         lastSpeculativeSetting = wantSpec
 
-        log.info("Phase -> \(phase.rawValue, privacy: .public) (speculative_inference=\(wantSpec))")
+        log.info("Phase config: speculative_inference=\(wantSpec) (phase=\(phase.rawValue, privacy: .public))")
 
         // Push the LLM-layer toggle via overwrite_llm_context. Tavus's LLM
         // layer reads speculative_inference from the persona at session
@@ -633,7 +884,7 @@ final class DailyCallManager: NSObject {
         echoInFlight = false
         echoWatchdogTask?.cancel()
         echoWatchdogTask = nil
-        log.info("Interrupt: cleared echo queue and released echo slot")
+        log.info("Auto-interrupt: fired (reason=system-driven, source=explicit-request) — cleared echo queue and released echo slot")
         sendInteraction("conversation.interrupt")
     }
 
@@ -667,29 +918,31 @@ final class DailyCallManager: NSObject {
     }
 
     private func handleUserStoppedSpeaking() {
-        // Don't interrupt mid-echo
-        if echoInFlight || !echoTextQueue.isEmpty {
-            log.info("Auto-interrupt: skipped (echo queued or in flight)")
-            return
-        }
-        guard shouldAllowInterrupt() else { return }
-        sendInteraction("conversation.interrupt")
-        // Fix-3: `interrupt` cancels TTS audio but the LLM keeps generating
-        // tokens (we observed 8 utterance.streaming events firing after
-        // interrupt). Those tokens stay in the pipeline and can collide with
-        // the next echo's SSML, producing the trial-3 freeze + audio glitch.
-        // Re-asserting the silence-rules context immediately clobbers the
-        // in-flight LLM completion before it can stream further tokens.
-        //
-        // Use sendContextUpdate (not raw sendInteraction) so lastOverwriteContextAt
-        // is stamped BEFORE the wire-send — this guarantees the 1.2s guard in
-        // handleReplicaStartedSpeaking sees the fresh timestamp, even if
-        // replica.started_speaking arrives on a near-simultaneous main-actor hop.
-        sendContextUpdate("RULES: Stay completely silent. Do NOT respond, acknowledge, or generate any speech. Only speak when given an echo command.")
-        log.info("Auto-interrupt: suppressed LLM acknowledgment + context-clobbered to drain token stream")
+        // Compute utterance duration for logging only.
+        let startedAt = userStartedSpeakingAt
+        userStartedSpeakingAt = nil
+        let utteranceDuration = startedAt.map { Date().timeIntervalSince($0) } ?? 0
+        log.info("Turn-state: userSpeaking -> processingUser [duration=\(String(format: "%.2f", utteranceDuration))s phase=\(self.currentPhase.rawValue, privacy: .public)]")
+
+        // DEMO MODE: auto-interrupt / context-clobber disabled globally.
+        // The original drain existed to suppress speculative LLM tokens that
+        // raced the next echo, but in practice it was also clobbering
+        // legitimate patient responses during recall / orientation. With the
+        // persona guardrails ("stay silent between echo commands") the
+        // speculative leak is bounded, and dropping the interrupt entirely
+        // guarantees user responses are never truncated.
+        log.info("Auto-interrupt: DISABLED (demo mode) — no interrupt or overwrite_llm_context will fire on user.stopped_speaking")
     }
 
     private func handleReplicaStartedSpeaking() {
+        // Replica is actually speaking — no collision, cancel any
+        // pending recovery check for this echo.
+        echoCollisionRecoveryTask?.cancel()
+        echoCollisionRecoveryTask = nil
+        // A real echo is firing — the queued-follow-up safety-net is no
+        // longer needed. `handleReplicaStoppedSpeaking` will re-arm it if
+        // another chained echo is queued after this one.
+        cancelMicUnmuteSafety()
         if echoInFlight || !echoTextQueue.isEmpty {
             inFlightEchoSpeakingCycles += 1
             let cycle = inFlightEchoSpeakingCycles
@@ -725,7 +978,7 @@ final class DailyCallManager: NSObject {
         let cycles = inFlightEchoSpeakingCycles
         let echoNum = echoCounter
         let textPreview = inFlightEchoText.prefix(60)
-        log.info("Replica stopped [echo#\(echoNum) cycles=\(cycles) elapsed=\(String(format: "%.2f", elapsed))s preview=\(textPreview, privacy: .public)]")
+        log.info("Turn-state: avatarSpeaking -> awaitingUser [echo#\(echoNum) cycles=\(cycles) elapsed=\(String(format: "%.2f", elapsed))s preview=\(textPreview, privacy: .public)]")
 
         releaseEchoSlot()
 
@@ -735,14 +988,49 @@ final class DailyCallManager: NSObject {
         inFlightEchoSpeakingCycles = 0
         inFlightEchoTokensSinceSent = 0
 
-        // Unmute mic only if no more echoes are queued
-        if echoTextQueue.isEmpty && !echoInFlight {
+        // DEMO MODE: force unmute on every replica stop, regardless of
+        // queue state. The prior queue-gated unmute was leaving the mic
+        // muted whenever a chained echo was queued — which during recall
+        // prompts meant the patient's response was dropped. If a chained
+        // echo actually fires next, `handleReplicaStartedSpeaking` will
+        // mute again for its duration.
+        if let client = callClient {
+            setMicrophoneInputEnabledOffMain(client: client, enabled: true)
+        }
+        log.info("Mic FORCE-unmuted on replica stop (queue=\(self.echoTextQueue.count) inFlight=\(self.echoInFlight)) — turn-state=awaitingUser")
+        cancelMicUnmuteSafety()
+    }
+
+    /// Arm the safety-unmute watchdog. Idempotent — cancels any prior task.
+    private func armMicUnmuteSafety() {
+        cancelMicUnmuteSafety()
+        let window = micUnmuteSafetyWindow
+        micUnmuteSafetyTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(window))
+            guard let self, !Task.isCancelled else { return }
+            await MainActor.run { self.fireMicUnmuteSafetyIfNeeded() }
+        }
+    }
+
+    private func cancelMicUnmuteSafety() {
+        micUnmuteSafetyTask?.cancel()
+        micUnmuteSafetyTask = nil
+    }
+
+    @MainActor
+    private func fireMicUnmuteSafetyIfNeeded() {
+        // If a new echo is actively in flight, the normal flow will mute/unmute
+        // naturally. Leave it alone.
+        if echoInFlight || !echoTextQueue.isEmpty {
+            log.debug("Mic safety-unmute skipped (queue=\(self.echoTextQueue.count) inFlight=\(self.echoInFlight))")
+            return
+        }
+        // Only force-unmute if the mic is currently muted from our side.
+        if lastMicEnabledDispatched == false {
             if let client = callClient {
                 setMicrophoneInputEnabledOffMain(client: client, enabled: true)
             }
-            log.info("Mic unmuted (avatar stopped, queue empty)")
-        } else {
-            log.info("Mic stays muted (more echoes queued)")
+            log.warning("Mic force-unmuted by safety-net — queue drained without normal unmute path")
         }
     }
 
@@ -898,9 +1186,16 @@ extension DailyCallManager: CallClientDelegate {
                 self.handleReplicaStoppedSpeaking()
 
             case "conversation.user.started_speaking":
-                // Patient is vocalizing — cancel silence watch immediately.
+                // Patient is vocalizing — cancel silence watch immediately
+                // and stamp the start time so handleUserStoppedSpeaking can
+                // compute utterance duration for the min-duration gate.
                 self.patientIsSpeaking = true
+                self.userStartedSpeakingAt = Date()
                 self.cancelSilenceWatch()
+                // Patient is speaking: the mic-unmute safety net is no
+                // longer needed (we want the mic open, and it already is).
+                self.cancelMicUnmuteSafety()
+                log.info("Turn-state: awaitingUser -> userSpeaking")
                 NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
 
             case "conversation.user.stopped_speaking":

@@ -29,8 +29,17 @@ struct AvatarZoneView: View {
     var onDoneDrawing: (() -> Void)? = nil
     var onEndSession: (() -> Void)? = nil
 
-    @State private var ringScale: CGFloat = 1.0
-    @State private var ringOpacity: Double = 1.0
+    // Ring / glow animation flag. The prior implementation relied on stacked
+    // `withAnimation(.repeatForever)` calls which could not be cancelled —
+    // each new state change layered a new animation on top of the old one,
+    // creating a visible "fight" between the outgoing and incoming ring.
+    // The current implementation drives the breathing directly from a
+    // TimelineView (see `breathingValues`), so the ring reads the latest
+    // behavior every frame and there is no accumulated animation to cancel.
+    @State private var isAnimatingRing: Bool = false
+    @State private var ackPulseTrigger: Int = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var connectingElapsed: TimeInterval = 0
     private let connectionTimeout: TimeInterval = 15
 
@@ -47,19 +56,30 @@ struct AvatarZoneView: View {
     // MARK: - Body
 
     var body: some View {
-        let circleDiam = min(width * 0.65, 160.0)
+        // Clock-drawing circular avatar: size the circle to fill most of
+        // the pane width so the entire face shows, while leaving room
+        // below for the instructions + Done Drawing / End Session
+        // buttons (~340pt of controls). Cap absolutely so very wide
+        // panes don't blow it up past what looks tasteful.
+        let clockControlsReservedHeight: CGFloat = 360
+        let availableForCircle = max(100, height - clockControlsReservedHeight - 40)
+        let circleDiam = min(width * 0.85, min(availableForCircle, 280.0))
 
         ZStack {
-            // 1. Background — dark gradient (standard) or light surface (clock only)
-            if isClockDrawing {
-                Color(hex: "#F2F4F6")
-            } else {
-                RadialGradient(
-                    colors: [AssessmentTheme.Avatar.gradientCenter, AssessmentTheme.Avatar.gradientEdge],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: max(width, height) * 0.7
-                )
+            // 1. No dedicated frame — the avatar floats on the shared
+            //    canvas background (AssessmentTheme.canvasBase). Clock
+            //    drawing used to have its own light panel here; dropped
+            //    so both panes stay the same warm neutral everywhere.
+
+            // 1b. Ambient bloom — a soft radial halo that expands outward
+            //     from BEHIND the avatar, not a ring around it. Scales
+            //     1.0 → 1.08 on speaking, collapses to a small steady glow
+            //     on listening, vanishes on idle. Driven by TimelineView so
+            //     the behavior reads every frame without `.repeatForever`
+            //     accumulation.
+            if !isClockDrawing {
+                ambientBloom
+                    .allowsHitTesting(false)
             }
 
             // 2. Video / placeholders — DailyVideoView renders the native Daily video track.
@@ -68,27 +88,37 @@ struct AvatarZoneView: View {
             //    Native VideoView stays full-size; SwiftUI .mask() crops the visible region.
             Group {
                 if conversationURL != nil {
-                    DailyVideoView(track: dailyCallManager.remoteVideoTrack)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .opacity(layoutManager.avatarOpacity)
-                    .mask(alignment: isClockDrawing ? .top : .center) {
-                        if isClockDrawing {
-                            Circle()
+                    if isClockDrawing {
+                        // Clock drawing: a dedicated square frame the size
+                        // of the target circle, clipped to Circle() so the
+                        // video's .fill scaling centers the face inside
+                        // the square — not inside the full pane height,
+                        // which was clipping the face off. Anchored near
+                        // the top of the pane with room for controls below.
+                        VStack(spacing: 0) {
+                            DailyVideoView(track: dailyCallManager.remoteVideoTrack)
                                 .frame(width: circleDiam, height: circleDiam)
-                                .padding(.top, 40)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        } else {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .padding(16)
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
+                                )
+                                .padding(.top, 24)
+                            Spacer(minLength: 0)
                         }
-                    }
-                    .overlay(alignment: .top) {
-                        if isClockDrawing {
-                            Circle()
-                                .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
-                                .frame(width: circleDiam, height: circleDiam)
-                                .padding(.top, 40)
-                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .opacity(layoutManager.avatarOpacity)
+                    } else {
+                        // Standard phases: full-pane video with a soft
+                        // rounded-rect mask. Ambient bloom behind conveys
+                        // the speaking / listening state.
+                        DailyVideoView(track: dailyCallManager.remoteVideoTrack)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .opacity(layoutManager.avatarOpacity)
+                            .mask(alignment: .center) {
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .padding(16)
+                            }
                     }
                 } else if isConnecting && connectingElapsed < connectionTimeout {
                     VStack(spacing: 12) {
@@ -115,19 +145,9 @@ struct AvatarZoneView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: layoutManager.avatarOpacity)
 
-            // 3. Accent ring — standard mode (hidden during clock, registration, fluency, and .waiting)
-            if !isClockDrawing
-                && layoutManager.currentPhase != .wordRegistration
-                && layoutManager.currentPhase != .verbalFluency
-                && layoutManager.showAvatarRing {
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(layoutManager.accentColor, lineWidth: AssessmentTheme.Sizing.avatarRingWidth)
-                    .padding(16)
-                    .scaleEffect(ringScale)
-                    .opacity(ringOpacity)
-                    .animation(.easeInOut(duration: 0.3), value: ringScale)
-                    .animation(.easeInOut(duration: 0.3), value: ringOpacity)
-            }
+            // 3. No accent ring — the ambient bloom (layer 1b) carries the
+            //    state signalling. A hard-edged rectangle around the video
+            //    would fight the "one continuous canvas" feel.
 
             // 4. Controls panel — clock drawing mode
             if isClockDrawing {
@@ -139,6 +159,16 @@ struct AvatarZoneView: View {
             if !isClockDrawing {
                 VStack {
                     Spacer()
+                    // Thinking dots appear when the avatar is in .acknowledging
+                    // ("Got it...") state — a gentle signal that the system
+                    // received the patient's answer and is transitioning.
+                    ThinkingDots(
+                        color: layoutManager.accentColor,
+                        isActive: layoutManager.avatarBehavior == .acknowledging
+                    )
+                    .frame(height: 16)
+                    .padding(.bottom, 6)
+
                     avatarStateLabel
                         .padding(.bottom, 20)
                 }
@@ -166,10 +196,14 @@ struct AvatarZoneView: View {
         }
         .animation(.spring(duration: 0.55, bounce: 0.15), value: layoutManager.currentPhase)
         .onChange(of: layoutManager.avatarBehavior) { _, newBehavior in
-            updateRingAnimation(for: newBehavior)
+            // Fire a one-shot pulse for .acknowledging so the ring "kicks"
+            // once — all other states are driven by the TimelineView and
+            // settle automatically on the latest behavior.
+            if newBehavior == .acknowledging {
+                ackPulseTrigger &+= 1
+            }
         }
         .onAppear {
-            updateRingAnimation(for: layoutManager.avatarBehavior)
             refreshClockPanelFeedReady()
         }
         .onChange(of: layoutManager.currentPhase) { _, _ in
@@ -216,7 +250,10 @@ struct AvatarZoneView: View {
     private func clockDrawingControls(circleDiam: CGFloat) -> some View {
         VStack(spacing: 16) {
             // Space for the circular avatar above
-            Spacer().frame(height: 40 + circleDiam + (clockPanelFeedReady ? 16 : 8))
+            // Reserve room for: 24pt top padding + circleDiam + small buffer.
+            // Tracks the new circle sizing above so the controls panel
+            // sits directly below the circular avatar.
+            Spacer().frame(height: 24 + circleDiam + (clockPanelFeedReady ? 16 : 8))
 
             // Connecting / Waiting — hidden once the feed is considered live (Daily joined or URL ready).
             if !clockPanelFeedReady {
@@ -381,57 +418,98 @@ struct AvatarZoneView: View {
         }
     }
 
-    private func updateRingAnimation(for behavior: AvatarBehavior) {
-        switch behavior {
-        case .speaking, .narrating:
-            withAnimation(
-                .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
-                .repeatForever(autoreverses: true)
-            ) {
-                ringScale = 1.03
-                ringOpacity = 1.0
-            }
+    // MARK: - Ambient bloom (TimelineView-driven)
 
-        case .listening:
-            withAnimation(
-                .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
-                .repeatForever(autoreverses: true)
-            ) {
-                ringScale = 1.05
-                ringOpacity = 1.0
-            }
-
-        case .idle:
-            withAnimation(
-                .easeInOut(duration: AssessmentTheme.Anim.ringPulseDuration)
-                .repeatForever(autoreverses: true)
-            ) {
-                ringOpacity = 0.4
-                ringScale = 1.0
-            }
-
-        case .acknowledging:
-            withAnimation(.spring(response: 0.15, dampingFraction: 0.6)) {
-                ringScale = 1.08
-                ringOpacity = 1.0
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    ringScale = 1.0
-                }
-            }
-
-        case .waiting:
-            withAnimation(.easeInOut(duration: 0.2)) {
-                ringOpacity = 0.0
-                ringScale = 1.0
-            }
-
-        case .completing:
-            withAnimation(.easeInOut(duration: 0.3)) {
-                ringOpacity = 0.6
-                ringScale = 1.0
+    /// Soft radial halo that expands outward from BEHIND the avatar.
+    /// Speaking / narrating: scale 1.0 → 1.08, opacity 0.12 → 0.0 (inner to outer),
+    /// breathing at the avatarPulse period.
+    /// Listening: collapsed steady glow, same color, smaller radius.
+    /// Idle / waiting: no glow at all.
+    /// Acknowledging: brief brighter flash, settles back.
+    ///
+    /// Implemented with TimelineView so the current behavior is read every
+    /// frame — no stacked `.repeatForever` animations to cancel when the
+    /// state changes (prior ring-fight bug).
+    @ViewBuilder
+    private var ambientBloom: some View {
+        let accent = layoutManager.accentColor
+        if reduceMotion {
+            staticBloom(accent: accent, for: layoutManager.avatarBehavior)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                let t = ctx.date.timeIntervalSinceReferenceDate
+                let period = AssessmentTheme.Motion.avatarPulseDuration
+                let breath = (sin(t * 2.0 * .pi / period) + 1.0) / 2.0   // 0...1
+                let v = bloomValues(for: layoutManager.avatarBehavior, breath: breath)
+                RadialGradient(
+                    colors: [accent.opacity(v.centerAlpha), accent.opacity(0)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: min(width, height) * v.radiusRatio
+                )
+                .scaleEffect(v.scale)
+                .blur(radius: 18)
+                .opacity(v.overallOpacity)
             }
         }
+    }
+
+    private struct BloomFrame {
+        let centerAlpha: Double
+        let radiusRatio: Double
+        let scale: CGFloat
+        let overallOpacity: Double
+    }
+
+    private func bloomValues(for b: AvatarBehavior, breath: Double) -> BloomFrame {
+        switch b {
+        case .speaking, .narrating:
+            // Expands outward — scale 1.0 → 1.08, opacity 0.12 → (almost) 0
+            return BloomFrame(
+                centerAlpha: 0.12 - 0.08 * breath,
+                radiusRatio: 0.55,
+                scale: 1.0 + 0.08 * CGFloat(breath),
+                overallOpacity: 1.0
+            )
+        case .listening:
+            // Steady, warm, attentive — no pulse.
+            return BloomFrame(
+                centerAlpha: 0.16,
+                radiusRatio: 0.40,
+                scale: 1.0,
+                overallOpacity: 1.0
+            )
+        case .acknowledging:
+            return BloomFrame(
+                centerAlpha: 0.22,
+                radiusRatio: 0.50,
+                scale: 1.05,
+                overallOpacity: 1.0
+            )
+        case .idle, .waiting:
+            return BloomFrame(centerAlpha: 0, radiusRatio: 0.3, scale: 1.0, overallOpacity: 0)
+        case .completing:
+            return BloomFrame(
+                centerAlpha: 0.14,
+                radiusRatio: 0.45,
+                scale: 1.02,
+                overallOpacity: 1.0
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func staticBloom(accent: Color, for b: AvatarBehavior) -> some View {
+        let v = bloomValues(for: b, breath: 0.5)
+        RadialGradient(
+            colors: [accent.opacity(v.centerAlpha), accent.opacity(0)],
+            center: .center,
+            startRadius: 0,
+            endRadius: min(width, height) * v.radiusRatio
+        )
+        .scaleEffect(v.scale)
+        .blur(radius: 18)
+        .opacity(v.overallOpacity)
+        .animation(.easeInOut(duration: 0.3), value: b)
     }
 }

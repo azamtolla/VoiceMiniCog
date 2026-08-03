@@ -74,7 +74,13 @@ enum LeftPaneSpeechCopy {
     /// the mic stays muted, and auto-interrupts cannot fire — identical to how
     /// `WelcomePhaseView.introScriptForEcho` already works.
     static func wordRegistrationEcho(words: [String], trial: Int) -> String {
-        let wordItems = words.map { "\($0)." }.joined(separator: "<break time=\"1000ms\"/> ")
+        // Per-word break dropped from 1000ms → 600ms. The 1000ms breaks
+        // caused Tavus/ElevenLabs TTS to abort the utterance mid-stream
+        // after the second word (backend VAD interpreting the silence as
+        // end-of-stream). 600ms matches the break times used by the
+        // working Welcome intro SSML and still gives the patient room
+        // to hear each word distinctly.
+        let wordItems = words.map { "\($0)." }.joined(separator: "<break time=\"600ms\"/> ")
         if trial == 1 {
             return """
             <speak>\

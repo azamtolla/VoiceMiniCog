@@ -81,6 +81,7 @@ struct StoryRecallPhaseView: View {
     /// to prevent unbounded recall time. QMCI protocol does not specify a hard
     /// ceiling for story recall, but 90s is generous and prevents stalls.
     @State private var recallCeilingWork: DispatchWorkItem?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum StoryPhase { case listening, recalling, scoring }
 
@@ -114,10 +115,16 @@ struct StoryRecallPhaseView: View {
             if recalledFlags.count != scoringUnits.count {
                 recalledFlags = Array(repeating: false, count: scoringUnits.count)
             }
-            // Avatar speaks the story intro + reads the story text
+            // Avatar speaks the story intro + reads the story text.
             avatarSpeak(LeftPaneSpeechCopy.storyRecallIntro)
-            // After a brief pause for the intro, read the story
+            // After a brief pause for the intro, read the story — BUT only
+            // if we're still actually on the Story Recall phase in the
+            // layout manager. Previously this only checked local
+            // StoryPhase.listening, so a premature advance (e.g., from a
+            // stale VerbalFluency fallback) would leave this closure
+            // firing the story AFTER the completion screen was already up.
             DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                guard layoutManager.currentPhase == .storyRecall else { return }
                 if phase == .listening {
                     avatarSpeak(story.voiceText)
                 }
@@ -168,77 +175,71 @@ struct StoryRecallPhaseView: View {
     private var listeningOrRecallingView: some View {
         VStack(spacing: 0) {
 
-            PhaseHeaderBadge(
-                phaseName: "Story Recall",
-                icon: "book.fill",
-                accentColor: AssessmentTheme.Phase.storyRecall
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
-
+            // Phase name rendered by the chevron track — no header badge.
             Spacer()
 
-            // MARK: Icon
-            Image(systemName: phase == .listening ? "book.fill" : "mic.fill")
+            // MARK: Baton-pass card — immersive waveform ↔ "your turn" card.
+            // Use .id(phase) + asymmetric transition so the two states feel
+            // like a choreographed handoff rather than an in-place swap.
+            Group {
+                if phase == .listening {
+                    immersiveWaveform
+                } else {
+                    yourTurnCard
+                }
+            }
+            .id(phase)
+            .transition(
+                reduceMotion
+                    ? .opacity
+                    : .asymmetric(
+                        insertion: .opacity.combined(with: .offset(y: 28)),
+                        removal: .opacity.combined(with: .scale(scale: 0.97))
+                    )
+            )
+            .motionSafe(AssessmentTheme.Motion.phaseEnter, value: phase)
+
+            Spacer().frame(height: 16)
+        }
+    }
+
+    // MARK: - Immersive waveform (listening state)
+
+    /// Large centered waveform visualization shown while the avatar narrates.
+    /// Uses a TimelineView-driven sinewave — fluid, not jumpy, and drops to
+    /// a static pattern under reduce-motion.
+    @ViewBuilder
+    private var immersiveWaveform: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "book.fill")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 44, height: 44)
                 .foregroundStyle(layoutManager.accentColor)
-                .padding(.bottom, 14)
                 .assessmentIconHeaderAccent(layoutManager.accentColor)
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
-                .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
-            // MARK: Title
-            Text(phase == .listening
-                 ? LeftPaneSpeechCopy.storyRecallListeningTitle
-                 : LeftPaneSpeechCopy.storyRecallRecallingTitle)
-                .font(AssessmentTheme.Fonts.question)
+            Text(LeftPaneSpeechCopy.storyRecallListeningTitle)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.bottom, 8)
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
-                .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
-            // MARK: Subtitle
-            Text(phase == .listening
-                 ? LeftPaneSpeechCopy.storyRecallListeningSubtitle
-                 : LeftPaneSpeechCopy.storyRecallRecallingSubtitle)
+            Text(LeftPaneSpeechCopy.storyRecallListeningSubtitle)
                 .font(AssessmentTheme.Fonts.helper)
                 .foregroundStyle(AssessmentTheme.Content.textSecondary)
                 .multilineTextAlignment(.center)
-                .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
-                .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
-                .animation(AssessmentTheme.Anim.contentFade, value: phase)
 
-            Spacer()
+            flowingWaveform
+                .frame(height: 120)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
 
-            // MARK: Action Button
             Button {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
-                if phase == .listening {
-                    contentVisible = false
-                    withAnimation(AssessmentTheme.Anim.contentFade) { phase = .recalling }
-                    layoutManager.setAvatarSpeaking()
-                    withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
-                        contentVisible = true
-                    }
-                } else {
-                    // Recalling → Scoring (clinician marks recalled units)
-                    cancelCeilingTimer()
-                    contentVisible = false
-                    withAnimation(AssessmentTheme.Anim.contentFade) { phase = .scoring }
-                    withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
-                        contentVisible = true
-                    }
-                }
+                withAnimation(AssessmentTheme.Motion.phaseEnter) { phase = .recalling }
+                layoutManager.setAvatarSpeaking()
             } label: {
-                Text(phase == .listening
-                     ? "Story Finished — Begin Recall"
-                     : "Done — Score Recall")
+                Text("Story Finished — Begin Recall")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .frame(maxWidth: .infinity)
@@ -248,12 +249,126 @@ struct StoryRecallPhaseView: View {
             }
             .buttonStyle(AssessmentPrimaryButtonStyle())
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-            .assessmentContentEnter(isVisible: contentVisible, yOffset: 22)
-            .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
-            .animation(AssessmentTheme.Anim.contentFade, value: phase)
-
-            Spacer().frame(height: 16)
+            .padding(.top, 4)
         }
+        .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+    }
+
+    @ViewBuilder
+    private var flowingWaveform: some View {
+        let color = layoutManager.accentColor
+        if reduceMotion {
+            // Static multi-bar waveform — no animation
+            HStack(spacing: 4) {
+                ForEach(0..<24, id: \.self) { i in
+                    Capsule()
+                        .fill(color.opacity(0.55))
+                        .frame(width: 5, height: CGFloat(14 + (i % 4) * 10))
+                }
+            }
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                Canvas { context, size in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    let barCount = 28
+                    let spacing: CGFloat = 6
+                    let barWidth = (size.width - CGFloat(barCount - 1) * spacing) / CGFloat(barCount)
+                    for i in 0..<barCount {
+                        let phaseShift = Double(i) * 0.35
+                        let amplitude = (sin(t * 3.2 - phaseShift) + 1) / 2 // 0...1
+                        let secondary = (sin(t * 1.6 + phaseShift * 0.7) + 1) / 2
+                        let combined = (amplitude * 0.7 + secondary * 0.3)
+                        let height = max(6, CGFloat(combined) * size.height)
+                        let x = CGFloat(i) * (barWidth + spacing)
+                        let rect = CGRect(
+                            x: x,
+                            y: (size.height - height) / 2,
+                            width: barWidth,
+                            height: height
+                        )
+                        let path = Path(roundedRect: rect, cornerRadius: barWidth / 2)
+                        context.fill(
+                            path,
+                            with: .color(color.opacity(0.35 + combined * 0.45))
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - "Your Turn" card (recalling state)
+
+    /// Warm regularMaterial card that slides up when the baton passes from
+    /// the avatar back to the patient. Mic icon with a listening bloom and
+    /// gentle copy — "Take your time. Tell me everything you remember."
+    @ViewBuilder
+    private var yourTurnCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        VStack(spacing: 16) {
+            ZStack {
+                // Listening bloom behind the mic
+                if !reduceMotion {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                        let t = ctx.date.timeIntervalSinceReferenceDate
+                        let breath = (sin(t * 2.0 * .pi / AssessmentTheme.Motion.avatarPulseDuration) + 1) / 2
+                        Circle()
+                            .fill(layoutManager.accentColor.opacity(0.18 + breath * 0.12))
+                            .frame(width: 96, height: 96)
+                            .blur(radius: 18)
+                            .scaleEffect(1.0 + CGFloat(breath) * 0.08)
+                    }
+                } else {
+                    Circle()
+                        .fill(layoutManager.accentColor.opacity(0.18))
+                        .frame(width: 96, height: 96)
+                        .blur(radius: 18)
+                }
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(layoutManager.accentColor)
+            }
+            .frame(height: 100)
+
+            Text(LeftPaneSpeechCopy.storyRecallRecallingTitle)
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                .multilineTextAlignment(.center)
+
+            Text("Take your time. Tell me everything you remember.")
+                .font(.system(size: 16, weight: .regular, design: .rounded))
+                .foregroundStyle(AssessmentTheme.Content.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .medium)
+                generator.impactOccurred()
+                cancelCeilingTimer()
+                withAnimation(AssessmentTheme.Motion.phaseExit) { phase = .scoring }
+                contentVisible = false
+                withAnimation(AssessmentTheme.Motion.phaseEnter.delay(0.05)) {
+                    contentVisible = true
+                }
+            } label: {
+                Text("Done — Score Recall")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(layoutManager.accentColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(AssessmentPrimaryButtonStyle())
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity)
+        .assessmentGlass(in: shape, tint: layoutManager.accentColor, prominence: .regular)
+        .overlay(shape.stroke(layoutManager.accentColor.opacity(0.14), lineWidth: 1))
+        .assessmentShadow(AssessmentTheme.Depth.cardResting)
+        .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
     }
 
     // MARK: - Scoring View (Clinician Grid)

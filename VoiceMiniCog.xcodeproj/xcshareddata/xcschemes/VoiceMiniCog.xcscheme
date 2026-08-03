@@ -79,6 +79,13 @@
             ReferencedContainer = "container:VoiceMiniCog.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "TAVUS_API_KEY"
+            value = "ad59dab220804a8f81f07e21e78b5ba6"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

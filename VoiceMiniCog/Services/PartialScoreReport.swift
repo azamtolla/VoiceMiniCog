@@ -186,7 +186,7 @@ struct PartialScoreReport {
     }
 
     private static func drawReviewFlag(at y: CGFloat) -> CGFloat {
-        var cy = y + 4
+        let cy = y + 4
         let rect = CGRect(x: marginLeft, y: cy, width: contentWidth, height: 38)
         warning.withAlphaComponent(0.10).setFill()
         UIBezierPath(roundedRect: rect, cornerRadius: 6).fill()

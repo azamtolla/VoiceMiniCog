@@ -1,0 +1,15 @@
+{
+  "originHash" : "b186b223783f5a344e49b2132e84027eac4a218ba80ac5bf29789514a9000e0f",
+  "pins" : [
+    {
+      "identity" : "daily-client-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/daily-co/daily-client-ios",
+      "state" : {
+        "revision" : "276f9aff6bbdb36d58e763b7c0d77167ab5f51ca",
+        "version" : "0.37.0"
+      }
+    }
+  ],
+  "version" : 3
+}

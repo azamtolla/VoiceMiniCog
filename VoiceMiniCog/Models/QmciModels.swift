@@ -110,9 +110,319 @@ enum TestVersion: Int, Codable {
 
 // MARK: - Clock Drawing Event Capture
 
+/// Per-stroke Apple Pencil provenance. `.none` for SwiftUI Canvas (finger or
+/// Pencil-without-PencilKit) sessions; `.pencilKit` when the PencilKit path
+/// captured per-point force, altitude, and azimuth from `PKStrokePoint`.
+/// Custom Codable keeps old persisted sessions (where the field didn't exist
+/// at all) decoding cleanly — missing `type` key defaults to `.none`.
+enum PencilStrokeSource: Codable, Equatable {
+    case none
+    case pencilKit(
+        pointForces: [CGFloat],
+        pointAltitudes: [CGFloat],
+        pointAzimuths: [CGFloat]
+    )
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case pointForces
+        case pointAltitudes
+        case pointAzimuths
+    }
+
+    private enum SourceType: String, Codable {
+        case none
+        case pencilKit
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decodeIfPresent(SourceType.self, forKey: .type) ?? .none
+        switch type {
+        case .none:
+            self = .none
+        case .pencilKit:
+            let forces = try container.decodeIfPresent([CGFloat].self, forKey: .pointForces) ?? []
+            let alts   = try container.decodeIfPresent([CGFloat].self, forKey: .pointAltitudes) ?? []
+            let azis   = try container.decodeIfPresent([CGFloat].self, forKey: .pointAzimuths) ?? []
+            self = .pencilKit(pointForces: forces, pointAltitudes: alts, pointAzimuths: azis)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .none:
+            try container.encode(SourceType.none, forKey: .type)
+        case .pencilKit(let forces, let alts, let azis):
+            try container.encode(SourceType.pencilKit, forKey: .type)
+            try container.encode(forces, forKey: .pointForces)
+            try container.encode(alts,   forKey: .pointAltitudes)
+            try container.encode(azis,   forKey: .pointAzimuths)
+        }
+    }
+}
+
+/// Per-stroke biomarker capture for the QMCI clock-drawing subtest.
+///
+/// `timestamp` + `points` are the original v1 fields (canonical, persisted in
+/// existing sessions). The remaining fields are v2 biomarker additions; they
+/// have safe defaults so older persisted JSON still decodes.
+///
+/// Pressure note: SwiftUI `Canvas` + `DragGesture` (used by
+/// `ClockDrawingPhaseView`) exposes no force values, even from Apple Pencil.
+/// `pressureSamples` is therefore left empty under the current input path and
+/// will only be populated if the canvas migrates to a UIKit gesture
+/// representable. Defaulting it to 0.5 across all points was rejected as
+/// dishonest data — empty signals "unmeasured", not "neutral".
 struct ClockStrokeEvent: Codable, Equatable {
-    let timestamp: TimeInterval   // seconds since canvas start
-    let points: [CGPointCodable]  // path points
+    var strokeId: UUID = UUID()
+    var timestamp: TimeInterval               // seconds since canvas start (commit time, kept for backward compat)
+    var startTime: Date?                      // wall-clock at first onChanged
+    var endTime: Date?                        // wall-clock at onEnded
+    var points: [CGPointCodable]
+    var pressureSamples: [Double] = []        // empty under SwiftUI Canvas input
+    var pauseBefore: TimeInterval = 0         // seconds since previous stroke endTime; 0 for first stroke
+    var isCorrection: Bool = false            // set by markOverlaps()
+    var pencilSource: PencilStrokeSource = .none   // v3 — PencilKit per-point Pencil data
+
+    /// Bounding rect derived from `points`. Empty rect when no points.
+    var boundingBox: CGRect {
+        guard let first = points.first else { return .zero }
+        var minX = first.x, maxX = first.x
+        var minY = first.y, maxY = first.y
+        for p in points.dropFirst() {
+            if p.x < minX { minX = p.x }
+            if p.x > maxX { maxX = p.x }
+            if p.y < minY { minY = p.y }
+            if p.y > maxY { maxY = p.y }
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+
+    init(
+        strokeId: UUID = UUID(),
+        timestamp: TimeInterval,
+        startTime: Date? = nil,
+        endTime: Date? = nil,
+        points: [CGPointCodable],
+        pressureSamples: [Double] = [],
+        pauseBefore: TimeInterval = 0,
+        isCorrection: Bool = false,
+        pencilSource: PencilStrokeSource = .none
+    ) {
+        self.strokeId = strokeId
+        self.timestamp = timestamp
+        self.startTime = startTime
+        self.endTime = endTime
+        self.points = points
+        self.pressureSamples = pressureSamples
+        self.pauseBefore = pauseBefore
+        self.isCorrection = isCorrection
+        self.pencilSource = pencilSource
+    }
+
+    // Custom decoder: tolerates v1 payloads (only `timestamp` + `points`)
+    // by defaulting all v2/v3 fields. Synthesized Codable would fail on
+    // missing keys, breaking replay of persisted QMCI sessions from prior
+    // builds.
+    enum CodingKeys: String, CodingKey {
+        case strokeId, timestamp, startTime, endTime, points,
+             pressureSamples, pauseBefore, isCorrection, pencilSource
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.strokeId        = try c.decodeIfPresent(UUID.self,             forKey: .strokeId)        ?? UUID()
+        self.timestamp       = try c.decode(TimeInterval.self,              forKey: .timestamp)
+        self.startTime       = try c.decodeIfPresent(Date.self,             forKey: .startTime)
+        self.endTime         = try c.decodeIfPresent(Date.self,             forKey: .endTime)
+        self.points          = try c.decode([CGPointCodable].self,          forKey: .points)
+        self.pressureSamples = try c.decodeIfPresent([Double].self,         forKey: .pressureSamples) ?? []
+        self.pauseBefore     = try c.decodeIfPresent(TimeInterval.self,     forKey: .pauseBefore)     ?? 0
+        self.isCorrection    = try c.decodeIfPresent(Bool.self,             forKey: .isCorrection)    ?? false
+        self.pencilSource    = try c.decodeIfPresent(PencilStrokeSource.self, forKey: .pencilSource)  ?? .none
+    }
+
+    // Explicit encoder — needed alongside custom init(from:) so the
+    // synthesizer doesn't pick a different key ordering, and so
+    // `pencilSource` serializes via its own custom Codable rather than
+    // through any synthesized fallback.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(strokeId,        forKey: .strokeId)
+        try c.encode(timestamp,       forKey: .timestamp)
+        try c.encodeIfPresent(startTime, forKey: .startTime)
+        try c.encodeIfPresent(endTime,   forKey: .endTime)
+        try c.encode(points,          forKey: .points)
+        try c.encode(pressureSamples, forKey: .pressureSamples)
+        try c.encode(pauseBefore,     forKey: .pauseBefore)
+        try c.encode(isCorrection,    forKey: .isCorrection)
+        try c.encode(pencilSource,    forKey: .pencilSource)
+    }
+}
+
+// MARK: - CDTStroke (PencilKit path — additive, not yet persisted)
+
+/// Native PencilKit-flavored stroke model. Used only by the Path-1 additive
+/// PencilKit canvas (`CDTCanvasView`). At the boundary between the
+/// `CDTCanvasView` Coordinator and the existing QMCI persistence path, an
+/// instance of `CDTStroke` is converted to `ClockStrokeEvent` via
+/// `CDTBiomarkerBridge.toClockStrokeEvents` so the legacy persistence,
+/// scoring engine, and PCPReport keep working unchanged.
+///
+/// Fields parallel the spec:
+/// - `pressure: [CGFloat]` is per-point. Apple Pencil yields measured force;
+///   finger input yields a 0.5 sentinel (PencilKit reports 0 for finger).
+///   Detect finger sessions with `pressure.allSatisfy { $0 == 0.5 }`.
+/// - `pauseBefore` — 0 for the first stroke, otherwise gap from the prior
+///   stroke's `endTime`.
+/// - `isCorrection` — set by `markOverlaps()` after each stroke commit.
+struct CDTStroke: Codable, Equatable {
+    let strokeId: UUID
+    let startTime: Date
+    let endTime: Date
+    let points: [CGPoint]
+    let pressure: [CGFloat]
+    /// Apple Pencil tilt from perpendicular, radians. Empty if finger input.
+    let altitudes: [CGFloat]
+    /// Apple Pencil azimuth in radians (compass direction). Empty if finger input.
+    let azimuths: [CGFloat]
+    let pauseBefore: TimeInterval
+    var isCorrection: Bool
+
+    var boundingBox: CGRect {
+        guard let first = points.first else { return .null }
+        var minX = first.x, maxX = first.x
+        var minY = first.y, maxY = first.y
+        for p in points.dropFirst() {
+            if p.x < minX { minX = p.x }
+            if p.x > maxX { maxX = p.x }
+            if p.y < minY { minY = p.y }
+            if p.y > maxY { maxY = p.y }
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+}
+
+extension Array where Element == CDTStroke {
+    /// Returns a copy of the array with `isCorrection` set on any stroke
+    /// whose bounding box overlaps a prior stroke's bounding box by at
+    /// least `threshold` of the *current* stroke's area. Same algorithm
+    /// as `Array<ClockStrokeEvent>.markOverlaps` for behavioral parity.
+    func markOverlaps(threshold: CGFloat = 0.2) -> [CDTStroke] {
+        guard !isEmpty else { return [] }
+        var result: [CDTStroke] = []
+        result.reserveCapacity(count)
+        for (index, stroke) in self.enumerated() {
+            if index == 0 {
+                var first = stroke
+                first.isCorrection = false
+                result.append(first)
+                continue
+            }
+            let currentBounds = stroke.boundingBox
+            let currentArea = currentBounds.width * currentBounds.height
+            var overlap = false
+            if currentArea > 0 {
+                for prior in result {
+                    let priorBounds = prior.boundingBox
+                    guard priorBounds.intersects(currentBounds) else { continue }
+                    let inter = priorBounds.intersection(currentBounds)
+                    let interArea = inter.width * inter.height
+                    if interArea / currentArea >= threshold {
+                        overlap = true
+                        break
+                    }
+                }
+            }
+            var updated = stroke
+            updated.isCorrection = overlap
+            result.append(updated)
+        }
+        return result
+    }
+}
+
+// MARK: - CDTBiomarkerBridge (PencilKit -> legacy persistence)
+
+/// Translates the PencilKit `[CDTStroke]` model to the legacy
+/// `[ClockStrokeEvent]` model used by `AssessmentState.qmciState`,
+/// QMCI scoring, and `PCPReportView`. Lets the additive PencilKit path
+/// participate in the existing persistence/report pipeline without any
+/// downstream code changes.
+///
+/// `pressureSamples` is preserved. `timestamp` is computed relative to the
+/// supplied `canvasStartTime` so it matches the convention of the SwiftUI
+/// Canvas path (seconds since canvas appeared on screen).
+enum CDTBiomarkerBridge {
+    /// Converts PencilKit-captured `[CDTStroke]` to legacy `[ClockStrokeEvent]`.
+    /// Always sets `pencilSource = .pencilKit(...)` — the PencilKit path is
+    /// the only caller. Finger sessions surface as all-0.5 force arrays
+    /// (see `CDTCanvasView.Coordinator`); the `pencilSource` case name
+    /// documents *how* the data was captured, not whether a Pencil touched.
+    static func toClockStrokeEvents(
+        _ strokes: [CDTStroke],
+        canvasStartTime: Date
+    ) -> [ClockStrokeEvent] {
+        strokes.map { s in
+            ClockStrokeEvent(
+                strokeId:        s.strokeId,
+                timestamp:       s.endTime.timeIntervalSince(canvasStartTime),
+                startTime:       s.startTime,
+                endTime:         s.endTime,
+                points:          s.points.map { CGPointCodable($0) },
+                pressureSamples: s.pressure.map { Double($0) },
+                pauseBefore:     s.pauseBefore,
+                isCorrection:    s.isCorrection,
+                pencilSource:    .pencilKit(
+                    pointForces:    s.pressure,
+                    pointAltitudes: s.altitudes,
+                    pointAzimuths:  s.azimuths
+                )
+            )
+        }
+    }
+}
+
+extension Array where Element == ClockStrokeEvent {
+    /// Returns a copy of the array with `isCorrection` set on any stroke
+    /// whose bounding box overlaps a prior stroke's bounding box by at least
+    /// `threshold` (default 20%) of the *current* stroke's area. Heuristic
+    /// proxy for "patient drew over their previous mark to fix it" — a known
+    /// CDT planning-deficit signal.
+    func markOverlaps(threshold: CGFloat = 0.2) -> [ClockStrokeEvent] {
+        guard !isEmpty else { return [] }
+        var result: [ClockStrokeEvent] = []
+        result.reserveCapacity(count)
+        for (index, stroke) in self.enumerated() {
+            if index == 0 {
+                var first = stroke
+                first.isCorrection = false
+                result.append(first)
+                continue
+            }
+            let currentBounds = stroke.boundingBox
+            let currentArea = currentBounds.width * currentBounds.height
+            var overlap = false
+            if currentArea > 0 {
+                for prior in result {
+                    let priorBounds = prior.boundingBox
+                    guard priorBounds.intersects(currentBounds) else { continue }
+                    let inter = priorBounds.intersection(currentBounds)
+                    let interArea = inter.width * inter.height
+                    if interArea / currentArea >= threshold {
+                        overlap = true
+                        break
+                    }
+                }
+            }
+            var updated = stroke
+            updated.isCorrection = overlap
+            result.append(updated)
+        }
+        return result
+    }
 }
 
 struct ClockPauseEvent: Codable, Equatable {

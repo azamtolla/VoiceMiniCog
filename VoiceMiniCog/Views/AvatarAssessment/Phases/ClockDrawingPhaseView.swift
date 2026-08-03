@@ -33,6 +33,17 @@ struct ClockDrawingPhaseView: View {
     @State private var timer: Timer?
     @State private var contentVisible = false
 
+    // Entrance animation state.
+    // CLINICAL-UI NOTE: The QMCI clock drawing subtest prohibits any
+    // on-screen guide beyond the dashed boundary circle (no tick marks,
+    // no numbers) — patients must draw the clock face from scratch.
+    // So the entrance choreography is limited to: (1) card scale-up,
+    // (2) dashed-circle trim-stroke. Tick marks / numbers from the
+    // design brief were intentionally NOT added. See CLAUDE.md §Clinical-validity surface.
+    @State private var cardAppeared: Bool = false
+    @State private var guideTrim: CGFloat = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Environment(\.displayScale) private var displayScale
 
     // Biomarker capture — stroke timings and canvas dimensions for later PNG render
@@ -45,18 +56,36 @@ struct ClockDrawingPhaseView: View {
     // prior session can't produce a phantom pause.
     @State private var lastStrokeEndTime: Date? = nil
 
+    // v2 biomarker: wall-clock at the first onChanged call of the current
+    // in-flight stroke. Set once when currentLine becomes non-empty, cleared
+    // on commit. SwiftUI DragGesture has no explicit start callback, so we
+    // detect the start by `currentLine.isEmpty` transitioning to non-empty.
+    @State private var currentStrokeStart: Date? = nil
+
+    // v2: minimum-strokes gate for the optional clinician "Done" button.
+    // Below this count, advancing early would routinely yield uninterpretable
+    // partial drawings; QMCI Shulman scoring needs at least face + numbers +
+    // hands roughly captured.
+    private let doneButtonMinimumStrokes = 3
+
+    // PencilKit (Path-1 additive) — runtime A/B flag. When the
+    // `voiceMiniCog.use_pencilkit_cdt` UserDefaults bool is true, the SwiftUI
+    // Canvas drawing surface is swapped for the PKCanvasView-backed
+    // CDTCanvasCard. Avatar wiring, dashed-circle guide, abandonment timer,
+    // entrance choreography, and `assessmentState.qmciState.clockStrokeEvents`
+    // persistence all remain owned by this view; the card is purely the
+    // ink-capture surface.
+    private static let usePencilKitFlagKey = "voiceMiniCog.use_pencilkit_cdt"
+    @State private var usePencilKit: Bool = UserDefaults.standard.bool(forKey: ClockDrawingPhaseView.usePencilKitFlagKey)
+    @State private var pencilStrokes: [CDTStroke] = []
+    @State private var pencilStartTime: Date? = nil
+
     // MARK: Body
 
     var body: some View {
         VStack(spacing: 12) {
 
-            PhaseHeaderBadge(
-                phaseName: "Clock Drawing",
-                icon: "clock.fill",
-                accentColor: AssessmentTheme.Phase.clockDrawing
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
+            // Phase name rendered by the chevron track — no header badge.
 
             // 1. Instruction text
             Text(LeftPaneSpeechCopy.clockDrawingOnScreen)
@@ -67,27 +96,71 @@ struct ClockDrawingPhaseView: View {
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            // 2. Drawing canvas — fills all available space
+            // 2. Drawing canvas — fills all available space.
+            // PencilKit (Path-1) toggles in via `usePencilKit`. The PencilKit
+            // card is purely the ink surface; the dashed-circle guide lives
+            // on the legacy SwiftUI Canvas only (would need re-implementing
+            // as a UIView background to layer behind PKCanvasView).
+            if usePencilKit {
+                CDTCanvasCard(
+                    strokes:             $pencilStrokes,
+                    assessmentStartTime: $pencilStartTime,
+                    title:                LeftPaneSpeechCopy.clockDrawingOnScreen,
+                    subtitle:             nil,
+                    onDone:              { endPhaseEarly() }
+                )
+                .onChange(of: pencilStrokes) { _, newStrokes in
+                    // Mirror PencilKit captures into the legacy persistence
+                    // path so AssessmentPersistence, QMCI scoring, and
+                    // PCPReport need no changes.
+                    assessmentState.qmciState.clockStrokeEvents =
+                        CDTBiomarkerBridge.toClockStrokeEvents(
+                            newStrokes,
+                            canvasStartTime: canvasStartTime
+                        )
+                }
+                .padding(.horizontal, 4)
+            } else {
             GeometryReader { geo in
                 let size = min(geo.size.width, geo.size.height)
                 let guideSize = size * 0.75
 
                 ZStack {
-                    // White card surface
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.white)
-                        .shadow(
-                            color: AssessmentTheme.Content.shadowColor.opacity(0.08),
-                            radius: 8,
-                            y: 4
+                    // Warm material canvas — replaces the stark white card.
+                    // regularMaterial gives a soft translucent feel that sits
+                    // on the shared canvas, with a warm cream tint over top
+                    // for paper-like warmth and a 20pt corner radius.
+                    let cardShape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    cardShape
+                        .fill(.regularMaterial)
+                        .overlay(
+                            cardShape.fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1.00, green: 0.99, blue: 0.97).opacity(0.9),
+                                        Color(red: 0.99, green: 0.97, blue: 0.94).opacity(0.7)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                         )
+                        .overlay(cardShape.stroke(Color.black.opacity(0.04), lineWidth: 0.5))
+                        .assessmentShadow(cardAppeared ? AssessmentTheme.Depth.cardRaised : AssessmentTheme.Depth.cardResting)
+                        .scaleEffect(cardAppeared ? 1.0 : 0.94)
+                        .opacity(cardAppeared ? 1.0 : 0.0)
 
-                    // Dashed circle guide
+                    // Dashed circle guide — trims in around the ring so the
+                    // patient visually "sees" the boundary draw itself. This
+                    // is the only drawing-guide aid permitted by the QMCI
+                    // protocol (see clinical note on state properties above).
                     Circle()
-                        .strokeBorder(
-                            style: StrokeStyle(lineWidth: 1.5, dash: [8, 4])
+                        .trim(from: 0.0, to: guideTrim)
+                        .stroke(
+                            Color.gray.opacity(0.28),
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [8, 4])
                         )
-                        .foregroundColor(Color.gray.opacity(0.25))
+                        .rotationEffect(.degrees(-90)) // start at 12 o'clock
                         .frame(width: guideSize, height: guideSize)
 
                     // SwiftUI Canvas — renders completed lines + current stroke
@@ -100,19 +173,30 @@ struct ClockDrawingPhaseView: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
+                                // Detect stroke start: first sample of a new
+                                // in-flight line. DragGesture has no separate
+                                // begin callback.
+                                if currentLine.isEmpty {
+                                    currentStrokeStart = Date()
+                                }
                                 currentLine.append(value.location)
                             }
                             .onEnded { _ in
                                 if !currentLine.isEmpty {
                                     let stroke = currentLine
                                     lines.append(stroke)
+                                    let now = Date()
+
                                     // Pause biomarker: if a prior stroke has
                                     // already ended, measure the inter-stroke
                                     // gap. QMCI spec: capture only gaps
-                                    // strictly greater than 500 ms.
-                                    let now = Date()
+                                    // strictly greater than 500 ms in the
+                                    // dedicated pause-event array.
+                                    let pauseBefore: TimeInterval
                                     if let lastEnd = lastStrokeEndTime {
-                                        let gapMs = Int((now.timeIntervalSince(lastEnd) * 1000).rounded())
+                                        let gap = now.timeIntervalSince(lastEnd)
+                                        pauseBefore = gap
+                                        let gapMs = Int((gap * 1000).rounded())
                                         if gapMs > 500 {
                                             let pause = ClockPauseEvent(
                                                 startTimestamp: lastEnd.timeIntervalSince(canvasStartTime),
@@ -120,17 +204,34 @@ struct ClockDrawingPhaseView: View {
                                             )
                                             assessmentState.qmciState.clockPauseEvents.append(pause)
                                         }
+                                    } else {
+                                        pauseBefore = 0
                                     }
-                                    // Record stroke biomarker: timestamp at
-                                    // commit (relative to canvasStartTime) and
-                                    // the full point path for later analysis.
+
+                                    // Record stroke biomarker (v2 fields).
+                                    // pressureSamples deliberately empty —
+                                    // SwiftUI Canvas + DragGesture exposes no
+                                    // force values. See ClockStrokeEvent doc.
                                     let ts = now.timeIntervalSince(canvasStartTime)
                                     let event = ClockStrokeEvent(
-                                        timestamp: ts,
-                                        points: stroke.map { CGPointCodable($0) }
+                                        timestamp:       ts,
+                                        startTime:       currentStrokeStart,
+                                        endTime:         now,
+                                        points:          stroke.map { CGPointCodable($0) },
+                                        pressureSamples: [],
+                                        pauseBefore:     pauseBefore,
+                                        isCorrection:    false   // re-derived by markOverlaps below
                                     )
                                     assessmentState.qmciState.clockStrokeEvents.append(event)
+
+                                    // Re-derive isCorrection across the full
+                                    // stroke history so a late stroke that
+                                    // overlaps an earlier mark gets flagged.
+                                    assessmentState.qmciState.clockStrokeEvents =
+                                        assessmentState.qmciState.clockStrokeEvents.markOverlaps()
+
                                     lastStrokeEndTime = now
+                                    currentStrokeStart = nil
                                     currentLine = []
                                 }
                             }
@@ -147,9 +248,12 @@ struct ClockDrawingPhaseView: View {
             }
             .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
             .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
+            .overlay(alignment: .bottomTrailing) { doneButtonOverlay }
+            }   // end else (legacy SwiftUI Canvas branch)
 
         }
         .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+        .padding(.bottom, 32)
         .onAppear {
             avatarInterrupt()
             avatarSetAssessmentPhaseType(.clockDrawing)
@@ -164,6 +268,26 @@ struct ClockDrawingPhaseView: View {
             didPersistBiomarkers = false
             canvasStartTime = Date()
             lastStrokeEndTime = nil
+
+            // Entrance choreography: card scales in (~0.45s), then the
+            // dashed guide circle trim-strokes itself around (~0.7s).
+            // Total ~1.15s, matching the "under ~1.2s" brief budget.
+            cardAppeared = false
+            guideTrim = 0.0
+            if reduceMotion {
+                // Pure opacity fallback — no spatial movement.
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    cardAppeared = true
+                    guideTrim = 1.0
+                }
+            } else {
+                withAnimation(AssessmentTheme.Motion.phaseEnter) {
+                    cardAppeared = true
+                }
+                withAnimation(.easeOut(duration: 0.7).delay(0.35)) {
+                    guideTrim = 1.0
+                }
+            }
             avatarSetAssessmentContext(QMCIAvatarContext.clockDrawing)
             avatarSpeak(LeftPaneSpeechCopy.clockDrawingInstruction)
             startTimer()
@@ -194,6 +318,47 @@ struct ClockDrawingPhaseView: View {
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
+    }
+
+    // MARK: - Optional Done Button
+
+    /// Bottom-trailing "Done" button revealed once the patient has committed
+    /// at least `doneButtonMinimumStrokes`. Lets a clinician (or the patient
+    /// who declares themselves finished) advance early without waiting out
+    /// the full 60s. Below the threshold we hide it entirely — partial
+    /// drawings of fewer than 3 strokes are not Shulman-scorable and would
+    /// produce noise in research analysis.
+    @ViewBuilder
+    private var doneButtonOverlay: some View {
+        let strokeCount = assessmentState.qmciState.clockStrokeEvents.count
+        if strokeCount >= doneButtonMinimumStrokes {
+            Button(action: endPhaseEarly) {
+                Text("Done")
+                    .font(.headline)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(MCDesign.Colors.primary700)
+                    .foregroundStyle(.white)
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+            }
+            .padding(.trailing, 12)
+            .padding(.bottom, 12)
+            .transition(.opacity.combined(with: .move(edge: .trailing)))
+            .animation(.easeOut(duration: 0.2), value: strokeCount)
+        }
+    }
+
+    /// Mirrors the timer-expiry path: stop the timer, persist biomarkers,
+    /// advance the phase. No "stop drawing" echo here — the patient (or
+    /// clinician) initiated the end voluntarily, so the avatar prompt that
+    /// normally lands at t=0 would be inappropriate.
+    private func endPhaseEarly() {
+        guard timer != nil else { return }   // re-entry guard
+        timer?.invalidate()
+        timer = nil
+        persistBiomarkersIfNeeded()
+        layoutManager.advanceToNextPhase()
     }
 
     // MARK: - Biomarker Persistence

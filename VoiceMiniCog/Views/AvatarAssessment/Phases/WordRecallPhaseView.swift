@@ -101,41 +101,36 @@ struct WordRecallPhaseView: View {
     var body: some View {
         VStack(spacing: 0) {
 
-            PhaseHeaderBadge(
-                phaseName: "Word Recall",
-                icon: "brain.head.profile",
-                accentColor: AssessmentTheme.Phase.wordRecall
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
-
+            // Phase name rendered by the chevron track — no header badge.
             Spacer()
 
-            // MARK: Brain Icon
+            // MARK: Brain Icon — 96pt (up from 80) for more visual weight
             Image(systemName: "brain.head.profile")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 80, height: 80)
+                .frame(width: 96, height: 96)
                 .foregroundStyle(layoutManager.accentColor)
-                .padding(.bottom, 18)
+                .padding(.bottom, 20)
                 .assessmentIconHeaderAccent(layoutManager.accentColor)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
 
-            // MARK: Title
+            // MARK: Title — largeTitle rounded bold (up from AssessmentTheme.Fonts.question)
             Text(LeftPaneSpeechCopy.delayedRecallTitle)
-                .font(AssessmentTheme.Fonts.question)
+                .font(.largeTitle.weight(.bold))
                 .foregroundStyle(AssessmentTheme.Content.textPrimary)
                 .multilineTextAlignment(.center)
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
 
-            // MARK: Subtitle (non-cueing)
+            // MARK: Subtitle — title3 (up from helper) for better readability
             Text(LeftPaneSpeechCopy.delayedRecallPatientSubtitle)
-                .font(AssessmentTheme.Fonts.helper)
+                .font(.title3)
                 .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 40)
+                .padding(.bottom, 36)
+                .multilineTextAlignment(.center)
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 10)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.18), value: contentVisible)
 
@@ -143,6 +138,16 @@ struct WordRecallPhaseView: View {
             progressCircles
                 .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
                 .animation(AssessmentTheme.Anim.contentEnter.delay(0.24), value: contentVisible)
+
+            // MARK: Listening indicator — prominent animated waveform so the
+            // patient can SEE when the mic is active. Only visible during
+            // the .listening / .followUp phases.
+            WordRecallListeningIndicator(
+                isActive: phase == .listening || phase == .followUp,
+                color: layoutManager.accentColor
+            )
+            .frame(height: 36)
+            .padding(.top, 28)
 
             Spacer()
             Spacer()
@@ -166,42 +171,16 @@ struct WordRecallPhaseView: View {
     // MARK: - Progress Circles
 
     private var progressCircles: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 14) {
             ForEach(0..<targetCount, id: \.self) { index in
-                progressCircle(filled: index < scorer.recalledCount)
-            }
-        }
-    }
-
-    private func progressCircle(filled: Bool) -> some View {
-        ZStack {
-            Circle()
-                .strokeBorder(
-                    filled ? Color(hex: "#34C759") : Color.gray.opacity(0.25),
-                    lineWidth: 2
+                WordRecallProgressCircle(
+                    filled: index < scorer.recalledCount,
+                    accentColor: layoutManager.accentColor,
+                    appearDelay: Double(index) * 0.08,
+                    isVisible: contentVisible
                 )
-                .frame(width: 28, height: 28)
-
-            if filled {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(hex: "#34C759"))
-                    // Bug 6 fix: animate scale from 0.6 → 1.0 on fill
-                    .scaleEffect(filled ? 1.0 : 0.6)
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .scale(scale: 0.5).combined(with: .opacity)
-                    )
             }
         }
-        .animation(
-            reduceMotion
-                ? AssessmentTheme.Anim.reducedMotion
-                : .spring(response: 0.4, dampingFraction: 0.7),
-            value: filled
-        )
-        .accessibilityHidden(true)
     }
 
     // MARK: - Phase Lifecycle
@@ -501,6 +480,115 @@ struct WordRecallPhaseView: View {
         qmciState.recallTotalPhaseDurationMs = scorer.totalPhaseDurationMs
         qmciState.recallSilenceBeforePromptMs = scorer.silenceBeforePromptMs
         qmciState.recallAnyOthersPromptUsed = scorer.anyOthersPromptUsed
+    }
+}
+
+// MARK: - WordRecallProgressCircle
+
+/// Matches the Word Registration bubble language exactly — 52pt
+/// diameter, 12% accent fill empty, 40% accent fill + white checkmark +
+/// 1.5pt accent stroke filled, celebrationBounce stagger on first
+/// appear, microFeedback 1.0→1.2→1.0 pop on flip.
+private struct WordRecallProgressCircle: View {
+    let filled: Bool
+    let accentColor: Color
+    var appearDelay: Double = 0
+    var isVisible: Bool = true
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appeared: Bool = false
+    @State private var popScale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(filled ? accentColor.opacity(0.40) : accentColor.opacity(0.12))
+                .frame(width: 52, height: 52)
+            Circle()
+                .strokeBorder(accentColor, lineWidth: 1.5)
+                .frame(width: 52, height: 52)
+            if filled {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
+        }
+        .scaleEffect(reduceMotion ? 1.0 : popScale)
+        .opacity(appeared ? 1 : 0)
+        .scaleEffect(appeared || reduceMotion ? 1.0 : 0.6)
+        .onAppear(perform: triggerAppear)
+        .onChange(of: isVisible) { _, v in if v { triggerAppear() } }
+        .onChange(of: filled) { _, nowFilled in
+            guard nowFilled, !reduceMotion else { return }
+            withAnimation(AssessmentTheme.Motion.microFeedback) { popScale = 1.2 }
+            withAnimation(AssessmentTheme.Motion.microFeedback.delay(0.18)) { popScale = 1.0 }
+        }
+        .animation(AssessmentTheme.Motion.microFeedback, value: filled)
+        .accessibilityHidden(true)
+    }
+
+    private func triggerAppear() {
+        guard isVisible, !appeared else { return }
+        if reduceMotion {
+            appeared = true
+        } else {
+            withAnimation(AssessmentTheme.Motion.celebrationBounce.delay(appearDelay)) {
+                appeared = true
+            }
+        }
+    }
+}
+
+// MARK: - WordRecallListeningIndicator
+
+/// Prominent "we're listening for your words" indicator — 5 bars of
+/// TimelineView-driven waveform in the phase accent color, plus a
+/// "Listening…" label. Fades in when mic is active.
+private struct WordRecallListeningIndicator: View {
+    let isActive: Bool
+    let color: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 10) {
+            waveform
+                .frame(width: 56, height: 28)
+
+            Text("Listening…")
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(color)
+        }
+        .opacity(isActive ? 1.0 : 0.0)
+        .animation(.easeInOut(duration: 0.3), value: isActive)
+        .accessibilityLabel(isActive ? "Listening" : "")
+    }
+
+    @ViewBuilder
+    private var waveform: some View {
+        if reduceMotion {
+            HStack(spacing: 5) {
+                ForEach(0..<5, id: \.self) { i in
+                    Capsule()
+                        .fill(color)
+                        .frame(width: 5, height: CGFloat(12 + (i % 3) * 8))
+                }
+            }
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                let t = ctx.date.timeIntervalSinceReferenceDate
+                HStack(spacing: 5) {
+                    ForEach(0..<5, id: \.self) { i in
+                        let phaseShift = Double(i) * 0.42
+                        let amp = (sin(t * 3.4 - phaseShift) + 1) / 2
+                        Capsule()
+                            .fill(color)
+                            .frame(width: 5, height: CGFloat(10 + amp * 22))
+                    }
+                }
+            }
+        }
     }
 }
 

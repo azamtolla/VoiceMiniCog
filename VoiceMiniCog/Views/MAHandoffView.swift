@@ -128,9 +128,26 @@ struct MAHandoffView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!canHandoff)
+                .accessibilityIdentifier("handIpadToPatientButton")
                 .accessibilityHint("Records handoff timestamp and switches to patient view")
             }
             .padding(32)
+        }
+        .onAppear {
+            // Simulator-only test hook: auto-populates the @State fields so
+            // XCUITest can exercise the "Hand iPad to Patient" flow without
+            // driving the keyboard. Does NOT advance past the button — the
+            // button tap remains the real trigger for LongitudinalPatientStore.upsert,
+            // recordHandoff(), and onHandoffConfirmed(). #if DEBUG +
+            // targetEnvironment(simulator) means this code is stripped from
+            // any clinical / device / release build — it cannot run on a patient iPad.
+            #if DEBUG && targetEnvironment(simulator)
+            if CommandLine.arguments.contains("--skip-handoff") {
+                let suffix = UUID().uuidString.prefix(6)
+                patientID = "SIMULATOR-TEST-\(suffix)"
+                displayName = "Simulator Test Patient"
+            }
+            #endif
         }
         .sheet(isPresented: $showQRScanner) {
             // Real QR scanner UIKit bridge is a post-v1 item. Stubbed for

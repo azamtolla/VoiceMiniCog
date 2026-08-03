@@ -23,6 +23,8 @@ struct QAPhaseView: View {
     @Bindable var assessmentState: AssessmentState
     let phaseID: AssessmentPhaseID
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var currentIndex = 0
     @State private var selectedAnswer: Int? = nil
     @State private var contentVisible = false
@@ -39,61 +41,11 @@ struct QAPhaseView: View {
     // MARK: Body
 
     var body: some View {
-        VStack(spacing: 0) {
-
+        Group {
             if phaseID == .orientation {
-                PhaseHeaderBadge(
-                    phaseName: "Orientation",
-                    icon: "location.fill",
-                    accentColor: AssessmentTheme.Phase.orientation
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 20).padding(.leading, 20)
-            }
-
-            Spacer()
-
-            VStack(spacing: 20) {
-
-                // Question counter
-                Text("\(currentIndex + 1) of \(totalQuestions)")
-                    .font(AssessmentTheme.Fonts.timerSmall)
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
-
-                // Question text
-                Text(currentQuestionText)
-                    .font(AssessmentTheme.Fonts.question)
-                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 8)
-                    .assessmentContentEnter(isVisible: contentVisible, yOffset: 14)
-                    .animation(AssessmentTheme.Anim.contentEnter.delay(0.06), value: contentVisible)
-
-                if phaseID == .orientation {
-                    // Orientation: listening indicator (no buttons) — only after question audio completes
-                    orientationListeningArea
-                        .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
-                        .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
-                } else {
-                    // QDRS / PHQ-2: answer buttons
-                    VStack(spacing: 8) {
-                        ForEach(Array(currentAnswers.enumerated()), id: \.offset) { index, answer in
-                            answerButton(text: answer, index: index)
-                        }
-                    }
-                    .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
-                    .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
-                }
-            }
-            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-
-            Spacer()
-
-            // Orientation dots
-            if phaseID == .orientation {
-                orientationFooter
-                    .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
-                    .padding(.bottom, 16)
+                orientationBody
+            } else {
+                qdrsStyleBody
             }
         }
         .onAppear {
@@ -139,23 +91,148 @@ struct QAPhaseView: View {
         }
     }
 
-    // MARK: - Orientation Listening Area
+    // MARK: - Orientation body (full redesign)
 
+    /// Truly vertically centered: equal Spacer() above and below the
+    /// entire question block (rules + text + step dots + waveform).
+    /// No container card — the question floats on the canvas, framed
+    /// only by two hairline rules. Book/card-game feel.
     @ViewBuilder
-    private var orientationListeningArea: some View {
-        if questionPlaybackFinished {
-            HStack(spacing: 8) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 16))
-                    .foregroundStyle(AssessmentTheme.Phase.welcome)
-                    .symbolEffect(.variableColor.iterative, isActive: true)
-                Text("Listening...")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
+    private var orientationBody: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 20) {
+                orientationQuestionDisplay
+
+                // Step indicators — 20pt below the bottom rule
+                OrientationStepIndicators(
+                    totalQuestions: totalQuestions,
+                    currentIndex: currentIndex,
+                    accent: layoutManager.accentColor
+                )
+
+                // Listening waveform
+                OrientationListeningWaveform(
+                    isActive: questionPlaybackFinished && waitingForPatientResponse,
+                    color: layoutManager.accentColor
+                )
+                .frame(height: 24)
+                .padding(.top, 4)
             }
-            .padding(.vertical, 8)
+            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+
+            Spacer()
         }
     }
+
+    // MARK: - Orientation question display (no fill, two hairline rules)
+
+    /// Question text floating on the canvas, framed above and below by a
+    /// single 1pt rule. No background color, no card, no shadow. Fades in
+    /// on appear: opacity 0→1, offset y 12→0, easeOut 0.4s.
+    @ViewBuilder
+    private var orientationQuestionDisplay: some View {
+        VStack(spacing: 24) {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 1)
+                .padding(.horizontal, 40)
+
+            Text(currentQuestionText)
+                .font(.largeTitle.weight(.semibold))
+                .foregroundStyle(Color.primary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 24)
+                .opacity(contentVisible ? 1 : 0)
+                .offset(y: contentVisible ? 0 : 12)
+                .animation(
+                    reduceMotion ? .none : .easeOut(duration: 0.4),
+                    value: contentVisible
+                )
+
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 1)
+                .padding(.horizontal, 40)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - QDRS / PHQ-2 body (legacy layout, untouched)
+
+    @ViewBuilder
+    private var qdrsStyleBody: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 24) {
+                Text("Question \(currentIndex + 1) of \(totalQuestions)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .tracking(0.6)
+                    .foregroundStyle(layoutManager.accentColor)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(layoutManager.accentColor.opacity(0.12)))
+                    .overlay(Capsule().stroke(layoutManager.accentColor.opacity(0.22), lineWidth: 1))
+                    .opacity(contentVisible ? 1 : 0)
+                    .offset(y: contentVisible ? 0 : 10)
+                    .motionSafe(AssessmentTheme.Motion.phaseEnter, value: contentVisible)
+
+                questionCard
+                    .motionSafe(AssessmentTheme.Motion.phaseEnter, value: contentVisible)
+
+                VStack(spacing: 8) {
+                    ForEach(Array(currentAnswers.enumerated()), id: \.offset) { index, answer in
+                        answerButton(text: answer, index: index)
+                    }
+                }
+                .assessmentContentEnter(isVisible: contentVisible, yOffset: 18)
+                .animation(AssessmentTheme.Anim.contentEnter.delay(0.12), value: contentVisible)
+            }
+            .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Question Card (regularMaterial + staggered line reveal)
+
+    /// Splits the question on whitespace into chunks and reveals each with
+    /// a short stagger (0.04s per chunk) — same pattern Apple uses for
+    /// onboarding text. Falls back to a single-shot fade under reduce-motion.
+    @ViewBuilder
+    private var questionCard: some View {
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        let splitLines = currentQuestionText.split(separator: "\n").map { String($0) }
+        let lines: [String] = splitLines.isEmpty ? [currentQuestionText] : splitLines
+
+        VStack(alignment: .center, spacing: 10) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
+                Text(line)
+                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .opacity(contentVisible ? 1 : 0)
+                    .offset(y: contentVisible ? 0 : 8)
+                    .motionSafe(
+                        AssessmentTheme.Motion.phaseEnter.delay(Double(i) * 0.04),
+                        value: contentVisible
+                    )
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 32)
+        .frame(maxWidth: .infinity)
+        .assessmentGlass(in: shape, tint: layoutManager.accentColor, prominence: .regular)
+        .overlay(shape.stroke(layoutManager.accentColor.opacity(0.12), lineWidth: 1))
+        .assessmentShadow(AssessmentTheme.Depth.cardResting)
+    }
+
+    // Orientation listening area replaced by OrientationListeningWaveform
+    // (see bottom of file).
 
     // MARK: - Answer Button (QDRS only)
 
@@ -285,16 +362,11 @@ struct QAPhaseView: View {
 
     // MARK: - Orientation Footer
 
-    private var orientationFooter: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<5, id: \.self) { i in
-                Circle()
-                    .fill(orientationDotColor(at: i))
-                    .frame(width: 10, height: 10)
-            }
-            Spacer()
-        }
-    }
+    /// No longer used — bottom-left dots replaced by OrientationStepIndicators
+    /// rendered directly beneath the question card. Retained as a computed
+    /// helper so orientationDotColor(at:) can still feed any clinician-facing
+    /// display that might want per-question score colors in the future.
+    private var orientationFooter: some View { EmptyView() }
 
     // MARK: - Data Helpers
 
@@ -368,6 +440,120 @@ struct QAPhaseView: View {
         case 1:  return Color(hex: "#FF9500")   // partial credit — orange
         default: return Color(hex: "#FF3B30")   // no credit — red
         }
+    }
+}
+
+// MARK: - OrientationStepIndicators
+
+/// Five centered step dots under the Orientation question card.
+///   • Completed: 12pt filled accent circle with tiny checkmark
+///   • Current:   14pt accent circle with an outer pulsing ring (beacon)
+///   • Upcoming:  10pt light gray circle
+/// All state transitions spring(.4, .7); reduce-motion degrades cleanly.
+private struct OrientationStepIndicators: View {
+    let totalQuestions: Int
+    let currentIndex: Int
+    let accent: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(0..<totalQuestions, id: \.self) { i in
+                dot(for: i)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.7),
+            value: currentIndex
+        )
+    }
+
+    @ViewBuilder
+    private func dot(for i: Int) -> some View {
+        // Sized to match the Word Registration bubbles (52pt diameter)
+        // so the progress language is consistent across the assessment.
+        let diam: CGFloat = 52
+        if i < currentIndex {
+            // Completed — 40% accent fill + 1.5pt stroke + white checkmark.
+            ZStack {
+                Circle().fill(accent.opacity(0.40)).frame(width: diam, height: diam)
+                Circle().strokeBorder(accent, lineWidth: 1.5).frame(width: diam, height: diam)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        } else if i == currentIndex {
+            // Current — subtle 12% tint + pulsing beacon ring.
+            ZStack {
+                if !reduceMotion {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                        let t = ctx.date.timeIntervalSinceReferenceDate
+                        let phase = (t.truncatingRemainder(dividingBy: 1.4)) / 1.4    // 0...1
+                        let scale = 1.0 + 0.22 * phase                                  // 1.0 → 1.22
+                        let alpha = 1.0 - phase                                         // 1.0 → 0
+                        Circle()
+                            .strokeBorder(accent.opacity(alpha), lineWidth: 2)
+                            .frame(width: diam, height: diam)
+                            .scaleEffect(scale)
+                    }
+                }
+                Circle().fill(accent.opacity(0.18)).frame(width: diam, height: diam)
+                Circle().strokeBorder(accent, lineWidth: 1.5).frame(width: diam, height: diam)
+            }
+            .frame(width: diam * 1.3, height: diam * 1.3)  // room for the pulse
+        } else {
+            // Upcoming — 12% accent fill + 1.5pt accent stroke, same
+            // empty-bubble look as Word Registration.
+            ZStack {
+                Circle().fill(accent.opacity(0.12)).frame(width: diam, height: diam)
+                Circle().strokeBorder(accent, lineWidth: 1.5).frame(width: diam, height: diam)
+            }
+        }
+    }
+}
+
+// MARK: - OrientationListeningWaveform
+
+/// Three small bars in the phase accent color with staggered vertical
+/// amplitude. Fades in when `isActive` becomes true, fades out when false.
+/// Reduce-motion renders static bars.
+private struct OrientationListeningWaveform: View {
+    let isActive: Bool
+    let color: Color
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            if reduceMotion {
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Capsule()
+                            .fill(color)
+                            .frame(width: 4, height: CGFloat(10 + i * 6))
+                    }
+                }
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    HStack(spacing: 6) {
+                        ForEach(0..<3, id: \.self) { i in
+                            let phaseShift = Double(i) * 0.4
+                            let amp = (sin(t * 3.5 - phaseShift) + 1) / 2    // 0...1
+                            Capsule()
+                                .fill(color)
+                                .frame(width: 4, height: CGFloat(8 + amp * 18))
+                        }
+                    }
+                }
+            }
+        }
+        .opacity(isActive ? 1.0 : 0.0)
+        .animation(.easeInOut(duration: 0.25), value: isActive)
+        .accessibilityLabel("Listening")
     }
 }
 

@@ -113,6 +113,7 @@ struct WelcomePhaseView: View {
     @State private var buttonBounce = false
     @State private var revealedSubtests = 0
     @State private var headerVisible = false
+    @State private var brainDropIn = false
     @State private var echoSent = false
     @State private var revealSequenceScheduled = false
     @State private var didAnchorRevealsToSpeaking = false
@@ -194,61 +195,56 @@ struct WelcomePhaseView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PhaseHeaderBadge(
-                phaseName: "Welcome",
-                icon: "waveform",
-                accentColor: AssessmentTheme.Phase.welcome
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 20).padding(.leading, 20)
+            // Phase name comes from the chevron track — no header badge.
+            Spacer().frame(height: 24)
 
-            Spacer()
-
-            // MARK: Header
-            Group {
-                Image(systemName: "brain.head.profile")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 44, height: 44)
-                    .foregroundStyle(layoutManager.accentColor)
-                    .assessmentIconHeaderAccent(layoutManager.accentColor)
-                    .padding(.bottom, 14)
+            // MARK: Hero Header — static brain + title in heroBlue.
+            VStack(spacing: 14) {
+                heroBrainIcon
 
                 Text(LeftPaneSpeechCopy.welcomeTitle)
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(AssessmentTheme.Content.textPrimary)
+                    .font(.largeTitle.weight(.bold))
+                    .foregroundStyle(heroBlue)
                     .multilineTextAlignment(.center)
-                    .padding(.bottom, 6)
-
-                Text(LeftPaneSpeechCopy.welcomeSubtitle)
-                    .font(AssessmentTheme.Fonts.helper)
-                    .foregroundStyle(AssessmentTheme.Content.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.bottom, 24)
             }
             .opacity(headerVisible ? 1 : 0)
             .offset(y: headerVisible ? 0 : 10)
 
-            // MARK: Subtest List
+            // Exactly 24pt between title and the activity list card.
+            Spacer().frame(height: 24)
+
+            // MARK: Subtest List — rows reveal in sequence as the avatar
+            // describes each task. `revealedSubtests` is driven by
+            // `startRevealSequence()` which schedules per-row work items
+            // timed from the introScriptPlain via SpeechTimingModel (anchored
+            // to replica.started_speaking, with a 4s fallback).
+            //
+            // Each row fades + slides in from +8pt below. The divider under a
+            // row is tied to the NEXT row's reveal so the separator appears
+            // with the row below it, not before.
+            //
+            // `.fixedSize(false, true)` ensures the card expands to fit
+            // every row rather than compressing under parent constraints.
             VStack(spacing: 0) {
                 ForEach(Array(QmciSubtest.allCases.enumerated()), id: \.element) { index, subtest in
+                    let isRevealed = index < revealedSubtests
                     SubtestRow(subtest: subtest, accentColor: layoutManager.accentColor)
-                        .opacity(index < revealedSubtests ? 1 : 0)
-                        .offset(x: index < revealedSubtests ? 0 : -20)
-                        .animation(
-                            .spring(response: 0.45, dampingFraction: 0.78),
-                            value: revealedSubtests
-                        )
+                        .opacity(isRevealed ? 1 : 0)
+                        .offset(y: isRevealed ? 0 : 8)
+                        .accessibilityHidden(!isRevealed)
 
                     if index < QmciSubtest.allCases.count - 1 {
+                        // Divider reveals with the NEXT row so it doesn't
+                        // dangle alone before the row below appears.
+                        let nextRevealed = (index + 1) < revealedSubtests
                         Divider()
                             .padding(.leading, 44)
-                            .opacity(index < revealedSubtests - 1 ? 1 : 0)
-                            .animation(.easeOut(duration: 0.3), value: revealedSubtests)
+                            .opacity(nextRevealed ? 1 : 0)
                     }
                 }
             }
             .padding(.vertical, 8)
+            .fixedSize(horizontal: false, vertical: true)
             .background(AssessmentTheme.Content.surface)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(
@@ -258,7 +254,8 @@ struct WelcomePhaseView: View {
             .padding(.horizontal, AssessmentTheme.Sizing.contentPadding)
             .opacity(headerVisible ? 1 : 0)
 
-            Spacer()
+            // Exactly 32pt between the activity list card and Begin.
+            Spacer().frame(height: 32)
 
             // MARK: Begin Assessment Button
             Button {
@@ -288,17 +285,8 @@ struct WelcomePhaseView: View {
             .animation(.spring(response: 0.6, dampingFraction: 0.6), value: showBeginButton)
             .animation(.spring(response: 0.4, dampingFraction: 0.5), value: buttonBounce)
 
-            // MARK: Go to Main Menu
-            // Flow 3 fix: disabled until intro completes so user can't interrupt avatar mid-speech.
-            Button { onGoToMainMenu?() } label: {
-                Text("Go to Main Menu")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(MCDesign.Colors.primary500)
-            }
-            .disabled(!showBeginButton)
-            .opacity(showBeginButton ? 1.0 : 0.4)
-            .padding(.top, 12)
-
+            // Main Menu / End Session live in the canvas bottomControls bar.
+            // 16pt gap between Begin and the canvas button bar.
             Spacer().frame(height: 16)
         }
         .onAppear {
@@ -354,6 +342,27 @@ struct WelcomePhaseView: View {
         }
     }
 
+    // MARK: - Hero
+
+    /// Shared blue for the welcome brain icon, the "Brain Health
+    /// Assessment" title, the Begin Assessment button background, and
+    /// the Welcome chevron tab — all four must be the exact same Color.
+    /// `AssessmentTheme.accent(for: 1)` = `Phase.welcome` = `Color.blue`.
+    private var heroBlue: Color { AssessmentTheme.accent(for: AssessmentPhaseID.welcome.rawValue) }
+
+    /// 72pt SF Symbol brain — completely static. No motion of any kind.
+    /// No symbolEffect, no glow ring, no onAppear animation, no scale
+    /// or opacity transitions. Just the icon at heroBlue.
+    @ViewBuilder
+    private var heroBrainIcon: some View {
+        Image(systemName: "brain.head.profile")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 72, height: 72)
+            .foregroundStyle(heroBlue)
+            .accessibilityHidden(true)
+    }
+
     // MARK: - Reveal Sequence
 
     private func startRevealSequence() {
@@ -373,7 +382,14 @@ struct WelcomePhaseView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
         }
 
-        // Bug 1 fix: show button first, bounce 150ms later.
+        // DEMO MODE: show Begin button as soon as the LAST subtest row is
+        // revealed (+0.8s grace), NOT at the end of the full spoken script.
+        // Prior behavior timed the button to "press Begin Assessment" which
+        // is ~50s into a 727-char welcome when Tavus TTS is healthy —
+        // unacceptable wait when TTS is degraded (user taps End Session
+        // thinking the avatar froze).
+        let lastRowDelay = revealDelays.max() ?? 0
+        let earlyButtonDelay = min(lastRowDelay + 0.8, beginButtonDelay)
         let buttonItem = DispatchWorkItem {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
                 showBeginButton = true
@@ -385,7 +401,7 @@ struct WelcomePhaseView: View {
             }
         }
         revealWorkItems.append(buttonItem)
-        DispatchQueue.main.asyncAfter(deadline: .now() + beginButtonDelay, execute: buttonItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + earlyButtonDelay, execute: buttonItem)
     }
 
     private func catchUpRevealsAfterSpeechEnded() {
