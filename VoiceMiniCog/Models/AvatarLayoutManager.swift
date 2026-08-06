@@ -126,6 +126,40 @@ class AvatarLayoutManager {
 
     /// Phase queued during an active transition — replayed when the current transition settles.
     private var pendingPhase: AssessmentPhaseID?
+
+    // MARK: Deinit
+    //
+    // EXPLICIT `nonisolated deinit` IS LOAD-BEARING — DO NOT REMOVE.
+    //
+    // This class is `@MainActor`, so without this the compiler synthesizes an
+    // ISOLATED deinit, which Xcode 26.2 routes through
+    // `swift_task_deinitOnExecutorMainActorBackDeploy`. That shim double-frees a
+    // TaskLocal bookkeeping object, aborting the process with
+    // "pointer being freed was not allocated" (SIGABRT).
+    //
+    // Observed crash path (crash report 2026-08-05, incident 230A96F5):
+    //   .sessionAbandoned (150 s patient silence)
+    //     -> ContentView abandonment handler -> SwiftUI state change
+    //     -> AvatarAssessmentCanvas teardown
+    //     -> AvatarLayoutManager.__deallocating_deinit -> abort
+    //
+    // That is the partial-score-report safety path: the app crashed precisely
+    // when a patient stopped responding and partial results should have been
+    // captured. `nonisolated` bypasses the broken shim entirely.
+    //
+    // The body is intentionally EMPTY. A nonisolated deinit cannot touch
+    // MainActor-isolated stored properties, so `acknowledgeTask` cannot be
+    // cancelled here — but it does not need to be: the task is already
+    // cancelled on every phase change (see `acknowledgeTask?.cancel()` below),
+    // and stored properties are still released normally by the implicit
+    // destroy, which needs no isolation to release a Task reference. What the
+    // annotation changes is only the executor hop, which is exactly the broken
+    // part.
+    //
+    // The same toolchain bug is worked around in Services/VoiceClipLibrary.swift
+    // (declared `nonisolated`). Revisit both if the toolchain is upgraded.
+    nonisolated deinit {}
+
     /// Stored handle for the acknowledgeAnswer() revert task — cancelled on phase change.
     private var acknowledgeTask: Task<Void, Never>?
 
