@@ -1,1 +1,389 @@
-{ "clips": [] }
+{
+  "clips": [
+    {
+      "id": "welcome.intro",
+      "scriptSHA256": "4b30953f02bd74cb760edcdec846cf855dd0fe51d4f4ec9f2018a8f2280faf9d",
+      "file": "welcome_intro.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.intro",
+      "scriptSHA256": "961dd05198d77a075d70ba15bba0f67f0648f12f16e6d268f5885a5ad10a8e0d",
+      "file": "orientation_intro.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.remember",
+      "scriptSHA256": "faa52838fc06c7635259f72a1551a48a8a84e91474ccc68a50acef5731b4c919",
+      "file": "registration_remember.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.allCorrect",
+      "scriptSHA256": "d0d6dc4218c3b82bcd851211f9f100cfc0fae2750c7013e0825ccecd8d9c7650",
+      "file": "registration_allCorrect.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.done",
+      "scriptSHA256": "5a47aafe31eb0bc476aa0c3eecbccf077d38903edaf3bc43cb808e7735510b79",
+      "file": "registration_done.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "clock.instruction",
+      "scriptSHA256": "5fafca7bd7f7522c7be29bbac15d7d82a6b32f8d6fe60bd8eff3171eb5b90fa8",
+      "file": "clock_instruction.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "clock.stop",
+      "scriptSHA256": "8394db3d17e942e2353b9f67c26aa2aec82da7c87c3de1fee2dc722d691fec18",
+      "file": "clock_stop.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "recall.prompt",
+      "scriptSHA256": "f02db7725b67466fd95d3434bd1c6d0316906b2276008bb6f3c40b367d96fd8c",
+      "file": "recall_prompt.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "recall.anyOthers",
+      "scriptSHA256": "1639c9775aab19dec5b14a1e6b5a4586dc1c902ee73da4a644dea6e0eb37f47f",
+      "file": "recall_anyOthers.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "fluency.prompt",
+      "scriptSHA256": "0faf5b212af3d64ee08e57ee8f1bb9b3b40c0513a00ab42e75d6cceffbdcd53d",
+      "file": "fluency_prompt.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "fluency.close",
+      "scriptSHA256": "2c2efe1c51b38d3e10e294b1dcb9f5f0563efd138aa0ff2fef1117148c20a55f",
+      "file": "fluency_close.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "fluency.rePrompt",
+      "scriptSHA256": "135ac48f50dee18c923e350ea8f930bea33b65e2bdc74997e2468dcc085cc2a0",
+      "file": "fluency_rePrompt.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.intro",
+      "scriptSHA256": "7ad1aa45973927c214eec58e38de6c71305838a416175d21d5698f84156ba337",
+      "file": "story_intro.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.prompt",
+      "scriptSHA256": "513139f72516e6afa168786b20ada9897a2cd7b163c84f2bb3dfe80ba4ac8f33",
+      "file": "story_prompt.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.followup",
+      "scriptSHA256": "554e6ec0bec97ecc209b48546b45280204074b5fb33144fa949856ab16fada6f",
+      "file": "story_followup.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "closing.thankYou",
+      "scriptSHA256": "70f799f8c007d6eec9fbe7cfe5da6fa04f2b6af94064268d5616032c603ab94f",
+      "file": "closing_thankYou.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.intro",
+      "scriptSHA256": "651df7565db2fc8a14c172571ab0748422c211e13ba5712696379a488b763ebb",
+      "file": "qdrs_intro.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.completion",
+      "scriptSHA256": "3c0912ab8f3ea1232095bf5a6ae50d36e64150e1c6e010ebfe756c43ed89f2fa",
+      "file": "qdrs_completion.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.introCaregiver",
+      "scriptSHA256": "a6e7f9c5083c1852c9c42a3bdc18ca1cf392d9f713ca07e89cf05475111aa8f2",
+      "file": "qdrs_introCaregiver.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set1.trial1",
+      "scriptSHA256": "6b8c7b65ad2d739885efffc1fb9ff4a8ca7a958df4bed9cac7d74c4b172dd253",
+      "file": "registration_echo_set1_trial1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set1.trial2",
+      "scriptSHA256": "391611453a64e05212b0d87dd002d76596245708554b7f9a2fcbd47febe3ecdf",
+      "file": "registration_echo_set1_trial2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set2.trial1",
+      "scriptSHA256": "c1e8029a18354ee725459fd9a0d19cca846dfb2ce9d141b6b0f6497982bafec1",
+      "file": "registration_echo_set2_trial1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set2.trial2",
+      "scriptSHA256": "1e09b0daf636e53b075c7014bbb75ac5d818a742e88ff1e5f6bbd42922b0510b",
+      "file": "registration_echo_set2_trial2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set3.trial1",
+      "scriptSHA256": "ddddf891b0c242e55628316a7cb929cb13fa7a862f592d74cb60ace1df311295",
+      "file": "registration_echo_set3_trial1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "registration.echo.set3.trial2",
+      "scriptSHA256": "ac1e74a114690843688d49e9f384b746c31e9feaa8a4765c2afb3a5b2edf7d31",
+      "file": "registration_echo_set3_trial2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.question.0",
+      "scriptSHA256": "acfba9ae79ca6b0c8db30f2f87c875c50dbf0c0addacd0a88f59d0455536b9bd",
+      "file": "orientation_question_0.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.question.1",
+      "scriptSHA256": "bfc2faeb18d272d208d99ce1a232aae2dd853aa5c3ba78b6f9ef6ff1886eafcf",
+      "file": "orientation_question_1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.question.2",
+      "scriptSHA256": "b53122c251ff33d4700453277ce8233b3f73c6f8ab350bbdd4c0beee23682d93",
+      "file": "orientation_question_2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.question.3",
+      "scriptSHA256": "ed492025ab46815245a60de67215c761c0b0744a43164ffb1faccce5557cf2dc",
+      "file": "orientation_question_3.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "orientation.question.4",
+      "scriptSHA256": "418ee040ce5f7cc4263fad5d34f870f7f33ca6cb8479559d8314e8c0bbae7c77",
+      "file": "orientation_question_4.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.text.0",
+      "scriptSHA256": "419f079856fe8af0bc8197da69d90eeae7e2c11d52a9694abb568471e587b771",
+      "file": "story_text_0.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.text.1",
+      "scriptSHA256": "809916b334dbc255add77f42c17f20d11a2332e4b539040900a63ec204eb00cb",
+      "file": "story_text_1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "story.text.2",
+      "scriptSHA256": "a6964babffd0e24d444eccf7c969632f04572a6411d9e28b484c7be11461bff8",
+      "file": "story_text_2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.0",
+      "scriptSHA256": "acaa94ab0092f6f62d6cf5bd2b1c658b8549f1d82c71e85f2f2986c397c0ab23",
+      "file": "qdrs_question_0.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.1",
+      "scriptSHA256": "210ab64c8d0876438d23f492a4582a076a7c57e36bfb329d05dc53933fc6272e",
+      "file": "qdrs_question_1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.2",
+      "scriptSHA256": "55fe0f995485aef6652d5e710bc96ea94045b1e40882540cedeba9412ec28ff1",
+      "file": "qdrs_question_2.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.3",
+      "scriptSHA256": "c61609f94b82619f7f3a0967dfc0735b5f6acd2606e0405286b059f162de813a",
+      "file": "qdrs_question_3.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.4",
+      "scriptSHA256": "3a886e38f85b5c6f4d2c659bb55d2497fbf58fe2e9f9cbb63770bc6cbbd74cd0",
+      "file": "qdrs_question_4.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.5",
+      "scriptSHA256": "7ff386ca63629c3865a8f7c72ff44b48c575242ce470a9c7021e36ff3adf0062",
+      "file": "qdrs_question_5.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.6",
+      "scriptSHA256": "31fddbef2b3a252eaecbb162bb00420ffc4af3ffd0db83da85e50901d0f1c1d5",
+      "file": "qdrs_question_6.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.7",
+      "scriptSHA256": "f9f321b89ecba5a366abcc55f8626ac7b98220f3e566dc84fc7901b8e9d6f3ec",
+      "file": "qdrs_question_7.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.8",
+      "scriptSHA256": "db7eef95474f1d2e2d21bb5d63e167b9298e20d4617fffa3d4b39b062d3f262d",
+      "file": "qdrs_question_8.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "qdrs.question.9",
+      "scriptSHA256": "4be31869595dd1e8b84c37af721ad1e8e598d4b6093e0796f660a5985555c73b",
+      "file": "qdrs_question_9.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "phq2.question.0",
+      "scriptSHA256": "584e1b7b0eafcba635d37f2f575f0f70cfa027491c4481aa967bd0d9bc3b2bf5",
+      "file": "phq2_question_0.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "phq2.question.1",
+      "scriptSHA256": "5888f482a939825cd7ae3d25e82aee2c23b0ae172a4166edd217276008fc6f81",
+      "file": "phq2_question_1.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.repeatStimulus",
+      "scriptSHA256": "bc34e00650551cc911919045ca45468529b6c316d24f76c2faacbe7d4df990ca",
+      "file": "refusal_repeatStimulus.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.performance",
+      "scriptSHA256": "a53fb5eba09e9c5587953c490a073949e5b4be19b54f0834b4d18b590953998e",
+      "file": "refusal_performance.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.medical",
+      "scriptSHA256": "807a320b7f592b1382891e5b1d19b51e1c39d6d5a4811c859a81f2c9a8167cfc",
+      "file": "refusal_medical.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.offTopic",
+      "scriptSHA256": "40a8123c115bf70f72d6607d559c6793ad917c990f7839e7edd907ac34acc3b3",
+      "file": "refusal_offTopic.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.distress",
+      "scriptSHA256": "91c77e26aa58ac6f32fd90a38ceb71d8bd20f276e88a42ac28e39f73704ece3d",
+      "file": "refusal_distress.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.wantsToStop",
+      "scriptSHA256": "949dfaccada6475d7840995a5555034710175817a95ae91efefd8b86ae15b253",
+      "file": "refusal_wantsToStop.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.manipulation",
+      "scriptSHA256": "7178d45d737f6eaeac7e811f5040df1f3e635f9c8e1d921e4b44701b8865522c",
+      "file": "refusal_manipulation.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "refusal.areYouReal",
+      "scriptSHA256": "5f9f213bcb751fccab2fd094c70fe3a5d8ab8314e8b6140701e12b4b8b000dc1",
+      "file": "refusal_areYouReal.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "system.emergency",
+      "scriptSHA256": "4f87f3ca36f5591089ce7609f08732be318d4552a05294e7725dffa2e530fbec",
+      "file": "system_emergency.m4a",
+      "durationMs": 0,
+      "rendered": false
+    },
+    {
+      "id": "system.reengagement",
+      "scriptSHA256": "3e69d72e42fd5b709b6a4b29db5eda3efc144c676b6bc4bfd597a745c3a16bfe",
+      "file": "system_reengagement.m4a",
+      "durationMs": 0,
+      "rendered": false
+    }
+  ]
+}

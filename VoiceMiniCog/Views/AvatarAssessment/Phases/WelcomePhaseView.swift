@@ -138,23 +138,9 @@ struct WelcomePhaseView: View {
         When you're ready, press Begin Assessment.
         """
 
-    /// SSML-enhanced version for Tavus/ElevenLabs.
-    private var introScriptForEcho: String {
-        """
-        <speak>\
-        Hello!<break time="500ms"/> \
-        Welcome to your Brain Health Check.<break time="700ms"/> \
-        We'll do six short activities together.<break time="900ms"/> \
-        First, I'll ask you a few simple questions, like today's date and where we are.<break time="500ms"/> \
-        Then, I'll say five words for you to try to remember.<break time="500ms"/> \
-        Next, I'll ask you to draw a clock showing a specific time.<break time="500ms"/> \
-        After that, I'll ask you to name as many animals as you can in one minute.<break time="500ms"/> \
-        Then, I'll read you a short story and ask what you remember.<break time="500ms"/> \
-        And finally, I'll ask you to recall those five words from earlier.<break time="1000ms"/> \
-        When you're ready, press Begin Assessment.\
-        </speak>
-        """
-    }
+    // SSML-enhanced intro for Tavus/ElevenLabs now lives in
+    // `LeftPaneSpeechCopy.welcomeIntroEcho` (moved verbatim so
+    // VoiceScriptInventory can reference it — it was a private var here).
 
     // MARK: - Computed Reveal Timings
 
@@ -305,7 +291,7 @@ struct WelcomePhaseView: View {
             // Intro phase: enable LLM speculative_inference + intake RAG.
             avatarSetAssessmentPhaseType(.intro)
             avatarSetContext(QMCIAvatarContext.welcome)
-            avatarSpeak(introScriptForEcho)
+            avatarSpeak(LeftPaneSpeechCopy.welcomeIntroEcho)
 
             if reduceMotion {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {

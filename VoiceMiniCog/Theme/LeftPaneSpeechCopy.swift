@@ -34,6 +34,25 @@ enum LeftPaneSpeechCopy {
     Never correct, score, or coach the patient during this screen.
     """
 
+    /// SSML-enhanced welcome intro for Tavus/ElevenLabs — the first utterance of
+    /// every session. Moved VERBATIM from `WelcomePhaseView.introScriptForEcho`
+    /// (which was a `private var`, inaccessible to VoiceScriptInventory).
+    /// The plain-text timing script (`introScriptPlain`) stays in WelcomePhaseView.
+    static let welcomeIntroEcho = """
+        <speak>\
+        Hello!<break time="500ms"/> \
+        Welcome to your Brain Health Check.<break time="700ms"/> \
+        We'll do six short activities together.<break time="900ms"/> \
+        First, I'll ask you a few simple questions, like today's date and where we are.<break time="500ms"/> \
+        Then, I'll say five words for you to try to remember.<break time="500ms"/> \
+        Next, I'll ask you to draw a clock showing a specific time.<break time="500ms"/> \
+        After that, I'll ask you to name as many animals as you can in one minute.<break time="500ms"/> \
+        Then, I'll read you a short story and ask what you remember.<break time="500ms"/> \
+        And finally, I'll ask you to recall those five words from earlier.<break time="1000ms"/> \
+        When you're ready, press Begin Assessment.\
+        </speak>
+        """
+
     // MARK: - Subtest 1: Orientation (10 pts)
 
     static let orientationIntro = "I am going to ask you a few questions. Please answer as best you can."

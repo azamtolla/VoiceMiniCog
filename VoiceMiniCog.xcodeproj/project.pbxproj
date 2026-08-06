@@ -12,6 +12,8 @@
 		10491A567FDBD35822AF73AA /* PCPReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D565942281E547B8CA33AEAF /* PCPReportView.swift */; };
 		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
 		18A7216356CB43B29AF05AC5 /* DailyCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CE00654B3D4FC09EB4B6FC /* DailyCallManager.swift */; };
+		1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */; };
+		9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
 		3EC4381FFC9E456E8C527DE9 /* DailyVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7B13B0B38D42C09B324821 /* DailyVideoView.swift */; };
 		41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
@@ -23,7 +25,9 @@
 		61BB4F2B8282A3FB2CF508C4 /* WelcomePhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2C648D8941C76864EEDC856 /* WelcomePhaseView.swift */; };
 		638C4335A584CF7F4BD45307 /* PauseButtonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD67457A85ACD917974962D3 /* PauseButtonView.swift */; };
 		688842DD9A7B6E873D292EC6 /* AssessmentTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */; };
+		6BF57BD651DAE1D8C06DA147 /* VoiceClips in Resources */ = {isa = PBXBuildFile; fileRef = C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */; };
 		6E5F4733F09DFAE667DC9762 /* SpeechListenerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7980C074148F7BF401F6D35F /* SpeechListenerView.swift */; };
+		72B9BC37093346DC889ED1AF /* VoiceRefusalCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C4E96D425E84F20AD33EDC7 /* VoiceRefusalCopy.swift */; };
 		72CDFCE89C59E0CF736E4422 /* PHQ2Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */; };
 		75D35C24A82C4B8686EE441A /* WordRecallScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */; };
 		7D98446E995F5C572486BF6F /* ClockDrawingPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */; };
@@ -39,12 +43,7 @@
 		9246E5FB2F63A68D00743FA8 /* CompositeRisk.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */; };
 		9246E5FE2F63A68D00743FA8 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5E42F63A68D00743FA8 /* HomeView.swift */; };
 		9246E5FF2F63A68D00743FA8 /* ClockAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5D52F63A68D00743FA8 /* ClockAnalysis.swift */; };
-		AB00CD11EF22000000000003 /* ResearchModeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000002 /* ResearchModeSettings.swift */; };
-		AB00CD11EF22000000000005 /* RawStreamRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000004 /* RawStreamRecorder.swift */; };
-		AB00CD11EF22000000000007 /* UITouchCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000006 /* UITouchCaptureView.swift */; };
-		AB00CD11EF22000000000009 /* ResearchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000008 /* ResearchRootView.swift */; };
 		9246E6002F63A68D00743FA8 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E5DD2F63A68D00743FA8 /* SpeechService.swift */; };
-		1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */; };
 		9246E60A2F63EB0200743FA8 /* AudioSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6032F63EB0200743FA8 /* AudioSessionManager.swift */; };
 		9246E60E2F63EB0200743FA8 /* RealtimeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6062F63EB0200743FA8 /* RealtimeManager.swift */; };
 		9246E6102F63EB0200743FA8 /* TokenService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6092F63EB0200743FA8 /* TokenService.swift */; };
@@ -64,13 +63,16 @@
 		AA08BDF42F63A68D00743FA8 /* ClinicianDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA08BDD72F63A68D00743FA8 /* ClinicianDashboardView.swift */; };
 		AA09BDF42F63A68D00743FA8 /* AvatarVideoOverlays.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA09BDD72F63A68D00743FA8 /* AvatarVideoOverlays.swift */; };
 		AA112233445566770001B1C1 /* QMCIAvatarContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA112233445566770001A1A1 /* QMCIAvatarContext.swift */; };
+		AB00CD11EF22000000000003 /* ResearchModeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000002 /* ResearchModeSettings.swift */; };
+		AB00CD11EF22000000000005 /* RawStreamRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000004 /* RawStreamRecorder.swift */; };
+		AB00CD11EF22000000000007 /* UITouchCaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000006 /* UITouchCaptureView.swift */; };
+		AB00CD11EF22000000000009 /* ResearchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB00CD11EF22000000000008 /* ResearchRootView.swift */; };
 		B67FF4CDBC6F21965C087971 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */; };
 		BB11223344556677000001B1 /* AssessmentPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000001A1 /* AssessmentPersistence.swift */; };
 		BB11223344556677000002B2 /* PDFReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000002A2 /* PDFReportGenerator.swift */; };
 		BB11223344556677000003B3 /* QMCIScoringEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000003A3 /* QMCIScoringEngine.swift */; };
 		BB11223344556677000004B4 /* AssessmentViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000004A4 /* AssessmentViewModifiers.swift */; };
 		BB11223344556677000005B5 /* LeftPaneSpeechCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */; };
-		72B9BC37093346DC889ED1AF /* VoiceRefusalCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C4E96D425E84F20AD33EDC7 /* VoiceRefusalCopy.swift */; };
 		BB11223344556677000006B6 /* AssessmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000006A6 /* AssessmentCard.swift */; };
 		BB11223344556677000007B7 /* CompletionPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000007A7 /* CompletionPhaseView.swift */; };
 		BB11223344556677000008B8 /* SessionStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11223344556677000008A8 /* SessionStatusView.swift */; };
@@ -83,12 +85,11 @@
 		CE50468C8DED5B59CB651AD0 /* AvatarZoneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */; };
 		D9B048C996E5876DA84999E1 /* TavusService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96594F1C9872605DC0D3E0B5 /* TavusService.swift */; };
 		DBFFC4FE1AD3D73F94C1CAEA /* QmciModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751BD2930E955EA8A06119C9 /* QmciModels.swift */; };
-		EAD136DD5EAA4F7EAA95A033 /* GuideMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C163FED3BA549BD90445E1E /* GuideMode.swift */; };
 		DD00112233445566778899A1 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00112233445566778899A0 /* KeychainHelper.swift */; };
 		DD11223344556677889900BB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900DD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
-		6BF57BD651DAE1D8C06DA147 /* VoiceClips in Resources */ = {isa = PBXBuildFile; fileRef = C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */; };
+		EAD136DD5EAA4F7EAA95A033 /* GuideMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C163FED3BA549BD90445E1E /* GuideMode.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,9 +120,9 @@
 		6EE84535BB64352F16ADA335 /* VerbalFluencyScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyScorer.swift; path = VoiceMiniCog/Services/VerbalFluencyScorer.swift; sourceTree = SOURCE_ROOT; };
 		73A672F34C224AB23B665B74 /* TavusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavusModels.swift; sourceTree = "<group>"; };
 		751BD2930E955EA8A06119C9 /* QmciModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QmciModels.swift; sourceTree = "<group>"; };
-		9C163FED3BA549BD90445E1E /* GuideMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideMode.swift; sourceTree = "<group>"; };
 		75CE00654B3D4FC09EB4B6FC /* DailyCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyCallManager.swift; path = VoiceMiniCog/Services/DailyCallManager.swift; sourceTree = SOURCE_ROOT; };
 		7980C074148F7BF401F6D35F /* SpeechListenerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechListenerView.swift; sourceTree = "<group>"; };
+		7C4E96D425E84F20AD33EDC7 /* VoiceRefusalCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRefusalCopy.swift; sourceTree = "<group>"; };
 		7D37824BC0B54E039D1ED1F2 /* WordRecallScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordRecallScorer.swift; sourceTree = "<group>"; };
 		8AED4CC89550A4EF57D0C08D /* AvatarZoneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarZoneView.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarZoneView.swift; sourceTree = SOURCE_ROOT; };
 		8BE2BE0255C285C3D6EC9B6A /* PHQ2Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PHQ2Models.swift; sourceTree = "<group>"; };
@@ -132,17 +133,12 @@
 		9246E5D32F63A68D00743FA8 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		9246E5D42F63A68D00743FA8 /* AssessmentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentState.swift; sourceTree = "<group>"; };
 		9246E5D52F63A68D00743FA8 /* ClockAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClockAnalysis.swift; sourceTree = "<group>"; };
-		AB00CD11EF22000000000002 /* ResearchModeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchModeSettings.swift; sourceTree = "<group>"; };
-		AB00CD11EF22000000000004 /* RawStreamRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawStreamRecorder.swift; sourceTree = "<group>"; };
-		AB00CD11EF22000000000006 /* UITouchCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITouchCaptureView.swift; sourceTree = "<group>"; };
-		AB00CD11EF22000000000008 /* ResearchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchRootView.swift; sourceTree = "<group>"; };
 		9246E5D62F63A68D00743FA8 /* CompositeRisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompositeRisk.swift; sourceTree = "<group>"; };
 		9246E5D72F63A68D00743FA8 /* Phase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase.swift; sourceTree = "<group>"; };
 		9246E5D82F63A68D00743FA8 /* VoiceMiniCogResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMiniCogResult.swift; sourceTree = "<group>"; };
 		9246E5DA2F63A68D00743FA8 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		9246E5DC2F63A68D00743FA8 /* ResponseCheckers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResponseCheckers.swift; sourceTree = "<group>"; };
 		9246E5DD2F63A68D00743FA8 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
-		C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceClipLibrary.swift; sourceTree = "<group>"; };
 		9246E5DF2F63A68D00743FA8 /* MercyColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MercyColors.swift; sourceTree = "<group>"; };
 		9246E5E42F63A68D00743FA8 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		9246E5E92F63A68D00743FA8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -156,6 +152,7 @@
 		96B62B67BF8B9AF2F97C8630 /* AntiAmyloidTriage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntiAmyloidTriage.swift; sourceTree = "<group>"; };
 		97B2423ABF8566C85164CE3A /* ProgressTrackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProgressTrackView.swift; path = VoiceMiniCog/Views/AvatarAssessment/ProgressTrackView.swift; sourceTree = SOURCE_ROOT; };
 		9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReversibleCauseWorkup.swift; sourceTree = "<group>"; };
+		9C163FED3BA549BD90445E1E /* GuideMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideMode.swift; sourceTree = "<group>"; };
 		A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TavusCVIView.swift; path = VoiceMiniCog/Views/TavusCVIView.swift; sourceTree = SOURCE_ROOT; };
 		AA01BDD72F63A68D00743FA8 /* AssessmentPhaseType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentPhaseType.swift; sourceTree = "<group>"; };
 		AA02BDD72F63A68D00743FA8 /* PartialScoreReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartialScoreReport.swift; sourceTree = "<group>"; };
@@ -171,15 +168,21 @@
 		AA11223344556677000003A3 /* QMCIScoringEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIScoringEngine.swift; sourceTree = "<group>"; };
 		AA11223344556677000004A4 /* AssessmentViewModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentViewModifiers.swift; sourceTree = "<group>"; };
 		AA11223344556677000005A5 /* LeftPaneSpeechCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeftPaneSpeechCopy.swift; sourceTree = "<group>"; };
-		7C4E96D425E84F20AD33EDC7 /* VoiceRefusalCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRefusalCopy.swift; sourceTree = "<group>"; };
 		AA11223344556677000006A6 /* AssessmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssessmentCard.swift; sourceTree = "<group>"; };
 		AA11223344556677000007A7 /* CompletionPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompletionPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CompletionPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		AA11223344556677000008A8 /* SessionStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SessionStatusView.swift; path = VoiceMiniCog/Views/AvatarAssessment/SessionStatusView.swift; sourceTree = SOURCE_ROOT; };
 		AA11223344556677000009A9 /* CaregiverAssessmentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaregiverAssessmentView.swift; sourceTree = "<group>"; };
 		AA112233445566770001A1A1 /* QMCIAvatarContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QMCIAvatarContext.swift; sourceTree = "<group>"; };
+		AB00CD11EF22000000000002 /* ResearchModeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchModeSettings.swift; sourceTree = "<group>"; };
+		AB00CD11EF22000000000004 /* RawStreamRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RawStreamRecorder.swift; sourceTree = "<group>"; };
+		AB00CD11EF22000000000006 /* UITouchCaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITouchCaptureView.swift; sourceTree = "<group>"; };
+		AB00CD11EF22000000000008 /* ResearchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchRootView.swift; sourceTree = "<group>"; };
 		B231486BB1A1E56864D34FC4 /* TavusBridge.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = TavusBridge.html; path = VoiceMiniCog/Resources/TavusBridge.html; sourceTree = SOURCE_ROOT; };
 		B26A970DB16F141ACD2E048D /* MCComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCComponents.swift; sourceTree = "<group>"; };
 		BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarAssessmentCanvas.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarAssessmentCanvas.swift; sourceTree = SOURCE_ROOT; };
+		C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VoiceClips; path = VoiceMiniCog/Resources/VoiceClips; sourceTree = SOURCE_ROOT; };
+		C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceClipLibrary.swift; sourceTree = "<group>"; };
+		685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceScriptInventory.swift; sourceTree = "<group>"; };
 		CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/VerbalFluencyPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		CD7CC0CD7CC0CD7CC0CD0002 /* CDTCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CDTCanvasView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CDTCanvasView.swift; sourceTree = SOURCE_ROOT; };
 		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
@@ -190,7 +193,6 @@
 		F2DB460D8F2037359D15D12D /* AvatarLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarLayoutManager.swift; path = VoiceMiniCog/Models/AvatarLayoutManager.swift; sourceTree = SOURCE_ROOT; };
 		FD67457A85ACD917974962D3 /* PauseButtonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PauseButtonView.swift; path = VoiceMiniCog/Views/AvatarAssessment/PauseButtonView.swift; sourceTree = SOURCE_ROOT; };
 		FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRecallPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRecallPhaseView.swift; sourceTree = SOURCE_ROOT; };
-		C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VoiceClips; path = VoiceMiniCog/Resources/VoiceClips; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -322,6 +324,7 @@
 				AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */,
 				AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */,
 				C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */,
+				685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -368,6 +371,13 @@
 			path = VoiceMiniCog;
 			sourceTree = "<group>";
 		};
+		925BB86F2F8E7D2F00EAE51C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		AB00CD11EF22000000000001 /* Research */ = {
 			isa = PBXGroup;
 			children = (
@@ -377,13 +387,6 @@
 				AB00CD11EF22000000000008 /* ResearchRootView.swift */,
 			);
 			path = Research;
-			sourceTree = "<group>";
-		};
-		925BB86F2F8E7D2F00EAE51C /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -612,6 +615,7 @@
 				60BD4C3A9DDCB7C7EE272323 /* VerbalFluencyScorer.swift in Sources */,
 				DD00112233445566778899A1 /* KeychainHelper.swift in Sources */,
 				1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */,
+				9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
