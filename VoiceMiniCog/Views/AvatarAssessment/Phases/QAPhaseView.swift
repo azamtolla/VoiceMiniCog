@@ -38,6 +38,23 @@ struct QAPhaseView: View {
     /// `user.started_speaking`, which was auto-advancing past questions (e.g. skipping "What month is this?").
     @State private var heardPatientSpeechDuringAnswerWait = false
 
+    /// Voice mode ONLY (Task 6 blocker fix): in avatar mode the
+    /// .patientStartedSpeaking/.patientDoneSpeaking signals come from Daily's
+    /// SERVER-SIDE speech events; in voice mode nothing captures audio during
+    /// an orientation answer window, so every question would fall through to
+    /// the 10 s no-response timeout and score nil (10 of 100 Qmci points).
+    /// This SpeechService runs a listening window for the duration of
+    /// waitForPatientResponse() purely so its Task 4B bridge can post those
+    /// notifications from on-device ASR activity.
+    ///
+    /// CLINICAL NOTE: orientation scores speech PRESENCE only (2 pts default
+    /// on speech, nil on silence — clinician adjusts in the PCP report). The
+    /// transcript is never scored, and this change adds no transcript scoring:
+    /// the advance/scoring logic in advanceOrientationQuestion is untouched
+    /// and identical for both modes.
+    @StateObject private var voiceAnswerListener = SpeechService()
+    @State private var didRequestSpeechAuth = false
+
     // MARK: Body
 
     var body: some View {
@@ -56,6 +73,13 @@ struct QAPhaseView: View {
             avatarBeginSilenceWatch()
             withAnimation(AssessmentTheme.Anim.contentEnter.delay(0.05)) {
                 contentVisible = true
+            }
+            // Voice mode: speech-recognition permission is needed before the
+            // first orientation answer window opens (same pattern as
+            // WordRegistrationPhaseView's onAppear auth request).
+            if phaseID == .orientation, GuideMode.current == .voice, !didRequestSpeechAuth {
+                didRequestSpeechAuth = true
+                Task { _ = await voiceAnswerListener.requestAuthorization() }
             }
             if phaseID == .orientation {
                 avatarSetAssessmentContext(QMCIAvatarContext.orientation)
@@ -88,6 +112,14 @@ struct QAPhaseView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .avatarDoneSpeaking)) { _ in
             finishQuestionSpeechIfNeeded(epoch: questionSpeechEpoch)
+        }
+        .onDisappear {
+            // Voice-mode ASR window cleanup on mid-wait exit (End Session):
+            // without this the audio-engine tap leaks past the phase. Inert
+            // in avatar mode — the listener is never started there.
+            if voiceAnswerListener.isListening {
+                voiceAnswerListener.stopListening()
+            }
         }
     }
 
@@ -329,6 +361,31 @@ struct QAPhaseView: View {
         waitingForPatientResponse = true
         heardPatientSpeechDuringAnswerWait = false
         orientationAutoAdvanceTask?.cancel()
+
+        // Task 6 blocker fix — voice mode only: open an on-device ASR window
+        // so SpeechService's bridge can post .patientStartedSpeaking /
+        // .patientDoneSpeaking (in avatar mode Daily's server-side events own
+        // those posts; the bridge is mode-gated internally so nothing can
+        // double-fire). The window detects speech PRESENCE only; no
+        // transcript is scored (see voiceAnswerListener doc comment).
+        if GuideMode.current == .voice {
+            if SpeechService.fixturesEnabled {
+                // Simulator has no microphone — inject a fixture so the
+                // presence bridge is exercisable end-to-end in smoke tests.
+                voiceAnswerListener.fixtureTranscript = "It is two thousand twenty six"
+            }
+            Task { @MainActor in
+                do {
+                    try await voiceAnswerListener.startListening()
+                } catch {
+                    // Presence signal unavailable — the 10 s timeout below
+                    // still runs and scores nil (clinician review), exactly
+                    // the pre-existing no-speech-detected behavior.
+                    print("[QAPhaseView] Voice-mode ASR window failed to start: \(error.localizedDescription)")
+                }
+            }
+        }
+
         orientationAutoAdvanceTask = Task { @MainActor in
             // QMCI protocol: max 10 seconds per orientation answer
             try? await Task.sleep(nanoseconds: 10_000_000_000)
@@ -342,6 +399,14 @@ struct QAPhaseView: View {
         guard waitingForPatientResponse else { return }
         waitingForPatientResponse = false
         orientationAutoAdvanceTask?.cancel()
+
+        // Close the voice-mode ASR window with the answer wait. Any
+        // .patientDoneSpeaking this stop emits is dropped by the
+        // waitingForPatientResponse guard above (already false). Inert in
+        // avatar mode — the listener is never started there.
+        if voiceAnswerListener.isListening {
+            voiceAnswerListener.stopListening()
+        }
 
         // Avatar cannot judge correctness. If the patient spoke, default to full
         // credit (2 pts) and let the clinician adjust in the PCP report. If the

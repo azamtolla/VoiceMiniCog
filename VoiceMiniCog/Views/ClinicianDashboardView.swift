@@ -34,6 +34,10 @@ struct ClinicianDashboardView: View {
 
     @AppStorage("voiceMiniCog.preselectedFlow") private var preselectedFlowRaw: String = AssessmentFlowType.quick.rawValue
 
+    /// Guide preference (Task 6). nil until a clinician picks explicitly;
+    /// GuideMode.resolved degrades an unusable avatar choice to voice.
+    @AppStorage(GuideMode.storageKey) private var storedGuideMode: String?
+
     var body: some View {
         Group {
             if isUnlocked {
@@ -103,6 +107,9 @@ struct ClinicianDashboardView: View {
                     // Mode selection
                     modeCard
 
+                    // Guide selection (voice clips vs Tavus video avatar)
+                    guideCard
+
                     // MA handoff entry
                     Button {
                         onGoToMAHandoff()
@@ -171,6 +178,29 @@ struct ClinicianDashboardView: View {
             .pickerStyle(.segmented)
             .onChange(of: flowType) { _, new in
                 preselectedFlowRaw = new.rawValue
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.25)))
+    }
+
+    private var guideCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Guide")
+                .font(.system(size: 20, weight: .semibold))
+            Picker("Guide", selection: Binding(
+                get: { GuideMode(rawValue: storedGuideMode ?? "") ?? GuideMode.current },
+                set: { storedGuideMode = $0.rawValue })) {
+                ForEach(GuideMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            if GuideMode(rawValue: storedGuideMode ?? "") == .avatar,
+               GuideMode.current == .voice {
+                Text("Video avatar requires a Tavus API key. Sessions will use the voice guide until one is configured.")
+                    .font(.system(size: 14))
+                    .foregroundColor(.orange)
             }
         }
         .padding(16)

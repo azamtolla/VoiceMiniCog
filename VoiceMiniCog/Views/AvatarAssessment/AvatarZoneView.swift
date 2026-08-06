@@ -22,6 +22,10 @@ struct AvatarZoneView: View {
     let dailyCallManager: DailyCallManager
     var isConnecting: Bool = false
     var errorMessage: String? = nil
+    /// Voice guide mode (Task 6): no video feed exists. The zone renders a
+    /// minimal speaking/listening indicator instead of the Daily video, and
+    /// the clock panel's feed-ready gate bypasses the conversationURL check.
+    var isVoiceMode: Bool = false
     let width: CGFloat
     let height: CGFloat
     var onRetry: (() -> Void)? = nil
@@ -87,7 +91,21 @@ struct AvatarZoneView: View {
             //    Standard: full-bleed rectangle with rounded corners.
             //    Native VideoView stays full-size; SwiftUI .mask() crops the visible region.
             Group {
-                if conversationURL != nil {
+                if isVoiceMode {
+                    // Voice guide (Task 6): no video feed. A static symbol +
+                    // state text carry the speaking/listening signal; the
+                    // ambient bloom behind it still breathes with behavior.
+                    if isClockDrawing {
+                        VStack(spacing: 0) {
+                            voiceGuideBadge(diameter: circleDiam)
+                                .padding(.top, 24)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    } else {
+                        voiceGuideIndicator
+                    }
+                } else if conversationURL != nil {
                     if isClockDrawing {
                         // Clock drawing: a dedicated square frame the size
                         // of the target circle, clipped to Circle() so the
@@ -155,8 +173,11 @@ struct AvatarZoneView: View {
                     .transition(.opacity)
             }
 
-            // 5. State label — standard mode
-            if !isClockDrawing {
+            // 5. State label — standard mode. Voice mode renders its own
+            //    state text inside voiceGuideIndicator (the white-on-material
+            //    label below is styled for a dark video backdrop and would
+            //    fail contrast on the bare warm canvas).
+            if !isClockDrawing && !isVoiceMode {
                 VStack {
                     Spacer()
                     // Thinking dots appear when the avatar is in .acknowledging
@@ -234,12 +255,15 @@ struct AvatarZoneView: View {
     }
 
     /// True once Daily has reported joined, or the session already has a live URL when entering clock.
+    /// Voice mode (Task 6): there is never a conversationURL — the guide is
+    /// local clip playback, always "live" — so bypass the URL requirement or
+    /// the clock panel shows a permanent "Connecting..." chip.
     private func refreshClockPanelFeedReady() {
         guard isClockDrawing else {
             clockPanelFeedReady = false
             return
         }
-        if conversationURL != nil, !isConnecting {
+        if isVoiceMode || (conversationURL != nil && !isConnecting) {
             clockPanelFeedReady = true
         }
     }
@@ -371,6 +395,54 @@ struct AvatarZoneView: View {
         case .waiting:         return ""
         case .completing:      return "Finishing up..."
         }
+    }
+
+    // MARK: - Voice guide indicator (Task 6)
+
+    /// State text for voice mode — same wording as the avatar state label,
+    /// but "Ready" while waiting so the pane never reads as broken.
+    private var voiceStateText: String {
+        switch layoutManager.avatarBehavior {
+        case .speaking:        return "Speaking..."
+        case .narrating:       return "Reading story..."
+        case .listening:       return "Listening..."
+        case .acknowledging:   return "Got it..."
+        case .completing:      return "Finishing up..."
+        case .idle, .waiting:  return "Ready"
+        }
+    }
+
+    /// Standard phases: centered symbol + ≥18pt state text, dark-on-light
+    /// (#374151 on the warm canvas ≈ 8.9:1 contrast). The ambient bloom
+    /// behind it carries the speaking/listening motion.
+    private var voiceGuideIndicator: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "waveform.circle.fill")
+                .font(.system(size: 96, weight: .regular))
+                .foregroundStyle(layoutManager.accentColor)
+            Text(voiceStateText)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundColor(Color(hex: "#374151"))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Voice guide: \(voiceStateText)")
+    }
+
+    /// Clock drawing: compact circular badge in the video circle's position
+    /// so the controls panel's reserved layout below stays intact.
+    private func voiceGuideBadge(diameter: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(layoutManager.accentColor.opacity(0.12))
+            Circle()
+                .strokeBorder(Color.gray.opacity(0.25), lineWidth: 1.5)
+            Image(systemName: "waveform")
+                .font(.system(size: max(28, diameter * 0.28), weight: .medium))
+                .foregroundStyle(layoutManager.accentColor)
+        }
+        .frame(width: diameter, height: diameter)
+        .accessibilityLabel("Voice guide")
     }
 
     // MARK: - Recovery UI

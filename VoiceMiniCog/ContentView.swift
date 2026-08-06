@@ -44,6 +44,23 @@ struct ContentView: View {
     @State private var sessionID = UUID()
     @State private var dailyCallManager = DailyCallManager()
 
+    // MARK: Guide mode (Task 6)
+
+    /// Clinician's stored guide preference (nil = unset → resolved from key).
+    @AppStorage(GuideMode.storageKey) private var storedGuideMode: String?
+
+    /// Active only in voice mode — plays pre-rendered clips behind the same
+    /// NotificationCenter seam the phase views already use. Exactly one of
+    /// {VoiceGuideService, DailyCallManager} administers a session.
+    @State private var voiceGuide: VoiceGuideService? = nil
+
+    /// Effective mode right now. Avatar requires a configured Tavus key;
+    /// anything else degrades to voice (see GuideMode.resolved).
+    private var effectiveGuideMode: GuideMode {
+        GuideMode.resolved(storedRawValue: storedGuideMode,
+                           tavusKeyConfigured: !TavusService.shared.apiKey.isEmpty)
+    }
+
     /// Observer handle for .sessionAbandoned so we can detach on disappear.
     @State private var abandonmentObserver: NSObjectProtocol?
 
@@ -63,11 +80,13 @@ struct ContentView: View {
                 dailyCallManager: dailyCallManager,
                 assessmentState: assessmentState,
                 tavusService: TavusService.shared,
+                guideMode: effectiveGuideMode,
                 onComplete: {
                     assessmentState.currentPhase = .scoring
                     computeAllScores()
                     assessmentState.currentPhase = .report
                     AssessmentPersistence.clear()
+                    deactivateVoiceGuide()
                     dailyCallManager.leave()
                     TavusService.shared.cancelPreWarm()
                     Task { await TavusService.shared.endConversation() }
@@ -75,10 +94,21 @@ struct ContentView: View {
                 },
                 onCancel: {
                     AssessmentPersistence.clear()
+                    deactivateVoiceGuide()
                     dailyCallManager.leave()
                     TavusService.shared.cancelPreWarm()
                     Task { await TavusService.shared.endConversation() }
                     currentScreen = .maHandoff
+                },
+                onSwitchToVoiceGuide: {
+                    // "Continue without avatar" — persist voice as the guide,
+                    // tear down the Tavus/Daily path, and activate the voice
+                    // guide mid-session so the assessment can proceed.
+                    storedGuideMode = GuideMode.voice.rawValue
+                    dailyCallManager.leave()
+                    TavusService.shared.cancelPreWarm()
+                    Task { await TavusService.shared.endConversation() }
+                    activateVoiceGuideIfNeeded()
                 }
             )
             .opacity(currentScreen == .avatarAssessment ? 1 : 0)
@@ -91,12 +121,14 @@ struct ContentView: View {
                     tavusService: TavusService.shared,
                     onComplete: {
                         AssessmentPersistence.clear()
+                        deactivateVoiceGuide()
                         TavusService.shared.cancelPreWarm()
                         Task { await TavusService.shared.endConversation() }
                         currentScreen = .maHandoff
                     },
                     onCancel: {
                         AssessmentPersistence.clear()
+                        deactivateVoiceGuide()
                         TavusService.shared.cancelPreWarm()
                         Task { await TavusService.shared.endConversation() }
                         currentScreen = .maHandoff
@@ -129,7 +161,14 @@ struct ContentView: View {
                         currentScreen = .clinicianDashboard
                     }
                 )
-                .onAppear { TavusService.shared.preWarm() }
+                .onAppear {
+                    // Tavus pre-warm is avatar-mode only; voice mode never
+                    // creates a conversation. (preWarm also self-guards on an
+                    // empty key, but the mode gate keeps intent explicit.)
+                    if effectiveGuideMode == .avatar {
+                        TavusService.shared.preWarm()
+                    }
+                }
             }
 
             // MARK: Clinician Dashboard (5-tap chord → PIN gate)
@@ -231,6 +270,7 @@ struct ContentView: View {
                     completedSubtests: completed,
                     policy: .flagForClinicianReview
                 )
+                deactivateVoiceGuide()
                 dailyCallManager.leave()
                 TavusService.shared.cancelPreWarm()
                 Task { await TavusService.shared.endConversation() }
@@ -274,6 +314,14 @@ struct ContentView: View {
             avatarSetContext(header)
         }
 
+        // Guide selection (Task 6): activate the voice guide BEFORE flipping
+        // the screen so its observers are registered when WelcomePhaseView's
+        // onAppear posts the intro echo. Voice mode never creates a Tavus
+        // conversation or joins a Daily room.
+        if effectiveGuideMode == .voice {
+            activateVoiceGuideIfNeeded()
+        }
+
         if selectedFlow == .caregiver {
             assessmentState.qdrsState.respondentType = .informant
             currentScreen = .caregiverAssessment
@@ -281,7 +329,8 @@ struct ContentView: View {
             currentScreen = .avatarAssessment
         }
 
-        if TavusService.shared.activeConversation == nil, !TavusService.shared.isCreatingConversation {
+        if effectiveGuideMode == .avatar,
+           TavusService.shared.activeConversation == nil, !TavusService.shared.isCreatingConversation {
             Task {
                 do {
                     _ = try await TavusService.shared.createConversation(
@@ -292,6 +341,31 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Voice guide lifecycle (Task 6)
+
+    /// Create + activate the VoiceGuideService (idempotent). A missing or
+    /// unreadable bundled manifest degrades to an empty library — every
+    /// utterance then goes through the AVSpeech fallback, so the assessment
+    /// never blocks on missing clip assets.
+    private func activateVoiceGuideIfNeeded() {
+        guard voiceGuide == nil else { return }
+        let library = (try? VoiceClipLibrary.loadFromBundle())
+            ?? VoiceClipLibrary(manifest: VoiceClipManifest(clips: []), bundle: .main)
+        let guide = VoiceGuideService(library: library)
+        voiceGuide = guide
+        guide.activate()
+        // Voice mode needs no room join — phase flow starts via isActive
+        // (AvatarAssessmentCanvas) and WelcomePhaseView.onAppear. This post
+        // only satisfies AvatarZoneView's clockPanelFeedReady observer (its
+        // sole consumer).
+        NotificationCenter.default.post(name: .tavusDailyRoomJoined, object: nil)
+    }
+
+    private func deactivateVoiceGuide() {
+        voiceGuide?.deactivate()
+        voiceGuide = nil
     }
 
     // MARK: - Scoring

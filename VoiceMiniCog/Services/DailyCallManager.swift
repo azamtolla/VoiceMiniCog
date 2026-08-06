@@ -759,6 +759,14 @@ final class DailyCallManager: NSObject {
     /// Calls to `beginSilenceWatch()` are idempotent — calling while already
     /// armed re-starts the clock from zero (useful when a new phase begins).
     func beginSilenceWatch() {
+        // Voice mode (Task 6): this manager still observes the notification
+        // seam even when no call exists (observers register in init, and
+        // ContentView creates it unconditionally). Without a call it must
+        // never arm — its fireAbandonment would post a competing
+        // .sessionAbandoned + leave() against VoiceGuideService's watchdog.
+        // Mirrors the existing guard in fireReengagementPrompt; inert in
+        // avatar mode, where phases only arm after the room is joined.
+        guard callState == .joined else { return }
         cancelSilenceWatch()
         silenceStartedAt = Date()
         reengagementPromptSent = false

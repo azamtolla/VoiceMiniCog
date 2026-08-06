@@ -603,7 +603,7 @@ EOF
 
 - [ ] **Step 7: Run all three suites** (`GuideModeTests`, `VoiceClipLibraryTests`, `VoiceClipManifestTests`). Expected: ALL PASS (`rendered:false` entries satisfy the coverage guard; the file-exists guard only checks `rendered:true`).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add VoiceMiniCog/Services/VoiceScriptInventory.swift VoiceMiniCogTests/VoiceClipManifestTests.swift VoiceMiniCog/Resources/VoiceClips/VoiceClipManifest.json VoiceMiniCog.xcodeproj/project.pbxproj
@@ -1256,11 +1256,38 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 - Modify: `VoiceMiniCog/Views/AvatarAssessment/AvatarZoneView.swift` ("Continue without avatar" button at line 413 → starts Voice mode; compact voice-mode zone UI; `refreshClockPanelFeedReady` bypass at line 242)
 - Modify: whichever Settings surface hosts the Tavus API key field (locate: `grep -rn "Tavus API key" VoiceMiniCog/ --include="*.swift"`) — add the GuideMode picker
 
+### ⚠️ Task 6 BLOCKER discovered during Task 4B — QAPhaseView has no ASR in voice mode
+
+**QAPhaseView owns no `SpeechService`.** In avatar mode, orientation's
+"the patient spoke" signal comes from Daily's *server-side* speech events, not
+from on-device ASR. Task 4B's bridge is the correct seam, but in voice mode
+**nothing starts on-device capture during an orientation answer window**, so the
+bridge has no input: every orientation question falls through to the 10 s
+no-response timeout at `QAPhaseView.swift:337` and scores `nil`.
+
+That is 10 of the 100 Qmci points silently lost.
+
+The phases that DO own a `SpeechService` — VerbalFluency, WordRecall,
+WordRegistration — are unaffected and get watchdog cancellation from the bridge
+immediately.
+
+**Fix required in this task:** in voice mode, run a `SpeechService` listening
+window for the duration of `QAPhaseView.waitForPatientResponse()`.
+
+**This is cheaper than it sounds:** orientation scoring needs only speech
+*presence*, not content (2 points or `nil` per item — no transcript is scored).
+So the window exists solely to make the bridge fire `.patientStartedSpeaking`.
+Do not add transcript scoring to orientation; that would change a validated
+clinical instrument.
+
+Gate the window on `GuideMode.current == .voice` so avatar mode keeps using
+Daily's events and nothing double-fires.
+
 **Why DailyCallManager needs a guard (verified):** it registers ALL its notification observers in `init()` (DailyCallManager.swift:249-251) and ContentView creates it unconditionally (line 45). In voice mode it would still observe the whole seam: echoes buffer into `pendingBeforeJoin` (lines 1039-1042), and `.tavusBeginSilenceWatchRequest` arms its watchdog with **no joined-state guard** (line 1090 → `beginSilenceWatch` at 761) whose `fireAbandonment` (lines 802-820) also has no `callState` guard — so it would fire a competing `.sessionAbandoned` + `leave()` 150 s after the last arm, and phase views never call `avatarCancelSilenceWatch` (zero call sites in Views/).
 
-- [ ] **Step 1: Read before editing.** Read `ContentView.swift` fully and `AvatarZoneView.swift` around line 380–460. These files carry uncommitted April WIP — make MINIMAL, additive edits; never revert surrounding code (CLAUDE.md multi-agent discipline).
+- [x] **Step 1: Read before editing.** Read `ContentView.swift` fully and `AvatarZoneView.swift` around line 380–460. These files carry uncommitted April WIP — make MINIMAL, additive edits; never revert surrounding code (CLAUDE.md multi-agent discipline).
 
-- [ ] **Step 2: Add the mode state + service to ContentView** (adapt names to what you actually find; the pattern is):
+- [x] **Step 2: Add the mode state + service to ContentView** (adapt names to what you actually find; the pattern is):
 
 ```swift
 @AppStorage(GuideMode.storageKey) private var storedGuideMode: String?
@@ -1274,7 +1301,7 @@ private var effectiveGuideMode: GuideMode {
 
 If `TavusService.isAPIKeyConfigured` (or equivalent) doesn't exist, find how the "Tavus API key not configured" banner decides (`grep -n "not configured" VoiceMiniCog/Services/TavusService.swift`) and reuse that exact check.
 
-- [ ] **Step 3: Branch session start** — at the point where ContentView begins an assessment session:
+- [x] **Step 3: Branch session start** — at the point where ContentView begins an assessment session:
 
 ```swift
 if effectiveGuideMode == .voice {
@@ -1295,9 +1322,9 @@ if effectiveGuideMode == .voice {
 
 On session end/leave, mirror: `voiceGuide?.deactivate(); voiceGuide = nil`.
 
-- [ ] **Step 3a: Gate the real join + pre-warm sites.** In `AvatarAssessmentCanvas.swift`, wrap the bodies of BOTH `.onChange` join paths (lines 100-106 and 113-117) in `if guideMode == .avatar { … }` — pass the resolved mode in as a `let` from ContentView. In `ContentView.swift:132` change the Tavus pre-warm to `if effectiveGuideMode == .avatar { TavusService.shared.preWarm() }` (adapt to the actual pre-warm call found there).
+- [x] **Step 3a: Gate the real join + pre-warm sites.** In `AvatarAssessmentCanvas.swift`, wrap the bodies of BOTH `.onChange` join paths (lines 100-106 and 113-117) in `if guideMode == .avatar { … }` — pass the resolved mode in as a `let` from ContentView. In `ContentView.swift:132` change the Tavus pre-warm to `if effectiveGuideMode == .avatar { TavusService.shared.preWarm() }` (adapt to the actual pre-warm call found there).
 
-- [ ] **Step 3b: Make DailyCallManager's watchdog inert without a call.** In `DailyCallManager.beginSilenceWatch()` (DailyCallManager.swift:761) add as the first line:
+- [x] **Step 3b: Make DailyCallManager's watchdog inert without a call.** In `DailyCallManager.beginSilenceWatch()` (DailyCallManager.swift:761) add as the first line:
 
 ```swift
 guard callState == .joined else { return }
@@ -1305,7 +1332,7 @@ guard callState == .joined else { return }
 
 This mirrors the existing guard in `fireReengagementPrompt` (line 794) and changes nothing in avatar mode (phase views only arm after the room is joined). It is the minimal edit that stops the un-joined manager from firing a competing `.sessionAbandoned` + `leave()` in voice mode.
 
-- [ ] **Step 4: "Continue without avatar" → Voice mode.** In `AvatarZoneView.swift:413`'s button action, set the stored mode and route into the same voice start path (post the notification/callback that view uses to proceed):
+- [x] **Step 4: "Continue without avatar" → Voice mode.** In `AvatarZoneView.swift:413`'s button action, set the stored mode and route into the same voice start path (post the notification/callback that view uses to proceed):
 
 ```swift
 UserDefaults.standard.set(GuideMode.voice.rawValue, forKey: GuideMode.storageKey)
@@ -1313,7 +1340,7 @@ UserDefaults.standard.set(GuideMode.voice.rawValue, forKey: GuideMode.storageKey
 
 Replace the zone's video area in voice mode with a minimal listening/speaking indicator (reuse `SessionStatusView` if it fits; otherwise a `MercyColors`-styled waveform-less state label — 18 pt minimum text, 4.5:1 contrast). **Also:** `refreshClockPanelFeedReady` (AvatarZoneView.swift:242) requires `conversationURL != nil` — bypass that requirement when in voice mode, otherwise the clock-drawing panel shows a permanent connecting state.
 
-- [ ] **Step 5: Settings picker** in the located Settings surface:
+- [x] **Step 5: Settings picker** in the located Settings surface:
 
 ```swift
 Picker("Guide", selection: Binding(
@@ -1326,9 +1353,9 @@ Picker("Guide", selection: Binding(
 .pickerStyle(.segmented)
 ```
 
-- [ ] **Step 6: Build + full unit suite.** Expected: BUILD SUCCEEDED, tests green.
+- [x] **Step 6: Build + full unit suite.** Expected: BUILD SUCCEEDED, tests green.
 
-- [ ] **Step 7: Manual smoke on simulator** — launch, confirm: no Tavus key → app enters Voice mode directly (no "Retry Connection" dead-end), Welcome phase speaks via AVSpeech fallback (clips not yet rendered), phases advance on `.avatarDoneSpeaking`.
+- [x] **Step 7: Manual smoke on simulator** — launch, confirm: no Tavus key → app enters Voice mode directly (no "Retry Connection" dead-end), Welcome phase speaks via AVSpeech fallback (clips not yet rendered), phases advance on `.avatarDoneSpeaking`.
 
 - [ ] **Step 8: Commit** (only the three modified Swift files + pbxproj if touched):
 

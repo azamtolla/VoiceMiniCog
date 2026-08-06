@@ -26,8 +26,15 @@ struct AvatarAssessmentCanvas: View {
     var dailyCallManager: DailyCallManager
     @Bindable var assessmentState: AssessmentState
     var tavusService: TavusService
+    /// Which guide administers this session (Task 6). Voice mode keeps the
+    /// same phase flow but never joins a Daily room — the Daily join paths
+    /// below are gated on `.avatar`.
+    var guideMode: GuideMode = .avatar
     let onComplete: () -> Void
     let onCancel: () -> Void
+    /// Invoked when the user taps "Continue without avatar" so the parent can
+    /// switch the session to the voice guide (ContentView owns that lifecycle).
+    var onSwitchToVoiceGuide: (() -> Void)? = nil
 
     @State private var layoutManager = AvatarLayoutManager()
     @State private var avatarDismissed = false
@@ -99,18 +106,22 @@ struct AvatarAssessmentCanvas: View {
 
                 // Daily SDK: unlock deferred join and attempt join now.
                 // configure() was already called when the URL became available.
-                dailyCallManager.deferJoinUntilAssessmentActive = false
-                if let url = tavusService.activeConversation?.conversation_url {
-                    dailyCallManager.configure(url: url)
+                // Voice mode (Task 6): no Daily room exists — never join.
+                if guideMode == .avatar {
+                    dailyCallManager.deferJoinUntilAssessmentActive = false
+                    if let url = tavusService.activeConversation?.conversation_url {
+                        dailyCallManager.configure(url: url)
+                    }
+                    dailyCallManager.joinIfReady()
                 }
-                dailyCallManager.joinIfReady()
             }
         }
         .onChange(of: tavusService.activeConversation?.conversation_url) { _, url in
             // URL becomes available — configure and always attempt join.
             // DailyCallManager's deferJoinUntilAssessmentActive flag gates whether
             // the join actually proceeds (true on Home, false once isActive fires).
-            if let url {
+            // Voice mode (Task 6): gated — no join even if a stale URL appears.
+            if let url, guideMode == .avatar {
                 dailyCallManager.configure(url: url)
                 dailyCallManager.joinIfReady()
                 canvasLog.debug("URL arrived — configured + joinIfReady (isActive=\(isActive))")
@@ -397,6 +408,7 @@ struct AvatarAssessmentCanvas: View {
             dailyCallManager: dailyCallManager,
             isConnecting: avatarDismissed ? false : tavusService.isCreatingConversation,
             errorMessage: canvasErrorMessage,
+            isVoiceMode: guideMode == .voice,
             width: width,
             height: height,
             onRetry: {
@@ -421,6 +433,10 @@ struct AvatarAssessmentCanvas: View {
             onContinueWithoutAvatar: {
                 avatarDismissed = true
                 tavusService.lastError = nil
+                // Task 6: continue the session with the voice guide instead
+                // of a dead avatar pane. Parent persists the mode + activates
+                // VoiceGuideService.
+                onSwitchToVoiceGuide?()
             },
             onDoneDrawing: {
                 // Fix 14: confirm if zero strokes before advancing.
