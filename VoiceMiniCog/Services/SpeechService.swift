@@ -58,11 +58,93 @@ class SpeechService: ObservableObject {
         #endif
     }
 
+    // MARK: - Voice-mode patient-speaking bridge (Task 4B)
+    //
+    // Phase views advance on .patientStartedSpeaking → .patientDoneSpeaking
+    // (QAPhaseView.swift:78-88). In avatar mode Tavus/Daily post those; in
+    // voice mode NOTHING does, so every orientation question would fall
+    // through to the 10 s no-response timeout. This bridge posts them from
+    // on-device ASR activity — ADDITIVE ONLY: transcript delivery to phase
+    // views and scorers is untouched.
+
+    /// Which guide mode the bridge consults before posting. Injectable so
+    /// tests are deterministic regardless of Keychain/UserDefaults state;
+    /// production default resolves live so a Settings change takes effect.
+    var guideModeProvider: () -> GuideMode = { GuideMode.current }
+
+    /// Trailing-partial absorber: SFSpeechRecognizer partials trail the
+    /// audio by ~100-500 ms, so a transcription of the guide's own speech
+    /// can arrive AFTER .avatarDoneSpeaking clears `guideIsSpeaking`.
+    /// Partials within this interval of guide-speech end are still treated
+    /// as self-hearing. Cost of a too-long value is only a slightly late
+    /// .patientStartedSpeaking (the patient's next partial posts it);
+    /// cost of a too-short value is a false started that cancels the
+    /// silence watchdog. Tune on device.
+    var bridgeGraceAfterGuideSpeech: TimeInterval = 0.4
+
+    /// One listening window's bridge lifecycle. `.finalized` is distinct
+    /// from `.idle` so a stray partial arriving after finalization (queued
+    /// recognizer callback racing stopListening) cannot re-post started;
+    /// only startListening() reopens the window.
+    private enum BridgeWindowState { case idle, started, finalized }
+    private var bridgeWindowState: BridgeWindowState = .idle
+
+    /// Half-duplex gate: true while VoiceGuideService (or the avatar) is
+    /// speaking. ASR activity during guide speech is the app hearing itself
+    /// — never patient speech.
+    private var guideIsSpeaking = false
+    private var guideSpeechEndedAt: Date?
+    private var bridgeObservers: [NSObjectProtocol] = []
+
     init() {
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
         if !isSimulator {
             audioEngine = AVAudioEngine()
         }
+        // Half-duplex gate: track guide speech via the same seam
+        // VoiceGuideService posts on. queue: .main + main-thread posting ⇒
+        // synchronous delivery, so the flag is set before the guide's audio
+        // can produce a partial.
+        let nc = NotificationCenter.default
+        bridgeObservers = [
+            nc.addObserver(forName: .avatarStartedSpeaking, object: nil, queue: .main) { [weak self] _ in
+                self?.guideIsSpeaking = true
+            },
+            nc.addObserver(forName: .avatarDoneSpeaking, object: nil, queue: .main) { [weak self] _ in
+                self?.guideIsSpeaking = false
+                self?.guideSpeechEndedAt = Date()
+            },
+        ]
+    }
+
+    deinit {
+        bridgeObservers.forEach(NotificationCenter.default.removeObserver(_:))
+    }
+
+    /// First non-empty partial of a window posts .patientStartedSpeaking —
+    /// once, and only in voice mode (avatar mode: Daily owns these posts;
+    /// double-posting would double-advance QAPhaseView), and never while
+    /// (or just after) the guide itself is speaking.
+    private func bridgePartialTranscript(_ text: String) {
+        guard guideModeProvider() == .voice else { return }
+        guard bridgeWindowState == .idle else { return }
+        guard !guideIsSpeaking else { return }
+        if let ended = guideSpeechEndedAt,
+           Date().timeIntervalSince(ended) < bridgeGraceAfterGuideSpeech {
+            return
+        }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        bridgeWindowState = .started
+        NotificationCenter.default.post(name: .patientStartedSpeaking, object: nil)
+    }
+
+    /// Window closed (final result, manual stop, or error path): post
+    /// .patientDoneSpeaking iff started was posted. .started is only
+    /// reachable in voice mode, so this is inherently mode-gated.
+    private func bridgeFinalizeWindow() {
+        guard bridgeWindowState == .started else { return }
+        bridgeWindowState = .finalized
+        NotificationCenter.default.post(name: .patientDoneSpeaking, object: nil)
     }
 
     // MARK: - Authorization
@@ -95,6 +177,12 @@ class SpeechService: ObservableObject {
     // MARK: - Start Listening
 
     func startListening() async throws {
+        // Fresh answer window: drop any unfinalized bridge state WITHOUT
+        // posting — a stale .patientDoneSpeaking at window-open could
+        // falsely advance the phase view that just started listening.
+        // (The stopListening() below therefore sees .idle and posts nothing.)
+        bridgeWindowState = .idle
+
         // Skip on simulator - no microphone available
         if isSimulator {
             print("[SpeechService] Running on simulator - speech recognition disabled")
@@ -109,6 +197,12 @@ class SpeechService: ObservableObject {
                 let work = DispatchWorkItem { [weak self] in
                     guard let self, self.isListening else { return }
                     self.transcript = fixture
+                    // Bridge the fixture like a complete utterance so
+                    // voice-mode phase pacing is exercisable on the
+                    // simulator (mode-gated inside; listening state and
+                    // transcript delivery unchanged).
+                    self.bridgePartialTranscript(fixture)
+                    self.bridgeFinalizeWindow()
                     print("[SpeechService] Fixture injected: \(fixture.prefix(60))...")
                 }
                 fixtureWork = work
@@ -184,6 +278,11 @@ class SpeechService: ObservableObject {
             if let result = result {
                 DispatchQueue.main.async {
                     self.transcript = result.bestTranscription.formattedString
+                    // Task 4B bridge — additive; transcript delivery above
+                    // is unchanged. A final result also passes through here
+                    // before the stop path below, so a single-shot final
+                    // still produces started → done.
+                    self.bridgePartialTranscript(result.bestTranscription.formattedString)
                 }
             }
 
@@ -228,6 +327,12 @@ class SpeechService: ObservableObject {
 
         isListening = false
 
+        // Task 4B bridge: closing a window in which patient speech was
+        // heard posts .patientDoneSpeaking — covers isFinal (recognizer
+        // callback calls stopListening), phase-view manual stops, and the
+        // error path. No-ops unless started was posted for this window.
+        bridgeFinalizeWindow()
+
         // Do NOT reconfigure the audio session here. WebRTC (Daily SDK)
         // owns the session for avatar playback. Switching to .playback mode
         // would evict WebRTC and silence the avatar for all subsequent speech.
@@ -235,6 +340,26 @@ class SpeechService: ObservableObject {
         // in startListening() is already compatible with WebRTC — just leave
         // the session as-is and let WebRTC continue using it.
     }
+
+    // MARK: - Bridge test hooks (Task 4B)
+
+    #if DEBUG
+    /// Mirrors the recognizer's partial-result callback exactly:
+    /// transcript set, then the bridge partial path.
+    func simulatePartialTranscriptForTesting(_ text: String) {
+        transcript = text
+        bridgePartialTranscript(text)
+    }
+
+    /// Mirrors a final result exactly: the real callback runs a final
+    /// result through the partial branch (transcript + bridge partial),
+    /// then calls stopListening(), which finalizes the bridge window.
+    func simulateFinalTranscriptForTesting(_ text: String) {
+        transcript = text
+        bridgePartialTranscript(text)
+        stopListening()
+    }
+    #endif
 
     // MARK: - Text-to-Speech (placeholder)
     // TODO: Implement actual TTS using AVSpeechSynthesizer or ElevenLabs

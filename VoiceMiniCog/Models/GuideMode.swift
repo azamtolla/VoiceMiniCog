@@ -25,6 +25,21 @@ enum GuideMode: String, CaseIterable, Identifiable {
     /// UserDefaults key for the user's stored preference.
     static let storageKey = "guideMode"
 
+    /// Effective mode right now. Bridges (e.g. SpeechService's
+    /// patient-speaking bridge) use this to decide whether to post
+    /// patient-speaking notifications — in avatar mode Daily's
+    /// user.started/stopped_speaking events own those posts
+    /// (DailyCallManager.swift:1199/1203) and double-posting would
+    /// double-advance QAPhaseView (QAPhaseView.swift:78-88).
+    ///
+    /// Key check mirrors the app's live Tavus configuration source:
+    /// TavusService.shared.apiKey (Keychain-backed, re-read on Settings
+    /// change). There is no TavusService.isAPIKeyConfigured symbol.
+    static var current: GuideMode {
+        resolved(storedRawValue: UserDefaults.standard.string(forKey: storageKey),
+                 tavusKeyConfigured: !TavusService.shared.apiKey.isEmpty)
+    }
+
     /// Resolve the effective mode. Avatar is only usable with a Tavus key;
     /// an unusable stored choice degrades to .voice, never the reverse.
     static func resolved(storedRawValue: String?, tavusKeyConfigured: Bool) -> GuideMode {
