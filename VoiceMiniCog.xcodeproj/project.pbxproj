@@ -13,7 +13,7 @@
 		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
 		18A7216356CB43B29AF05AC5 /* DailyCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CE00654B3D4FC09EB4B6FC /* DailyCallManager.swift */; };
 		1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */; };
-		9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */; };
+		E8C6C193A9204C4C81C85D61 /* VoiceGuideService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
 		3EC4381FFC9E456E8C527DE9 /* DailyVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7B13B0B38D42C09B324821 /* DailyVideoView.swift */; };
 		41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
@@ -50,6 +50,7 @@
 		9246E6112F63EB0200743FA8 /* CDTOnDeviceScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9246E6042F63EB0200743FA8 /* CDTOnDeviceScorer.swift */; };
 		925BB8712F8E7D2F00EAE51C /* Daily in Frameworks */ = {isa = PBXBuildFile; productRef = 925BB8702F8E7D2F00EAE51C /* Daily */; };
 		954F4BFDA5717E20825FB575 /* TavusBridge.html in Resources */ = {isa = PBXBuildFile; fileRef = B231486BB1A1E56864D34FC4 /* TavusBridge.html */; };
+		9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */; };
 		980BEC39054F639639CDE1CD /* AudioArbitrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */; };
 		9D8C48518727F98F806B1459 /* TavusCVIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3334EC18E7FA1708B08B1FB /* TavusCVIView.swift */; };
 		A71E4FC5A717B07681C51A7B /* QAPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */; };
@@ -116,6 +117,7 @@
 		45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRegistrationPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRegistrationPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		5B7B13B0B38D42C09B324821 /* DailyVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyVideoView.swift; path = VoiceMiniCog/Views/DailyVideoView.swift; sourceTree = SOURCE_ROOT; };
 		5D2CC9A62D1C4768DA55D0EE /* AudioArbitrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioArbitrator.swift; sourceTree = "<group>"; };
+		685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceScriptInventory.swift; sourceTree = "<group>"; };
 		69864200A4C3F4D34410DD43 /* AssessmentTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentTheme.swift; path = VoiceMiniCog/Theme/AssessmentTheme.swift; sourceTree = SOURCE_ROOT; };
 		6EE84535BB64352F16ADA335 /* VerbalFluencyScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyScorer.swift; path = VoiceMiniCog/Services/VerbalFluencyScorer.swift; sourceTree = SOURCE_ROOT; };
 		73A672F34C224AB23B665B74 /* TavusModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TavusModels.swift; sourceTree = "<group>"; };
@@ -182,7 +184,7 @@
 		BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarAssessmentCanvas.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarAssessmentCanvas.swift; sourceTree = SOURCE_ROOT; };
 		C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VoiceClips; path = VoiceMiniCog/Resources/VoiceClips; sourceTree = SOURCE_ROOT; };
 		C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceClipLibrary.swift; sourceTree = "<group>"; };
-		685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceScriptInventory.swift; sourceTree = "<group>"; };
+		1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGuideService.swift; sourceTree = "<group>"; };
 		CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/VerbalFluencyPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		CD7CC0CD7CC0CD7CC0CD0002 /* CDTCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CDTCanvasView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CDTCanvasView.swift; sourceTree = SOURCE_ROOT; };
 		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
@@ -324,6 +326,7 @@
 				AA05BDD72F63A68D00743FA8 /* TavusWebhookHandlers.swift */,
 				AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */,
 				C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */,
+				1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */,
 				685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */,
 			);
 			path = Services;
@@ -615,6 +618,7 @@
 				60BD4C3A9DDCB7C7EE272323 /* VerbalFluencyScorer.swift in Sources */,
 				DD00112233445566778899A1 /* KeychainHelper.swift in Sources */,
 				1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */,
+				E8C6C193A9204C4C81C85D61 /* VoiceGuideService.swift in Sources */,
 				9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
