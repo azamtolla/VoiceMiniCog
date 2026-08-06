@@ -13,7 +13,6 @@
 		126202A81A2B3E32BCCF4154 /* QDRSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9237E6DE984F471E08D0792C /* QDRSModels.swift */; };
 		18A7216356CB43B29AF05AC5 /* DailyCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75CE00654B3D4FC09EB4B6FC /* DailyCallManager.swift */; };
 		1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */; };
-		E8C6C193A9204C4C81C85D61 /* VoiceGuideService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */; };
 		3898B9793949514306024555 /* ReversibleCauseWorkup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF0DD581559764F998F9F48 /* ReversibleCauseWorkup.swift */; };
 		3EC4381FFC9E456E8C527DE9 /* DailyVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7B13B0B38D42C09B324821 /* DailyVideoView.swift */; };
 		41844E1DB5A00D38DE8539A5 /* WordRecallPhaseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF8A4220AD01BA92029F82FE /* WordRecallPhaseView.swift */; };
@@ -90,6 +89,8 @@
 		DD11223344556677889900BB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900CC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
 		DD11223344556677889900DD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900AA /* PrivacyInfo.xcprivacy */; };
+		BA21DC43FE6510BA32DC54FE /* OffScriptIntentMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB12CD34EF5601AB23CD45EF /* OffScriptIntentMatcher.swift */; };
+		E8C6C193A9204C4C81C85D61 /* VoiceGuideService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */; };
 		EAD136DD5EAA4F7EAA95A033 /* GuideMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C163FED3BA549BD90445E1E /* GuideMode.swift */; };
 /* End PBXBuildFile section */
 
@@ -112,6 +113,8 @@
 
 /* Begin PBXFileReference section */
 		0EC35AEF4FB05F4D95DD51DD /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGuideService.swift; sourceTree = "<group>"; };
+		AB12CD34EF5601AB23CD45EF /* OffScriptIntentMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OffScriptIntentMatcher.swift; sourceTree = "<group>"; };
 		24C04EC494F7C3E0D9A50830 /* QAPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = QAPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/QAPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		2C8C4BDA891272C5BE04A22E /* ClockDrawingPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ClockDrawingPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/ClockDrawingPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		45F840738CA73F27A3075610 /* WordRegistrationPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WordRegistrationPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/WordRegistrationPhaseView.swift; sourceTree = SOURCE_ROOT; };
@@ -184,7 +187,6 @@
 		BEB740C485092037AB6DA177 /* AvatarAssessmentCanvas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AvatarAssessmentCanvas.swift; path = VoiceMiniCog/Views/AvatarAssessment/AvatarAssessmentCanvas.swift; sourceTree = SOURCE_ROOT; };
 		C5B33EDF6BB3B45F83DFFBE0 /* VoiceClips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = VoiceClips; path = VoiceMiniCog/Resources/VoiceClips; sourceTree = SOURCE_ROOT; };
 		C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceClipLibrary.swift; sourceTree = "<group>"; };
-		1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceGuideService.swift; sourceTree = "<group>"; };
 		CC11223344556677889900AA /* VerbalFluencyPhaseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VerbalFluencyPhaseView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/VerbalFluencyPhaseView.swift; sourceTree = SOURCE_ROOT; };
 		CD7CC0CD7CC0CD7CC0CD0002 /* CDTCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CDTCanvasView.swift; path = VoiceMiniCog/Views/AvatarAssessment/Phases/CDTCanvasView.swift; sourceTree = SOURCE_ROOT; };
 		D565942281E547B8CA33AEAF /* PCPReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCPReportView.swift; sourceTree = "<group>"; };
@@ -327,6 +329,7 @@
 				AA06BDD72F63A68D00743FA8 /* ClockDrawingCapture.swift */,
 				C8DC5DF97126C11FCF76454F /* VoiceClipLibrary.swift */,
 				1A339B6D3C3648AB84419A88 /* VoiceGuideService.swift */,
+				AB12CD34EF5601AB23CD45EF /* OffScriptIntentMatcher.swift */,
 				685EB466977144BD9F6B93F3 /* VoiceScriptInventory.swift */,
 			);
 			path = Services;
@@ -619,6 +622,7 @@
 				DD00112233445566778899A1 /* KeychainHelper.swift in Sources */,
 				1FBF6E40543999B6ED45677C /* VoiceClipLibrary.swift in Sources */,
 				E8C6C193A9204C4C81C85D61 /* VoiceGuideService.swift in Sources */,
+				BA21DC43FE6510BA32DC54FE /* OffScriptIntentMatcher.swift in Sources */,
 				9669CE4E0DF2499395CB6736 /* VoiceScriptInventory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
